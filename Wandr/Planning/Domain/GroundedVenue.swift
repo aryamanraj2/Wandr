@@ -174,6 +174,13 @@ nonisolated struct GroundedVenue: Sendable, Equatable, Identifiable {
 
     let cost: VenueCost
 
+    /// Provider-stated offer text, e.g. "2-for-1 on cocktails". Never model prose,
+    /// and never a claim the dataset didn't make. `nil` means no offer was stated.
+    let offer: String?
+    /// When the offer applies, as the provider labels it. A label only — never
+    /// parsed into a `Date`, and never validated against the schedule in this step.
+    let offerWindow: String?
+
     let dietaryTags: EvidenceTags<DietaryRequirement>
     let accessibilityTags: EvidenceTags<AccessibilityRequirement>
     let setting: VenueSetting
@@ -197,6 +204,8 @@ nonisolated struct GroundedVenue: Sendable, Equatable, Identifiable {
         area: String,
         tagline: String = "",
         cost: VenueCost = .unknown,
+        offer: String? = nil,
+        offerWindow: String? = nil,
         dietaryTags: EvidenceTags<DietaryRequirement> = .unknown,
         accessibilityTags: EvidenceTags<AccessibilityRequirement> = .unknown,
         setting: VenueSetting = .unknown,
@@ -214,6 +223,8 @@ nonisolated struct GroundedVenue: Sendable, Equatable, Identifiable {
         self.area = area
         self.tagline = tagline
         self.cost = cost
+        self.offer = offer
+        self.offerWindow = offerWindow
         self.dietaryTags = dietaryTags
         self.accessibilityTags = accessibilityTags
         self.setting = setting
