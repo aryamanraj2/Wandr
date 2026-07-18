@@ -34,22 +34,24 @@ nonisolated struct BriefNormalizer: BriefNormalizing, Sendable {
 
     func normalize(_ draft: OutingBriefDraft) throws -> BriefNormalizationOutcome {
 
-        let occasion = sourced(draft.occasion, default: OutingBrief.defaultOccasion)
-        let area = sourced(draft.area, default: OutingBrief.defaultArea)
+        let marks = draft.provenance
+
+        let occasion = sourced(draft.occasion, marks.occasion, default: OutingBrief.defaultOccasion)
+        let area = sourced(draft.area, marks.area, default: OutingBrief.defaultArea)
 
         // Bounded values are clamped through the domain's own initializers rather
         // than by re-deriving the limits here.
         let groupSize: Sourced<GroupSize> = draft.groupSize
-            .map { .host(GroupSize(clamping: $0)) }
+            .map { Sourced(GroupSize(clamping: $0), from: source(of: marks.groupSize)) }
             ?? .safeDefault(OutingBrief.defaultGroupSize)
 
         let budget: Sourced<BudgetPerHead> = draft.budgetPerHeadRupees
-            .map { .host(BudgetPerHead.clamping(rupees: $0)) }
+            .map { Sourced(BudgetPerHead.clamping(rupees: $0), from: source(of: marks.budgetPerHead)) }
             ?? .safeDefault(.unspecified)
 
         let timeWindow: Sourced<OutingTimeWindow> = draft.timeWindow.isUnknown
             ? .safeDefault(.unknown)
-            : .host(draft.timeWindow)
+            : Sourced(draft.timeWindow, from: source(of: marks.timeWindow))
 
         let brief = OutingBrief(
             occasion: occasion,
@@ -75,10 +77,33 @@ nonisolated struct BriefNormalizer: BriefNormalizing, Sendable {
         return .normalized(brief)
     }
 
-    /// Stated → `.host`. Absent or blank → the stated default, marked as one.
-    private func sourced(_ value: String?, default fallback: String) -> Sourced<String> {
+    /// Present → the extractor's own marker. Absent or blank → the default, marked
+    /// as one.
+    ///
+    /// A blank string is treated as absent *before* provenance is consulted: an
+    /// extractor that marked "   " as inferred still said nothing, and a
+    /// `.modelSuggestion` wrapping the default value would be a lie about which of
+    /// the two produced it.
+    private func sourced(
+        _ value: String?,
+        _ mark: DraftProvenance,
+        default fallback: String
+    ) -> Sourced<String> {
         guard let value else { return .safeDefault(fallback) }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? .safeDefault(fallback) : .host(trimmed)
+        return trimmed.isEmpty ? .safeDefault(fallback) : Sourced(trimmed, from: source(of: mark))
+    }
+
+    /// The §9.3 mapping, and the whole reason the draft gained a provenance field.
+    ///
+    /// Note there is no `.safeDefault` row: a draft marker only ever describes a
+    /// value the extractor actually produced. `.safeDefault` is this normalizer's
+    /// to assign, for values the draft left absent — which is why it is applied at
+    /// the call sites above rather than here.
+    private func source(of mark: DraftProvenance) -> ValueSource {
+        switch mark {
+        case .stated: return .host
+        case .inferred: return .modelSuggestion
+        }
     }
 }

@@ -174,6 +174,53 @@ nonisolated enum SettingPreference: String, Sendable, Equatable, Hashable, CaseI
 
 // MARK: - Draft (model-generated, never authoritative)
 
+/// How the extractor came to know a draft value.
+///
+/// A real extractor genuinely can tell "six of us" from a group size it guessed;
+/// the fake could not, which is why Step 2 had to mark every stated value `.host`
+/// and loosen one assertion. This is the marker that closes that gap.
+nonisolated enum DraftProvenance: String, Sendable, Equatable, Hashable, CaseIterable {
+    /// The host said it, in so many words.
+    case stated
+    /// The extractor concluded it from what the host said.
+    case inferred
+}
+
+/// Per-field provenance for the values whose `Sourced` marker the normalizer decides.
+///
+/// Only these five fields need a marker: they are exactly the ones `OutingBrief`
+/// wraps in `Sourced`. Everything else on the draft (vibe tags, hard constraints,
+/// notes) passes through normalization untouched, so a marker would have nothing
+/// to decide.
+///
+/// Every field defaults to `.stated`, which is what makes this edit additive: an
+/// existing initializer call that names no provenance keeps exactly the meaning it
+/// had before Step 3.
+nonisolated struct DraftFieldProvenance: Sendable, Equatable, Hashable {
+    var occasion: DraftProvenance
+    var area: DraftProvenance
+    var groupSize: DraftProvenance
+    var budgetPerHead: DraftProvenance
+    var timeWindow: DraftProvenance
+
+    init(
+        occasion: DraftProvenance = .stated,
+        area: DraftProvenance = .stated,
+        groupSize: DraftProvenance = .stated,
+        budgetPerHead: DraftProvenance = .stated,
+        timeWindow: DraftProvenance = .stated
+    ) {
+        self.occasion = occasion
+        self.area = area
+        self.groupSize = groupSize
+        self.budgetPerHead = budgetPerHead
+        self.timeWindow = timeWindow
+    }
+
+    /// Everything the host said outright.
+    static let allStated = DraftFieldProvenance()
+}
+
 /// What the on-device extractor produces. Every field may be absent or wrong.
 ///
 /// A draft is never consumed by research, curation, or validation. It must go
@@ -190,6 +237,10 @@ nonisolated struct OutingBriefDraft: Sendable, Equatable {
     var setting: SettingPreference
     /// Remaining neutral constraints. Data, never executable instructions.
     var notes: [String]
+    /// Which of the above the host stated versus the extractor inferred.
+    ///
+    /// Defaults to all-stated, so no Step 1/2 call site changes meaning.
+    var provenance: DraftFieldProvenance
 
     init(
         occasion: String? = nil,
@@ -201,7 +252,8 @@ nonisolated struct OutingBriefDraft: Sendable, Equatable {
         dietary: DietaryNeeds = .unknown,
         accessibility: AccessibilityNeeds = .unknown,
         setting: SettingPreference = .noPreference,
-        notes: [String] = []
+        notes: [String] = [],
+        provenance: DraftFieldProvenance = .allStated
     ) {
         self.occasion = occasion
         self.timeWindow = timeWindow
@@ -213,6 +265,7 @@ nonisolated struct OutingBriefDraft: Sendable, Equatable {
         self.accessibility = accessibility
         self.setting = setting
         self.notes = notes
+        self.provenance = provenance
     }
 }
 

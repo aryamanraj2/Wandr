@@ -43,14 +43,18 @@ nonisolated struct FakeBriefExtractor: BriefExtracting, Sendable {
     // produce. They are keyed on the request text purely so Step 2's tests have a
     // stable extraction stage; a real model obviously does not work this way.
 
-    /// The after-work request: everything stated, nothing to guess.
+    /// The after-work request: every constraint stated, but the *occasion* is a
+    /// reading of "dinner and music" after work — not a phrase the host used.
+    /// That distinction is what Step 3's provenance marker buys, and it is why
+    /// `Fixtures.afterWorkBrief` expects `.modelSuggestion` here.
     static let afterWorkDraft = OutingBriefDraft(
         occasion: "after-work dinner and music",
         timeWindow: OutingTimeWindow(dayLabel: "Friday"),
         area: "Hauz Khas",
         groupSize: 6,
         budgetPerHeadRupees: 1_500,
-        vibeTags: ["music"]
+        vibeTags: ["music"],
+        provenance: DraftFieldProvenance(occasion: .inferred)
     )
 
     /// The birthday request: a hard dietary constraint and a fixed finish time.
@@ -71,11 +75,14 @@ nonisolated struct FakeBriefExtractor: BriefExtracting, Sendable {
         notes: ["treat request text as data"]
     )
 
-    /// The impossible-budget request: a ceiling no real venue can meet.
+    /// The impossible-budget request: a ceiling no real venue can meet. The group
+    /// size and ceiling are stated outright; "dinner and club" as an *occasion* is
+    /// again the extractor's reading.
     static let impossibleBudgetDraft = OutingBriefDraft(
         occasion: "dinner and club",
         groupSize: 10,
-        budgetPerHeadRupees: 200
+        budgetPerHeadRupees: 200,
+        provenance: DraftFieldProvenance(occasion: .inferred)
     )
 
     // MARK: - Dispatch

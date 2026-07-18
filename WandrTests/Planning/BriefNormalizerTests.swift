@@ -17,22 +17,22 @@ struct BriefNormalizerTests {
 
     // MARK: - Comparison
     //
-    // `OutingBriefDraft` carries no per-field provenance — it has `occasion: String?`
-    // and nothing that says whether the host stated the occasion or the extractor
-    // inferred it. So the normalizer cannot reproduce `afterWorkBrief`'s
-    // `.modelSuggestion` occasion marker: it marks every stated value `.host`.
+    // Step 3 closed the gap this helper used to work around. `OutingBriefDraft` now
+    // carries per-field `DraftProvenance`, so the normalizer *can* reproduce
+    // `afterWorkBrief`'s `.modelSuggestion` occasion marker rather than flattening
+    // every stated value to `.host`.
     //
-    // This helper therefore asserts the occasion *value* but not its `ValueSource`.
-    // Every other field, source markers included, must match exactly. Closing this
-    // gap is Step 3's job — a real extractor can genuinely distinguish stated from
-    // inferred, and the draft type will need a provenance field when it does.
+    // The occasion assertion is therefore back to full equality — marker included —
+    // which is §3.9's acceptance criterion. No Step 1 fixture was modified to make
+    // this pass; the two fake drafts gained the markers a real extractor would have
+    // produced all along.
 
     private func expectMatches(
         _ actual: OutingBrief,
         _ expected: OutingBrief,
         sourceLocation: SourceLocation = #_sourceLocation
     ) {
-        #expect(actual.occasion.value == expected.occasion.value, sourceLocation: sourceLocation)
+        #expect(actual.occasion == expected.occasion, sourceLocation: sourceLocation)
 
         #expect(actual.timeWindow == expected.timeWindow, sourceLocation: sourceLocation)
         #expect(actual.area == expected.area, sourceLocation: sourceLocation)
@@ -114,6 +114,116 @@ struct BriefNormalizerTests {
         let brief = try normalized(OutingBriefDraft(occasion: "   ", area: "\n"))
         #expect(brief.occasion == .safeDefault(OutingBrief.defaultOccasion))
         #expect(brief.area == .safeDefault(OutingBrief.defaultArea))
+    }
+
+    // MARK: - Provenance (Step 3, §9.3)
+    //
+    // The three-way mapping the draft's new marker exists to drive:
+    //   stated   → .host
+    //   inferred → .modelSuggestion
+    //   absent   → .safeDefault  (the normalizer's own call, not the extractor's)
+
+    @Test("A stated value is marked .host")
+    func statedBecomesHost() throws {
+        let brief = try normalized(
+            OutingBriefDraft(
+                occasion: "birthday",
+                timeWindow: OutingTimeWindow(dayLabel: "Friday"),
+                area: "Lodhi",
+                groupSize: 6,
+                budgetPerHeadRupees: 1_200,
+                provenance: .allStated
+            )
+        )
+        #expect(brief.occasion == .host("birthday"))
+        #expect(brief.area == .host("Lodhi"))
+        #expect(brief.groupSize == .host(GroupSize(clamping: 6)))
+        #expect(brief.budgetPerHead == .host(.upTo(rupees: 1_200)))
+        #expect(brief.timeWindow == .host(OutingTimeWindow(dayLabel: "Friday")))
+    }
+
+    @Test("An inferred value is marked .modelSuggestion")
+    func inferredBecomesModelSuggestion() throws {
+        let brief = try normalized(
+            OutingBriefDraft(
+                occasion: "after-work drinks",
+                timeWindow: OutingTimeWindow(dayLabel: "Friday"),
+                area: "Hauz Khas",
+                groupSize: 6,
+                budgetPerHeadRupees: 1_200,
+                provenance: DraftFieldProvenance(
+                    occasion: .inferred,
+                    area: .inferred,
+                    groupSize: .inferred,
+                    budgetPerHead: .inferred,
+                    timeWindow: .inferred
+                )
+            )
+        )
+        #expect(brief.occasion == .modelSuggestion("after-work drinks"))
+        #expect(brief.area == .modelSuggestion("Hauz Khas"))
+        #expect(brief.groupSize == .modelSuggestion(GroupSize(clamping: 6)))
+        #expect(brief.budgetPerHead == .modelSuggestion(.upTo(rupees: 1_200)))
+        #expect(brief.timeWindow == .modelSuggestion(OutingTimeWindow(dayLabel: "Friday")))
+    }
+
+    @Test("An absent value is a safe default regardless of its marker")
+    func absentIsAlwaysSafeDefault() throws {
+        // A marker describes a value the extractor produced. When it produced none,
+        // the marker has nothing to describe and the default must win — otherwise a
+        // stray `.inferred` would relabel Wandr's own fallback as a model suggestion.
+        let brief = try normalized(
+            OutingBriefDraft(
+                provenance: DraftFieldProvenance(
+                    occasion: .inferred,
+                    area: .inferred,
+                    groupSize: .inferred,
+                    budgetPerHead: .inferred,
+                    timeWindow: .inferred
+                )
+            )
+        )
+        #expect(brief.occasion == .safeDefault(OutingBrief.defaultOccasion))
+        #expect(brief.area == .safeDefault(OutingBrief.defaultArea))
+        #expect(brief.groupSize == .safeDefault(OutingBrief.defaultGroupSize))
+        #expect(brief.budgetPerHead == .safeDefault(.unspecified))
+        #expect(brief.timeWindow == .safeDefault(.unknown))
+        #expect(Set(brief.safeDefaults) == Set(MissingConstraint.allCases))
+    }
+
+    @Test("A blank string is absent even when marked inferred")
+    func blankInferredStillDefaults() throws {
+        let brief = try normalized(
+            OutingBriefDraft(
+                occasion: "   ",
+                area: "\n",
+                provenance: DraftFieldProvenance(occasion: .inferred, area: .inferred)
+            )
+        )
+        #expect(brief.occasion == .safeDefault(OutingBrief.defaultOccasion))
+        #expect(brief.area == .safeDefault(OutingBrief.defaultArea))
+    }
+
+    @Test("An inferred value is still clamped")
+    func inferredValuesAreStillClamped() throws {
+        // Provenance decides the *marker*, never whether the domain's bounds apply.
+        let brief = try normalized(
+            OutingBriefDraft(
+                groupSize: 40_000,
+                provenance: DraftFieldProvenance(groupSize: .inferred)
+            )
+        )
+        #expect(brief.groupSize.value == GroupSize(clamping: GroupSize.supportedRange.upperBound))
+        #expect(brief.groupSize.source == .modelSuggestion)
+    }
+
+    @Test("A draft built without provenance behaves exactly as it did before Step 3")
+    func provenanceEditIsAdditive() throws {
+        // The additive-only guarantee §2 promised, asserted rather than trusted.
+        let brief = try normalized(OutingBriefDraft(occasion: "birthday", area: "Lodhi", groupSize: 4))
+        #expect(brief.occasion == .host("birthday"))
+        #expect(brief.area == .host("Lodhi"))
+        #expect(brief.groupSize == .host(GroupSize(clamping: 4)))
     }
 
     // MARK: - Clamping
