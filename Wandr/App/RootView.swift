@@ -21,9 +21,10 @@ struct RootView: View {
 
     @State private var stage: Stage = .capture
 
-    /// What the host said. Held here because it outlives the capture screen —
-    /// curation is derived from it once there is a service to derive it with.
-    @State private var brief = ""
+    /// The interim doorway (§12.1): submitted text becomes a live run through the
+    /// real pipeline. Nothing about the host's words is retained here — the harness
+    /// puts them into a `PlanningInput` and holds only a status.
+    @State private var harness = LivePlanningHarness()
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -51,14 +52,78 @@ struct RootView: View {
                 .animation(stageAnimation(appearing: curating), value: stage)
 
             PlanCaptureView { spoken in
-                brief = spoken
-                stage = .curating
+                // The submit path is now the live entry point (§12.1). The text goes
+                // straight into the harness's `PlanningInput` and nowhere else.
+                harness.start(text: spoken)
             }
             .opacity(curating ? 0 : 1)
             .scaleEffect(reduceMotion ? 1 : (curating ? 0.985 : 1))
             .stageParticipant(active: !curating)
             .animation(stageAnimation(appearing: !curating), value: stage)
+
+            // In-flight status while the real pipeline runs. Minimal by design.
+            if isRunning {
+                runningOverlay
+                    .transition(.opacity)
+            }
         }
+        .animation(.wandrResponse, value: isRunning)
+        // A ready run is the "plan ready" acknowledgment: the curation screen appears,
+        // still showing DemoPlan (the live plan is held by the harness, not rendered,
+        // until the bridge step).
+        .onChange(of: harness.status) { _, status in
+            if status == .ready { stage = .curating }
+        }
+        // On failure, the already-authored userMessage — which itself coaches the
+        // retry action ("Turn on Apple Intelligence…", "Try again in a few minutes…")
+        // — as a minimal alert. Not a redesign.
+        .alert(
+            "We couldn't finish this plan",
+            isPresented: failureAlertPresented,
+            presenting: failureMessage
+        ) { _ in
+            Button("OK") { harness.reset() }
+        } message: { message in
+            Text(message)
+        }
+    }
+
+    // MARK: - Live run surfacing
+
+    private var isRunning: Bool {
+        if case .running = harness.status { return true }
+        return false
+    }
+
+    private var failureMessage: String? {
+        if case .failed(let message, _) = harness.status { return message }
+        return nil
+    }
+
+    private var failureAlertPresented: Binding<Bool> {
+        Binding(
+            get: { if case .failed = harness.status { return true } else { return false } },
+            set: { presented in if !presented { harness.reset() } }
+        )
+    }
+
+    private var runningOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.25).ignoresSafeArea()
+            VStack(spacing: 16) {
+                ProgressView()
+                    .controlSize(.large)
+                Text("Planning your outing…")
+                    .font(.subheadline)
+                    .foregroundStyle(Wandr.secondaryText)
+                Button("Cancel") { harness.cancel() }
+                    .buttonStyle(.bordered)
+            }
+            .padding(28)
+            .background(.regularMaterial, in: .rect(cornerRadius: 20))
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Planning your outing")
     }
 
     /// Whichever screen is arriving waits for the other to clear; whichever is

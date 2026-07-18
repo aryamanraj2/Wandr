@@ -157,6 +157,25 @@ nonisolated enum OpeningHours: Sendable, Equatable, Hashable {
     }
 }
 
+// MARK: - Coordinate
+
+/// A framework-free latitude/longitude pair.
+///
+/// Deliberately not `CLLocationCoordinate2D`: `Domain/` stays Foundation-only, so
+/// the MapKit enricher converts at its own boundary. A coordinate is optional
+/// evidence — present means "geocoded", absent means "not established" — and it is
+/// the *only* thing MapKit may attach. No hours, no rating, no POI category rides
+/// along with it (§5.5).
+nonisolated struct VenueCoordinate: Sendable, Equatable, Hashable {
+    let latitude: Double
+    let longitude: Double
+
+    init(latitude: Double, longitude: Double) {
+        self.latitude = latitude
+        self.longitude = longitude
+    }
+}
+
 // MARK: - Evidence
 
 /// One immutable venue evidence snapshot.
@@ -197,6 +216,11 @@ nonisolated struct GroundedVenue: Sendable, Equatable, Identifiable {
     /// Deterministic backdrop seed, standing in for venue photography.
     let imageSeed: Int
 
+    /// Best-effort coordinate from the MapKit enricher. `nil` means "not geocoded"
+    /// — never a guess. Its presence is the coordinate's own provenance; the venue's
+    /// `source` stays `bundledDataset` because the *facts* are still the dataset's.
+    let coordinate: VenueCoordinate?
+
     init(
         venueID: VenueID,
         name: String,
@@ -215,7 +239,8 @@ nonisolated struct GroundedVenue: Sendable, Equatable, Identifiable {
         limitations: [String] = [],
         source: EvidenceSource,
         retrievedAt: Date,
-        imageSeed: Int = 0
+        imageSeed: Int = 0,
+        coordinate: VenueCoordinate? = nil
     ) {
         self.venueID = venueID
         self.name = name
@@ -235,6 +260,21 @@ nonisolated struct GroundedVenue: Sendable, Equatable, Identifiable {
         self.source = source
         self.retrievedAt = retrievedAt
         self.imageSeed = imageSeed
+        self.coordinate = coordinate
+    }
+
+    /// Returns a copy with a coordinate attached — the enricher's one mutation.
+    /// Every other field is copied verbatim, so the snapshot's facts provably can't
+    /// change on the way through MapKit.
+    func withCoordinate(_ coordinate: VenueCoordinate?) -> GroundedVenue {
+        GroundedVenue(
+            venueID: venueID, name: name, category: category, area: area, tagline: tagline,
+            cost: cost, offer: offer, offerWindow: offerWindow,
+            dietaryTags: dietaryTags, accessibilityTags: accessibilityTags, setting: setting,
+            vibeTags: vibeTags, openWindow: openWindow, availability: availability,
+            limitations: limitations, source: source, retrievedAt: retrievedAt,
+            imageSeed: imageSeed, coordinate: coordinate
+        )
     }
 }
 

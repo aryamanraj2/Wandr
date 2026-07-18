@@ -85,6 +85,15 @@ struct DistrictVenueProviderTests {
         #expect(kiln.dietaryTags != .unknown)
     }
 
+    @Test("Every venue decodes with a nil coordinate — the JSON has no coordinate field")
+    func coordinatesDecodeAsNil() throws {
+        // The MapKit edit (edit 2) is additive: the dataset never carried coordinates,
+        // so every venue must arrive with `coordinate == nil`, and the validator must
+        // stay indifferent to that (proven in MapKitVenueEnricherTests).
+        let provider = try makeProvider()
+        #expect(provider.allVenues.allSatisfy { $0.coordinate == nil })
+    }
+
     @Test("An absent price decodes to .unknown rather than zero")
     func absentPriceIsUnknown() throws {
         // Every venue in the shipped dataset happens to state a price; the guard
