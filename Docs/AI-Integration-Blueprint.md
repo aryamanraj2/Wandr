@@ -2,213 +2,210 @@
 
 ## Architecture Decision
 
-The original Wandr idea described a Coordinator, Research, Booking, Payment, and Logistics agent. In v1 those agent labels become **bounded iOS capabilities**, not independent autonomous workers.
+Wandr replaces the original hackathon idea of autonomous Coordinator, Research, Booking, Payment, and Group agents with a single, bounded iOS planning system.
 
-This preserves the “AI travel execution butler” magic while making the app credible:
+The system accepts a Siri-mediated summary only after the host asks for the handoff. It turns that summary into a source-backed outing plan, while keeping planning, approval, native handoff, and privacy boundaries independently verifiable.
 
-- Foundation Models coordinates typed work and explains the result.
-- Native system frameworks provide current, attributable data and user-owned handoffs.
-- Deterministic code owns feasibility, approval, persistence, and all side effects.
-- The person remains in control of any commitment.
-
-## Original Idea to iOS 27 Mapping
-
-| Original agent | V1 capability | Implementation owner | V1 result |
-| --- | --- | --- | --- |
-| Coordinator | `TravelPlanningService` orchestration actor | Foundation Models profiles plus state machine | Runs the correct phase and exposes progress |
-| Research | Read-only evidence tools | MapKit, WeatherKit, local preferences | Current place, route, weather, and preference evidence |
-| Logistics | Feasibility validator | Pure Swift deterministic service | Time/budget/route-valid stop sequence |
-| Booking | Action proposal and native handoff | `ActionExecutor` | Booking URL or call handoff after confirmation |
-| Payment | Explicit non-goal | None | No payment collection, splitting, or UPI/Razorpay integration |
-| Group coordinator | Shareable selected itinerary | `ShareLink` | Person-controlled summary sharing |
-| Live agent dashboard | `PlanningEvent` timeline | SwiftUI observes run state | Visible status, source, limitation, and retry history |
+| Original idea | Concrete iOS 27 capability | V1 result |
+| --- | --- | --- |
+| Conversation coordinator | `PlanOutingFromSiriSummaryIntent` + Host Review | Receives only a user-requested summary; never reads messages |
+| Multi-agent planner | `TravelPlanningService` with Dynamic Profiles | One coordinator, clear state transitions, visible orchestration |
+| Research agent | MapKit, Core Location, WeatherKit, preferences, validator tools | Grounded venue, route, forecast, and constraint evidence |
+| Logistics agent | Deterministic `FeasibilityValidator` | Feasible timing, route, budget, group, and accessibility checks |
+| Booking/calling agent | `ActionExecutor` | Presents a user-approved link or system UI; no autonomous commitment |
+| Group polling agent | Deferred | Host shares the approved plan manually; no participant tracking or votes |
+| Travel planner | Shared `PlanKind.trip` pipeline | Second hero experience using the same safe architecture |
 
 ## Component Diagram
 
 ```mermaid
 flowchart LR
-    UI[SwiftUI brief, timeline, plan, approval] --> COORD[TravelPlanningService actor]
-    INTENT[PlanAdventureIntent / App Shortcut] --> COORD
-    SPEECH[SpeechAnalyzer + SpeechTranscriber] --> UI
-    COORD --> INTAKE[Foundation Models intake profile]
-    COORD --> RESEARCH[Foundation Models research profile]
-    COORD --> SYNTHESIS[Foundation Models synthesis profile]
-    RESEARCH --> PLACES[SearchPlacesTool: MapKit]
-    RESEARCH --> ROUTES[EstimateRouteTool: MapKit]
-    RESEARCH --> WEATHER[GetForecastTool: WeatherKit]
-    RESEARCH --> PREFS[LoadPreferencesTool: SwiftData]
-    PLACES --> EVIDENCE[Evidence snapshot]
-    ROUTES --> EVIDENCE
+    SIRI[Siri and messaging app] -->|User-requested rich summary| INTENT[PlanOutingFromSiriSummaryIntent]
+    INTENT --> REVIEW[Host Review: volatile summary]
+    REVIEW -->|Confirm| COORD[TravelPlanningService]
+    REVIEW -->|Cancel| DISCARD[Discard raw summary]
+    COORD --> INTAKE[Intake Dynamic Profile]
+    INTAKE --> DISCARD
+    COORD --> RESEARCH[Research Dynamic Profile]
+    RESEARCH --> LOC[ResolveOriginTool]
+    RESEARCH --> PLACE[SearchPlacesTool]
+    RESEARCH --> ROUTE[EstimateRouteTool]
+    RESEARCH --> WEATHER[GetForecastTool]
+    RESEARCH --> PREFS[LoadPreferencesTool]
+    LOC --> EVIDENCE[Timestamped evidence snapshot]
+    PLACE --> EVIDENCE
+    ROUTE --> EVIDENCE
     WEATHER --> EVIDENCE
     PREFS --> EVIDENCE
-    EVIDENCE --> VALIDATOR[FeasibilityValidator]
-    VALIDATOR --> SYNTHESIS
-    SYNTHESIS --> PLAN[TravelPlan revision]
-    PLAN --> APPROVAL[Approval policy]
-    APPROVAL --> EXECUTOR[ActionExecutor]
-    EXECUTOR --> CALENDAR[EventKitUI draft]
-    EXECUTOR --> MAPS[Maps / route URL]
-    EXECUTOR --> WEB[Booking URL / tel handoff]
-    EXECUTOR --> SHARE[ShareLink]
-    COORD <--> STORE[SwiftData local store]
+    EVIDENCE --> VALIDATE[FeasibilityValidator]
+    VALIDATE --> SYNTHESIS[Synthesis Dynamic Profile]
+    SYNTHESIS --> PLAN[Three WandrPlan candidates]
+    PLAN --> APPROVAL[Host approval]
+    APPROVAL --> EXEC[ActionExecutor]
+    EXEC --> CAL[Calendar draft]
+    EXEC --> MAP[Route / venue link]
+    EXEC --> SHARE[ShareLink]
+    COORD <--> STORE[SwiftData: structured local records]
 ```
 
-## Domain Model
+## Interface Boundaries
 
-All domain values crossing actor and framework boundaries are `Sendable` structs/enums. Persistence models mirror these values but do not leak SwiftData objects across actors.
+All boundaries use `Sendable` value types. SwiftData models mirror persisted values but do not cross into actor-isolated planning code.
 
-### `TripBrief`
-
-The person’s normalized request. It contains the source text, optional selected origin/destination, requested time window, group and budget semantics, hard constraints, soft preferences, and missing-field list. It never treats model-inferred facts as confirmed hard constraints.
-
-### `TravelConstraints`
-
-The explicit rules used by the validator: start/end time, budget amount and currency/scope, group size, transport, maximum travel duration, dietary/accessibility requirements, required/forbidden categories, and reserve-time policy. Each constraint carries `source` (`person`, `savedPreference`, or `default`) so the UI can explain and edit it.
-
-### `GroundedOption`
-
-A candidate stop or route option derived from a tool. It includes a stable evidence ID, provider name, title, coordinate/endpoints, selected attributes, source URL if available, retrieval timestamp, and confidence/availability state. Raw tool payloads are not put into model prompts or stored indefinitely.
-
-### `TravelPlan`
-
-An immutable revision containing plan title, stops, travel legs, budget assumptions, warnings, alternatives, rationale, evidence IDs, and a source-generation timestamp. It is editable by producing a new revision, never by mutating the approved revision.
-
-### `ActionProposal`
-
-An explicit, user-readable action tied to one approved plan revision. It has an ID, action kind, display label, destination data, preconditions, a risk label, and status. Allowed kinds are `calendarDraft`, `openRoute`, `openBookingURL`, `openPhoneLink`, and `sharePlan`.
-
-### `PlanningEvent`
-
-The timeline record for every meaningful orchestration change: phase, status, title, detail, source/tool name, timestamp, related evidence ID, and retryability. It is a transparency record, not hidden chain-of-thought storage.
-
-## Service Interfaces
-
-These are the implementation boundaries; concrete types are injected to enable real-system and deterministic-test providers.
-
-| Interface | Responsibility | Rules |
+| Interface | Owns | Requirements |
 | --- | --- | --- |
-| `TravelPlanningService` | Owns run state, sessions, cancellation, profile selection, and revision creation | Actor-isolated; emits UI-safe snapshots only |
-| `TravelDataProvider` | Supplies place, route, forecast, and location data | Returns typed evidence plus timestamp/source metadata |
-| `PreferenceStore` | Reads/writes opted-in local preference facts | Never persists an inference without explicit acceptance |
-| `FeasibilityValidator` | Validates candidates against hard constraints | Pure deterministic logic; no model or network work |
-| `ActionExecutor` | Presents native side-effect handoffs | Accepts only immutable, approved action proposals |
-| `PlanningRunStore` | Saves local drafts, plan revisions, events, and approval audit | Stores minimal data; supports deletion |
+| `TravelPlanningService` | Run lifecycle, profile transitions, cancellation, research orchestration, plan revisions | Actor-isolated; exposes UI-safe snapshots and never receives direct chat data |
+| `TravelDataProvider` | Place, route, forecast, and optional origin data | Returns compact, typed evidence plus provenance/availability; no side effects |
+| `FeasibilityValidator` | Hard-constraint validation and candidate ranking | Pure deterministic Swift; never calls a model or network service |
+| `PreferenceStore` | Local opt-in preference facts | No raw summary, transcript, implicit preference, or remote sync |
+| `ActionExecutor` | Approved foreground actions | Accepts immutable proposal IDs from an approved revision only |
+| `PlanningRunStore` | Structured local persistence and deletion | Stores minimal records and supports full local erase |
+
+## Proposed Domain Model
+
+| Type | Purpose | Retention and invariants |
+| --- | --- | --- |
+| `PlanKind` | `.outing` or `.trip` | Establishes UI copy and validator policy; Outings is default |
+| `OutingBrief` | Confirmed outing type, timing, area, group, budget, hard/soft constraints, confidence flags | Never contains the raw Siri summary; every inferred field is host-editable |
+| `TravelConstraints` | Normalized rules for timing, budget, transport, accessibility, diet, weather, and reserve buffers | Records field source: host, accepted preference, or safe default |
+| `GroundedOption` | Candidate venue/activity/route with evidence ID | Requires provider name, retrieval time, availability state, and source URL when available |
+| `WandrPlan` | Immutable plan revision with stops, legs, warnings, alternatives, rationale, and evidence IDs | Editing produces a new `PlanRevision`; approved revision never mutates |
+| `PlanRevision` | Links a plan to its parent and reason for replan | Carries changed constraints and stale-evidence markers |
+| `PlanningRun` | One coordinator state machine instance | Contains run state, events, current revision ID, cancellation handle, and volatile data only |
+| `ActionProposal` | One host-readable calendar, route, link, call, or share handoff | Must reference a current approved revision and explicit host selection |
+| `PlanningEvent` | Transparency event for tool use, limitations, state transitions, and retries | Contains no chain-of-thought, raw summary, transcript, or participant data |
+
+### Summary-source audit record
+
+The only intake audit data is: `source = siriMediatedSummary`, handoff timestamp, whether the host confirmed/cancelled, and whether the raw content was discarded. It deliberately excludes summary text, source-chat identifier, sender, participant, phone number, and message ID.
 
 ## Tool Catalog and Policies
 
-### Read-only Foundation Models tools
+Foundation Models has role-scoped, read-only tools during research. Tool names/descriptions are concise; each returns a bounded typed result rather than arbitrary provider payloads.
 
 | Tool | Inputs | Output | Policy |
 | --- | --- | --- | --- |
-| `ResolveOriginTool` | Person-selected location mode | Manual/authorized origin and precision state | No silent location authorization request |
-| `SearchPlacesTool` | Category, area, constraints, result limit | Candidate `GroundedOption`s | Bounded result count and timestamp required |
-| `EstimateRouteTool` | Ordered endpoints and travel mode | Duration, distance, route metadata | No claims beyond returned estimate |
-| `GetForecastTool` | Coordinate and time window | Minimal forecast constraint snapshot | Optional; returns an explicit unavailable state |
-| `LoadPreferencesTool` | Requested preference categories | Accepted local preference facts | No raw conversation history or unaccepted inferences |
-| `ValidateItineraryTool` | Candidate evidence IDs plus constraints | Feasible sequence and violations | Deterministic service; no network or side effect |
+| `ResolveOriginTool` | Host-selected location mode, manual area | Coordinate/area plus precision and authorization state | Never prompts silently; manual entry is always valid |
+| `SearchPlacesTool` | Area, activity/venue category, hard constraints, bounded count | `GroundedOption` candidates | Timestamp and source required; no claim that a venue is bookable |
+| `EstimateRouteTool` | Ordered endpoints, travel mode, departure window | Duration, distance, route metadata | Uses returned estimate only; no side effect |
+| `GetForecastTool` | Coordinate and time window | Minimal forecast suitability snapshot | Optional; returns explicit unavailable state |
+| `LoadPreferencesTool` | Requested preference categories | Accepted local facts | Cannot return raw summaries or unaccepted model inferences |
+| `ValidateItineraryTool` | Evidence IDs and `TravelConstraints` | Feasible sequences, violations, warnings | Deterministic and read-only; no network or model call |
 
-Tool argument types are small `@Generable` structures with short descriptions. Their outputs are source-backed and compact enough to preserve model context. Each tool translates unavailable authorization, empty search, stale response, or request failure into a typed limitation.
+### Research requirement
 
-### Action policy
+The research profile must use live research tools before generating factual recommendations. A model may organize evidence and explain tradeoffs, but cannot invent venues, availability, route duration, price, forecast, or a booking result. Any failed tool produces a `PlanningEvent` and an explicit limitation in the candidate plan.
 
-Action tools are deliberately **not** added to a Foundation Models session. Instead, the approval screen creates `ActionProposal`s and the deterministic executor verifies all of the following before handoff:
+### Action boundary
 
-1. The proposal belongs to the current, approved plan revision.
-2. The person explicitly selected the action.
-3. The proposal’s destination still satisfies a local allowlist and has a displayable destination/phone number.
-4. The app presents the corresponding system UI or URL action from the foreground.
-5. The result is recorded as completed, cancelled, unsupported, or failed without claiming external completion it cannot observe.
+No Foundation Models profile receives an action-capable tool. After host approval, `ActionExecutor` verifies all of the following:
 
-This isolates model output from sensitive effects. A plan can recommend “open this restaurant’s booking page,” but cannot represent that a table was booked.
+1. the proposal belongs to the exact approved `PlanRevision`;
+2. the host explicitly tapped that proposal in the foreground;
+3. its destination is present, displayable, and passes a local URL/phone policy;
+4. the action maps to an allowed system UI, route, URL, call handoff, or `ShareLink`;
+5. the result is persisted as presented, cancelled, unsupported, or failed—never assumed externally complete.
 
-## Data Flow and Persistence
+Allowed proposal kinds are `calendarDraft`, `openRoute`, `openBookingURL`, `openPhoneLink`, and `sharePlan`. Payments, booking submission, automatic calling, and automatic messaging do not exist in v1.
+
+## Data Flow and Retention
 
 ```mermaid
 sequenceDiagram
-    participant P as Person
-    participant UI as Wandr UI
+    participant H as Host
+    participant S as Siri / messaging app
+    participant I as Wandr App Intent
     participant C as Coordinator
-    participant T as Research Tools
+    participant T as Read-only tools
     participant V as Validator
-    participant S as SwiftData
-    P->>UI: Speak or type brief
-    UI->>C: Submit editable TripBrief
-    C->>S: Read accepted preferences
-    C->>T: Fetch places, routes, forecast in parallel
-    T-->>C: Timestamped evidence or limitation
+    participant D as SwiftData
+    H->>S: Ask for summary and Wandr outing plan
+    S->>I: User-requested AttributedString summary
+    I->>H: Show summary + extracted constraints for review
+    H->>I: Confirm
+    I->>C: Structured OutingBrief; discard raw summary
+    C->>D: Read accepted preferences only
+    C->>T: Research places, routes, forecast in parallel
+    T-->>C: Evidence or visible limitation
     C->>V: Validate hard constraints
-    V-->>C: Feasible candidates and warnings
-    C->>UI: Stream TravelPlan revision + PlanningEvents
-    P->>UI: Approve selected action(s)
-    UI->>S: Persist plan revision and approval record
-    UI->>C: Execute proposal IDs
-    C->>UI: Present native handoff
-    UI->>S: Persist handoff status
+    V-->>C: Feasible candidates + warnings
+    C->>H: Three editable, grounded WandrPlan options
+    H->>C: Approve one revision and selected proposals
+    C->>D: Persist revision and immutable approval record
+    C->>H: Present selected native handoff
 ```
 
-### Local memory policy
+### Local persistence policy
 
-- Preference memory is off until a person enables it or explicitly accepts a suggested fact.
-- A suggestion is phrased as a choice, for example: “Save that you prefer vegetarian food?”
-- Accepted preferences are editable facts, not opaque embeddings or model training data.
-- Deleting a preference immediately removes it from future tool responses; deleting a trip removes its local planning history and approval record.
-- The initial app has no account, no cloud sync, no cross-device sharing of data, and no remote analytics requirement.
+- Raw Siri `AttributedString` content is held only for Host Review and is cleared on confirmation or cancellation.
+- Persist structured briefs, plan revisions, evidence metadata, warnings, immutable approvals, handoff state, and opt-in preferences only.
+- Store provenance with every evidence item: provider, retrieval timestamp, evidence ID, source URL/attribution where available, and availability state.
+- Preference memory starts off. A host must explicitly accept each saved fact; facts are editable and deletable.
+- There is no CloudKit sync, account, backend, analytics pipeline, embedding store, contact store, conversation archive, or location history in v1.
 
 ## User-visible Fallbacks
 
-| Condition | User experience | Coordinator behavior |
+| Condition | What the host sees | System behavior |
 | --- | --- | --- |
-| Microphone/speech unavailable | Editable text remains active | Skip transcription and continue |
-| Location denied or approximate | Manual destination picker with explanation | Do not retry the permission prompt automatically |
-| Map/place search empty | Show nearby/category alternatives and refine brief | Return typed no-results evidence |
-| Weather unavailable | Mark outdoor decision unverified and show alternative | Continue without forecast tool result |
-| Foundation Models unavailable | Manual planning/search entry state | Do not construct a session |
-| PCC unavailable | Continue with local system model | Do not change approved data |
-| Tool error | Visible timeline limitation and retry control | Preserve draft and evidence from other tools |
-| Model refusal/parsing error | Explain that Wandr cannot complete that generation | Allow edited retry or manual route/search |
-| Calendar/URL handoff cancelled | Mark only that proposal cancelled | Keep the approved plan intact |
+| Siri supplies no summary | “Ask Siri to send the summary to Wandr again.” | No extraction, research, or manual chat-import fallback |
+| Summary is empty/unusable | Same recovery with a concise explanation | Clear volatile data; do not persist it |
+| Host rejects summary | Return to Await Siri Summary | Discard summary and make no lookup |
+| Foundation Models unavailable | Availability explanation and retained host-review state | No external-model fallback or fabricated plan |
+| PCC unavailable | Continue with `SystemLanguageModel` | Preserve structured constraints and evidence policy |
+| Location denied/approximate | Manual city/neighborhood control | Do not reprompt automatically |
+| Search/route/forecast failure | Timeline limitation and retry/replan control | Keep valid evidence from other tools |
+| Validator finds no feasible plan | Constraint conflicts and editable chips | Never stream an impossible itinerary as valid |
+| Calendar/link/share cancelled | That proposal shows cancelled | Keep approved plan and other proposals available |
 
-## Implementation Phases
+## Implementation-Phase Checklist
 
-### Phase 1 — Trustworthy planning core
+This is a planning checklist only; no product code is implied by this document.
 
-1. Replace the template `Item` model with local trip, plan, event, approval, and preference persistence.
-2. Implement typed brief intake, text-first UI, and the `PlanningRun` state machine.
-3. Add MapKit place/route evidence and deterministic feasibility validation.
-4. Add on-device Foundation Models intake and synthesis with required availability/error states.
-5. Render source cards, plan warnings, cancellation, and plan revision flow.
+### Phase 1 — Trusted intake and local domain
 
-### Phase 2 — Native iOS 27 differentiation
+- Define the domain types and `PlanningRun` state machine above.
+- Add the foreground authenticated `PlanOutingFromSiriSummaryIntent` with rich summary input and missing-summary recovery.
+- Build Host Review, constraint chips, volatile raw-summary deletion, and minimal summary-source audit metadata.
+- Make Outings the default tab; retain Trips as a separate `PlanKind` on the shared pipeline.
 
-1. Add `SpeechAnalyzer`/`SpeechTranscriber` with text fallback.
-2. Add WeatherKit constraints and attribution.
-3. Add the `PlanAdventureIntent` and App Shortcut.
-4. Add EventKitUI calendar draft, Maps/booking/call handoffs, and ShareLink.
-5. Enable PCC only after its current capability prerequisites are verified on the target device.
+### Phase 2 — Grounded orchestration
 
-### Phase 3 — Evaluation and judging polish
+- Add Foundation Models `@Generable` extraction with Dynamic Profiles and injection-resistant instructions.
+- Implement read-only MapKit, optional location, WeatherKit, preferences, and deterministic validation providers.
+- Render a visible `PlanningEvent` timeline, evidence cards, feasibility warnings, and exactly three grounded candidates.
+- Add replan rules that invalidate only stale evidence and preserve host-confirmed constraints.
 
-1. Add deterministic providers and Foundation Models Evaluations datasets.
-2. Test expected tool trajectories, unsafe requests, source freshness, model availability, and approval gating.
-3. Add a local-only Live Activity for visible planning/replanning progress only after the core path is stable.
-4. Build three reliable demo briefs with preflighted locations, permissions, and model availability.
+### Phase 3 — Approval and handoff
+
+- Persist immutable approvals before `ActionExecutor` runs.
+- Add calendar draft, route, safe booking/call link, and `ShareLink` proposals behind separate host taps.
+- Do not add polling, Messages/WhatsApp extensions, cloud sync, participant identities, bookings, payments, or automatic calls.
+
+### Phase 4 — Evaluation and demo readiness
+
+- Add sanitized after-office, birthday, and full-day Siri-summary fixtures to `WandrTests`.
+- Test intent `AttributedString` input, empty recovery, approval gating, non-persistence, extraction, evidence use, replan, and share output.
+- Add Foundation Models evaluations for tool trajectories, evidence IDs, source freshness, tool/PCC/model failure, validation warnings, and injection resistance.
+- Preflight the Siri phrase and real messaging-app handoff on the physical iOS 27 judging device; preserve the recovery path if the system cannot provide summary content.
 
 ## V1 Non-goals
 
-- Payments, bill splitting, UPI/Razorpay, or financial credential handling.
-- Autonomous restaurant/hotel/flight bookings or claims of completed reservations.
-- Automatic phone calls, messages, WhatsApp integration, or contact access.
-- Background location tracking, geofencing, or proactive rebooking.
-- Cloud sync, accounts, server storage, server-side analytics, or external LLM providers.
-- Custom Foundation Models adapters, custom Core AI models, or generic multi-agent frameworks.
+- Direct WhatsApp, iMessage, Messages, contact, or participant access.
+- Mock Squad Chat or any local transcript substitute.
+- Group polling, vote tracking, delivery receipts, participant identity, or a Messages extension.
+- Payments, bill splitting, autonomous bookings, booking confirmation claims, automatic calls, or automatic messages.
+- Background location tracking, geofencing, background planning, CloudKit sync, accounts, backend storage, server LLM/API keys, Gemini, LangChain, or custom Foundation Models adapters.
 
 ## Sources
 
 - [Apple: Foundation Models](https://developer.apple.com/documentation/foundationmodels/)
-- [Apple: Expanding generation with tool calling](https://developer.apple.com/documentation/foundationmodels/expanding-generation-with-tool-calling)
 - [Apple: Tool protocol](https://developer.apple.com/documentation/foundationmodels/tool)
+- [Apple: Expanding generation with tool calling](https://developer.apple.com/documentation/foundationmodels/expanding-generation-with-tool-calling)
 - [Apple: App Intents](https://developer.apple.com/documentation/appintents)
+- [Apple: Integrating your messaging app with Apple Intelligence](https://developer.apple.com/documentation/appintents/integrating-your-messaging-app-with-apple-intelligence)
 - [Apple: App Shortcuts HIG](https://developer.apple.com/design/human-interface-guidelines/app-shortcuts)
+- [Apple: MapKit](https://developer.apple.com/documentation/mapkit)
+- [Apple: WeatherKit](https://developer.apple.com/documentation/weatherkit)
 - [Apple: Evaluating tool-calling behavior](https://developer.apple.com/documentation/Evaluations/evaluating-tool-calling-behavior)
-- [Google Cloud: trusted agentic travel architecture](https://docs.cloud.google.com/architecture/agentic-ai-system-with-grounding-using-maps)
+- [Google Cloud: grounded agentic travel architecture](https://docs.cloud.google.com/architecture/agentic-ai-system-with-grounding-using-maps)
 - [TravelAgent research paper](https://arxiv.org/abs/2409.08069)

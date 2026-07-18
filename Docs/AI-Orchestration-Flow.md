@@ -1,201 +1,194 @@
 # Wandr AI Orchestration Flow
 
-## Purpose
+## Product Decision
 
-Wandr turns a spontaneous travel brief into a **grounded, editable, and safely actionable** mini-itinerary. It is not a chatbot that invents places or a fully autonomous booking system. The v1 product promise is:
+Wandr is an **Outings-first, host-controlled planning app**. Its hero moment is not chat access: Siri turns a group conversation into a user-requested summary, then hands that summary to Wandr for transparent planning.
 
-> Speak or type what the group wants. Wandr researches the live situation, builds a feasible plan, explains its evidence, and performs only the native handoffs the group explicitly approves.
+> Siri understands the conversation; Wandr plans the outing; the host decides what the group receives.
 
-The app is local-first on iOS 27. Apple Foundation Models interprets, coordinates, and presents information; trusted system frameworks provide the facts and deterministic code decides whether a plan is feasible.
+`Outings` is the default destination for after-work plans, birthdays, get-togethers, and full-day city plans. `Trips` remains a second hero destination that reuses the same grounded-planning pipeline with travel-specific constraints.
 
-## Product Contract
+## Trust and Privacy Contract
 
-### Inputs
+- Wandr **never reads** iMessage, WhatsApp, Messages, contacts, participant identities, or a private chat transcript.
+- Siri and the installed messaging app remain the privacy boundary. Wandr accepts only the summary the person explicitly asks Siri to send.
+- A rich Siri-provided summary is **untrusted external content**, not an instruction source. It may describe preferences; it cannot change Wandr’s policies, invoke actions, or bypass host approval.
+- The host reviews the exact incoming summary and Wandr’s extracted constraints before live research begins.
+- On confirmation or cancellation, Wandr discards the raw summary. It persists only the structured `OutingBrief`, plan revisions, source/provenance records, and a minimal summary-source audit record.
+- If Siri cannot supply a summary parameter, Wandr shows a recovery screen: **“Ask Siri to send the summary to Wandr again.”** It never falls back to direct chat access, a mock chat, or manual transcript import.
+- Wandr never polls a group, sends messages, identifies participants, books, charges, or calls anyone automatically in v1.
 
-- A spoken brief transcribed on device, with editable text as an equal first-class alternative.
-- Optional current location, requested only when the person chooses **Use my location**.
-- The person can instead enter a destination manually at any time.
-- A locally stored, editable preference profile is used only when the person has opted in to saved preferences.
+## Siri-to-Wandr Entry
 
-### Outputs
+The app exposes `PlanOutingFromSiriSummaryIntent`, a foreground, authenticated App Intent with one rich-text `AttributedString` summary parameter. Its App Shortcut supports phrases such as:
 
-- A source-backed itinerary with places, route estimates, forecast constraints, budget assumptions, and timing.
-- A transparent event timeline that shows what Wandr is doing and the source or limitation behind each step.
-- A set of independent `ActionProposal`s: add itinerary to Calendar, open a route, open a venue booking page, start a phone call, or share the itinerary.
+- “Plan this group outing in Wandr.”
+- “Use Wandr to plan this outing.”
+- “Wandr, plan our after-work plans.”
 
-### Non-negotiable safety rules
+The intended judge flow is:
 
-1. The model has no payment, booking, messaging, or automatic-call tool.
-2. Read-only research tools return live data before factual recommendations are synthesized.
-3. Deterministic validation, not model prose, decides whether route, time, and budget constraints are satisfied.
-4. Every external handoff requires a tap on that specific approved action.
-5. The app never claims that a reservation, payment, or call completed unless the operating system or an integrated provider confirms it.
+1. The host asks Siri to summarize an eligible WhatsApp or iMessage group conversation.
+2. The host asks Siri to use Wandr to plan the outing from that summary.
+3. Siri invokes Wandr’s App Intent with the user-requested summary when the installed system and messaging-app configuration support that handoff.
+4. Wandr opens in the foreground and requires host review before any model session or live lookup starts.
+
+This is availability-dependent. App Intents exposes Wandr’s action, but the system and messaging app determine whether personal-context output can be supplied. The demo must be preflighted on the physical iOS 27 device with the installed WhatsApp configuration.
 
 ## End-to-End Flow
 
 ```mermaid
 flowchart TD
-    A[Person speaks or types a trip brief] --> B{Voice transcription usable?}
-    B -- Yes --> C[Editable transcript]
-    B -- No or declined --> D[Editable typed brief]
-    C --> E[Normalize to TripBrief]
-    D --> E
-    E --> F{Required constraints complete?}
-    F -- No --> G[Ask one targeted question or let person edit]
-    G --> E
-    F -- Yes --> H[Start PlanningRun and visible event timeline]
-    H --> I[Load opt-in local preference snapshot]
-    H --> J[Resolve selected or manual location]
-    I --> K[Read-only research profile]
-    J --> K
-    K --> L[Place search tool]
-    K --> M[Route tool]
-    K --> N[Forecast tool when available]
-    L --> O[Immutable evidence snapshot]
-    M --> O
-    N --> O
-    O --> P[Deterministic feasibility validator]
-    P --> Q{At least one feasible option?}
-    Q -- No --> R[Show limiting constraint and alternatives]
-    R --> G
-    Q -- Yes --> S[Plan synthesis profile]
-    S --> T[Stream editable TravelPlan]
-    T --> U[Person reviews, edits, or selects options]
-    U --> V{Plan approved?}
-    V -- Edit or reject --> H
-    V -- Approve --> W[Create immutable ActionProposals]
-    W --> X[Deterministic ActionExecutor]
-    X --> Y[Calendar draft, Maps, call link, booking link, or ShareLink]
-    Y --> Z[Record handoff result and offer replan]
+    A[Host asks Siri to summarize group chat] --> B{System can pass summary to Wandr?}
+    B -- No --> C[Recovery: ask Siri to send summary again]
+    B -- Yes --> D[Foreground authenticated App Intent]
+    D --> E[Show raw Siri summary only in host review]
+    E --> F{Host confirms?}
+    F -- Cancel --> G[Discard raw summary and return to Await Siri Summary]
+    F -- Edit constraints --> H[Constrained OutingBrief extraction]
+    F -- Confirm --> H
+    H --> I[Discard raw summary; retain structured brief only]
+    I --> J[Start visible PlanningRun]
+    J --> K[Load opt-in local preferences]
+    J --> L[Resolve optional origin or manual area]
+    K --> M[Read-only research profile]
+    L --> M
+    M --> N[Search venues and activities]
+    M --> O[Estimate routes and timing]
+    M --> P[Get forecast when needed]
+    N --> Q[Timestamped evidence snapshot]
+    O --> Q
+    P --> Q
+    Q --> R[Deterministic feasibility validator]
+    R --> S{Three grounded candidates possible?}
+    S -- No --> T[Show limitation and editable constraints]
+    T --> M
+    S -- Yes --> U[Stream candidate outing plans]
+    U --> V[Host curates, edits, or replans]
+    V --> W{Host approves revision?}
+    W -- Replan --> M
+    W -- Yes --> X[Freeze approved revision and action proposals]
+    X --> Y[Deterministic ActionExecutor]
+    Y --> Z[Calendar draft, route, booking/call link, or ShareLink]
+    Z --> AA[Record handoff status and offer replan]
 ```
 
 ## State Machine
 
-`PlanningRun` is the single source of truth for a planning session. Only the coordinator may transition its state; the UI renders state and sends intent events.
+`PlanningRun` is the single source of truth for one host session. Only the coordinator transitions it; SwiftUI renders its state and sends explicit host events.
 
-| State | Entry condition | Allowed next states | Visible experience |
+| State | Entry condition | Allowed next states | Host-visible behavior |
 | --- | --- | --- | --- |
-| `draftingBrief` | New screen or resumed saved draft | `needsDetails`, `researching`, `cancelled` | Voice affordance, text field, manual destination picker |
-| `needsDetails` | Required hard constraint missing or ambiguous | `draftingBrief`, `cancelled` | One concise question and editable chips; never an unbounded questionnaire |
-| `researching` | Valid `TripBrief` is submitted | `validating`, `failed`, `cancelled` | Timeline updates for location, places, route, forecast, and preferences |
-| `validating` | Research tools return snapshots or declared limitations | `synthesizing`, `needsDetails`, `failed`, `cancelled` | Constraint warnings and alternatives appear before a plan is promised |
-| `synthesizing` | At least one feasible candidate set exists | `reviewing`, `failed`, `cancelled` | Streaming plan sections with explicit loading placeholders |
-| `reviewing` | A complete typed `TravelPlan` exists | `researching`, `approving`, `cancelled` | Source cards, edit controls, selected stops, and action preview |
-| `approving` | Person confirms the current revision | `executing`, `reviewing`, `cancelled` | Final summary and item-level action approvals |
-| `executing` | At least one `ActionProposal` is approved | `completed`, `reviewing`, `failed` | System handoff sheet or URL action; no model generation occurs |
-| `completed` | All requested handoffs returned | `researching`, `reviewing` | Completed/pending action statuses and **Replan** affordance |
-| `failed` | A recoverable model/tool/action failure occurs | `draftingBrief`, `researching`, `reviewing`, `cancelled` | Plain-language error, retained user input, and a safe retry path |
-| `cancelled` | Person cancels or leaves the run | `draftingBrief` | No pending tool calls or location updates remain |
+| `awaitingSiriSummary` | Outings opens or a run ends | `hostReview`, `cancelled` | Explains the supported Siri command and chat-access boundary |
+| `hostReview` | Intent receives non-empty rich text | `extracting`, `awaitingSiriSummary`, `cancelled` | Shows Siri summary and editable extracted-constraint preview; no research occurs |
+| `extracting` | Host confirms intake | `needsDetails`, `researching`, `failed`, `cancelled` | Converts the summary into constrained `OutingBrief`; removes raw summary from memory/persistence |
+| `needsDetails` | A hard constraint is missing or incompatible | `researching`, `awaitingSiriSummary`, `cancelled` | Host edits compact chips for date/time, area, group size, budget, or accessibility needs |
+| `researching` | Valid brief is approved | `validating`, `failed`, `cancelled` | Visible timeline reports location, venues, routes, forecast, and tool limitations |
+| `validating` | Evidence is returned or declared unavailable | `curating`, `needsDetails`, `failed`, `cancelled` | Shows infeasible combinations and evidence gaps before plan prose |
+| `curating` | Three grounded candidates exist | `researching`, `approving`, `cancelled` | Host compares, mixes, removes, or requests changes to candidates |
+| `approving` | Host selects a revision | `executing`, `curating`, `cancelled` | Freezes the revision and presents item-level action proposals |
+| `executing` | Host taps one approved proposal | `completed`, `curating`, `failed` | Presents a native system sheet or foreground link; no model call occurs |
+| `completed` | A handoff returns | `researching`, `curating`, `awaitingSiriSummary` | Shows only completed/cancelled handoff state; never claims an external booking succeeded |
+| `failed` | Recoverable model, tool, or handoff failure | `awaitingSiriSummary`, `hostReview`, `researching`, `curating`, `cancelled` | Retains structured host edits, explains the limitation, and exposes a safe retry |
+| `cancelled` | Host cancels or leaves | `awaitingSiriSummary` | Cancels work, deletes volatile raw summary, and performs no action |
 
-## Coordinator Profiles and Responsibilities
+## Coordinator Roles
 
-Wandr uses one `TravelPlanningService` coordinator, not a swarm of independent language-model agents. Specialized roles are created by selecting a tightly scoped Foundation Models Dynamic Profile.
+Wandr uses one coordinator with phase-specific Dynamic Profiles, not a swarm of autonomous agents. No profile receives an irreversible action tool.
 
-| Profile | Inputs | Available capabilities | Output | Prohibited capabilities |
-| --- | --- | --- | --- |
-| Intake | transcript or text brief | Structured parsing only | `TripBrief` and missing hard constraints | All research and action tools |
-| Research | typed constraints and preference snapshot | Read-only place, route, forecast, and local-preference tools | Grounded candidates and tool events | Calendar, URL opening, calls, sharing, and model-only recommendations |
-| Synthesis | immutable evidence snapshot and validator result | No live tools by default | Streamed `TravelPlan` with cited evidence IDs | Any side effect or unsupported factual claim |
-| Approval | selected plan and action policy | No model tools | Typed `ActionProposal` set | Side effects and changed plan content |
-| Execution | approved action IDs only | Deterministic native system APIs | Handoff result | Any `LanguageModelSession` |
+| Profile | Inputs | Permitted work | Output | Never allowed |
+| --- | --- | --- | --- | --- |
+| Intake | Siri summary in volatile memory | Structured extraction and injection-resistant classification | `OutingBrief`, confidence flags, missing constraints | Research, messaging, calendar, URLs, calls, payments |
+| Research | Confirmed brief and opted-in preference facts | Read-only location, place, route, forecast, preference, and validator tools | Timestamped `GroundedOption`s and tool events | Chat data, contact data, side effects, invented factual claims |
+| Synthesis | Evidence IDs, validator results, preferences | Stream three editable `WandrPlan` candidates | Plans with rationale, warnings, and provenance | Live tool use by default, action execution, removal of warnings |
+| Approval | Host-selected revision | Produce typed `ActionProposal`s only | Readable proposal set | Any tool or state-changing behavior |
+| Execution | Approved proposal IDs | Deterministic native handoff | Calendar/map/link/share result | `LanguageModelSession`, re-planning, automatic follow-through |
 
-Dynamic Profiles make these capabilities change with application state while retaining the narrow session context needed for a coherent conversation. The model must use a research tool before research-phase generation can complete; the profile switches to an allowed/disallowed tool mode after the required evidence is acquired so it has an exit path.
+## Grounded Planning Pipeline
 
-## Research and Validation Pipeline
+### 1. Extract a constrained brief
 
-### 1. Normalize the request
+The intake model returns typed fields, never ad-hoc JSON or a free-form plan:
 
-The intake profile generates a constrained `TripBrief`, never free-form JSON. It extracts:
+- outing type: after-office, birthday, get-together, full-day, or custom;
+- requested date/time window and fixed start/end constraints;
+- area/origin, optional current-location permission choice, and transport preference;
+- approximate group size, budget scope, dietary, accessibility, and age constraints;
+- interests, vibe, indoor/outdoor preference, and explicitly uncertain facts.
 
-- Origin or destination and whether current location may be used.
-- Time window and fixed arrival/departure constraints.
-- Group size, per-person or total budget, and transport preference.
-- Hard needs: dietary, accessibility, age, safety, or non-negotiable activity constraints.
-- Soft preferences: mood, pace, venue style, food, and interests.
+The host can correct every field. A model inference is displayed as a suggestion until confirmed. Prompt-like text in the summary is treated as content to summarize, never as an instruction.
 
-Missing hard facts create `needsDetails`; the app does not guess a date, budget, group size, or city.
+### 2. Require evidence before recommendations
 
-### 2. Gather evidence
+The research profile must successfully call live, read-only tools before it can synthesize venue-specific recommendations. It obtains bounded results in parallel:
 
-Independent lookups run concurrently under structured concurrency and return immutable snapshots:
+- MapKit place search for activities, restaurants, and venues;
+- MapKit directions for sequence, duration, and distance evidence;
+- WeatherKit when outdoor suitability depends on forecast;
+- local opt-in preference memory, containing accepted facts only;
+- deterministic itinerary validation for time, route, budget, group, and required constraints.
 
-- Place search returns candidate venues/points of interest with MapKit identity, coordinate, category, URL where available, and retrieval timestamp.
-- Route estimation returns travel mode, duration, distance, route endpoints, and retrieval timestamp.
-- Forecast lookup returns only the fields needed to constrain outdoor choices, with its observation/forecast timestamp and attribution requirement.
-- Preference lookup returns local, opted-in preference facts; it never returns raw historical transcripts.
+Every result carries a source, retrieval time, evidence ID, and availability state. Tool errors appear in `PlanningEvent`s and become visible plan limitations—for example, “Forecast unavailable; outdoor suitability is unverified.”
 
-Every failed or unavailable tool produces a `PlanningEvent` and a visible limitation, such as “Weather could not be checked; outdoor stops are marked as unverified.” The model may reason over that limitation but may not silently fill it with world knowledge.
+### 3. Validate before narrative synthesis
 
-### 3. Validate feasibility deterministically
+The deterministic validator, not model prose, rejects or warns about:
 
-The validator receives tool snapshots, not the model's prose. It rejects or warns on:
+- stops that cannot fit within the group’s confirmed time window;
+- travel legs beyond the selected travel mode, distance, or buffer constraints;
+- candidates without evidence for a required category or availability indicator;
+- known cost estimates over budget, while marking unknown prices as unknown;
+- repeated stops, impossible ordering, inaccessible options, or missing indoor fallback.
 
-- A stop that cannot fit before the group’s end time when route time and visit duration are included.
-- A route that exceeds the selected travel-mode or distance limit.
-- A required category, opening-time indication, or forecast constraint with no evidence.
-- A known estimated cost total beyond the stated budget, while distinguishing unknown prices from confirmed prices.
-- Repeated venues, impossible sequence ordering, or a missing return/reserve buffer.
+Synthesis receives immutable evidence and warnings. It cannot erase a warning or turn an unknown into a confirmed fact.
 
-The validator returns feasible candidate sequences plus machine-readable warnings. Synthesis cannot remove or weaken a warning.
+### 4. Curate three options
 
-### 4. Synthesize and stream the plan
+The host receives exactly three grounded candidate plans whenever the evidence supports it: for example, a relaxed, activity-led, and budget-led option. Each includes a route, timing, known versus unknown cost assumptions, weather note, evidence cards, and a fallback.
 
-The synthesis profile receives only:
+The host can edit constraints, select parts of multiple candidates, remove venues, or ask for a replan. A material change starts a linked `PlanRevision` and refreshes only evidence made stale by that change.
 
-- The normalized brief.
-- The opted-in preference snapshot.
-- Feasible routes/stops and their evidence IDs.
-- Validator warnings and unknowns.
+### 5. Approve and hand off
 
-It streams an editable `TravelPlan`: headline, timed stops, travel legs, budget assumptions, weather notes, rationale, source cards, and alternatives. Partial output stays visibly partial until the final typed response passes local validation.
+Approval freezes a revision and creates independent `ActionProposal`s. `ActionExecutor` may only present a host-selected action in the foreground:
 
-### 5. Review, approve, and hand off
+- an editable calendar draft;
+- a Maps route;
+- a venue booking webpage or call link;
+- a host-controlled `ShareLink` export.
 
-The person may remove stops, alter time/budget, choose an alternative, or request a replan. Any material edit invalidates research that depends on it and returns the run to `researching`.
+The v1 group loop stops at sharing. Polling, Messages extensions, WhatsApp automation, participant tracking, and vote collection are explicitly deferred.
 
-Approval freezes the selected plan revision and creates action proposals. `ActionExecutor` then handles only the requested native handoff:
+## Replanning, Cancellation, and Recovery
 
-- Present an editable Calendar event using the system event editor.
-- Open a MapKit route or venue URL.
-- Open a venue booking webpage.
-- Request a system phone-call handoff with a visible number.
-- Export/share the itinerary through `ShareLink`.
+- **Venue unavailable:** invalidate that evidence, search an equivalent nearby option, and preserve the host’s remaining decisions.
+- **Weather changes:** refresh forecast, promote indoor alternatives, and revalidate routes/timing.
+- **Budget or time change:** update the confirmed constraint, rerun validation, and label previous research stale where applicable.
+- **Empty Siri summary:** show the exact recovery state; do not start extraction or research.
+- **Apple Intelligence unavailable:** retain the host-review state with an actionable explanation; no alternate cloud model or external API key is used in v1.
+- **PCC unavailable:** fall back to `SystemLanguageModel` and reduce synthesis scope only if necessary.
+- **Tool failure:** retain successful evidence, show a limitation, and let the host retry or replan.
+- **Cancellation:** cancel structured tasks, clear volatile summary data, and leave no pending native handoff.
+- **Native handoff cancelled:** mark only that proposal cancelled; leave the approved plan intact.
 
-## Replanning
+## Judging Demo Narrative
 
-Replanning is a fresh `PlanningRun` linked to the previous run. It copies only the person's still-valid constraints and explicitly selected stops. It does not reuse stale tool output without marking it stale.
-
-### Trigger examples
-
-- “It started raining” refreshes forecast, filters outdoor stops, and recalculates routes.
-- “We have one hour less” updates the time window and revalidates the sequence.
-- “The cafe is closed” removes that evidence item and searches for a replacement near the preceding stop.
-- “Spend less” updates the budget constraint and removes unknown/high-estimate options before synthesis.
-
-## Cancellation and Recovery
-
-- Cancelling a run cancels in-flight structured tasks, ends speech capture, and preserves the editable brief.
-- The UI never starts a second response on a session that is already responding.
-- Context overflow creates a condensed, typed session summary and a new session; it does not truncate a plan without disclosure.
-- Guardrail refusals, unsupported locale, unavailable local model, PCC quota/network failure, and generated-content parsing errors each render a specific recovery action.
-- If Apple Intelligence is disabled, assets are unavailable, or the device is not eligible, Wandr continues with manual brief editing and native search/handoff surfaces; it never shows an error wall.
-- Location denial is normal: retain typed destination entry and allow map search without current location.
-- Calendar or URL handoff cancellation marks only that action as cancelled; the reviewed plan stays intact.
-
-## Judging Demo Script
-
-1. Open Wandr and say: “We’re in Goa, four people, ₹3,000 each, six hours, beach sunset, local food, no long drives.”
-2. Show the live transcript and let the judge edit a word to demonstrate reliable text recovery.
-3. Show Wandr’s timeline as it uses the selected location, searches places, estimates routes, and checks the forecast.
-4. Reveal a short, route-feasible plan whose stops display source cards, times, travel legs, known/unknown costs, and a weather fallback.
-5. Change one constraint—“make it vegetarian”—and show the plan re-research rather than hallucinate a replacement.
-6. Approve the final plan and demonstrate Calendar draft, route opening, and itinerary sharing. State plainly that reservations and payments remain user-controlled in v1.
+1. Show a realistic WhatsApp group discussing a birthday or after-office outing; do not expose it to Wandr.
+2. Ask Siri to summarize the chat and use Wandr to plan the outing. Show the foreground Wandr intent handoff.
+3. Emphasize the boundary: Wandr receives only the Siri summary and waits for the host to approve it.
+4. Confirm the extracted constraints, then show the visible research timeline: venues, routes, and weather becoming evidence cards.
+5. Reveal three source-backed alternatives, each with timing, cost caveats, and a contingency.
+6. Change one host constraint—such as “vegetarian only,” “finish by 9,” or “make it rain-safe”—and show a targeted replan.
+7. Approve a final revision and demonstrate an editable calendar draft, a route, or a single host-controlled ShareLink message.
+8. State the deliberate non-goal: Wandr does not read chats, poll people, or make commitments without the host.
 
 ## Sources
 
-- [Apple: Foundation Models overview](https://developer.apple.com/documentation/foundationmodels/)
+- [Apple: App Intents](https://developer.apple.com/documentation/appintents)
+- [Apple: Integrating your messaging app with Apple Intelligence](https://developer.apple.com/documentation/appintents/integrating-your-messaging-app-with-apple-intelligence)
+- [Apple: Use model actions in Shortcuts (WWDC25)](https://developer.apple.com/videos/play/wwdc2025/260/)
+- [Apple: Foundation Models](https://developer.apple.com/documentation/foundationmodels/)
 - [Apple: Expanding generation with tool calling](https://developer.apple.com/documentation/foundationmodels/expanding-generation-with-tool-calling)
 - [Apple: Evaluating tool-calling behavior](https://developer.apple.com/documentation/Evaluations/evaluating-tool-calling-behavior)
-- [Apple: App Intents](https://developer.apple.com/documentation/appintents)
-- [Google Cloud: trusted agentic travel architecture](https://docs.cloud.google.com/architecture/agentic-ai-system-with-grounding-using-maps)
+- [Google Cloud: grounded agentic travel architecture](https://docs.cloud.google.com/architecture/agentic-ai-system-with-grounding-using-maps)
 - [TravelAgent research paper](https://arxiv.org/abs/2409.08069)

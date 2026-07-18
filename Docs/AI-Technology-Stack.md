@@ -2,192 +2,165 @@
 
 ## Decision Summary
 
-Wandr v1 is a native iOS 27, local-first travel planner and execution handoff. Apple Foundation Models supplies the intelligence layer; Apple system frameworks supply live facts and system-owned actions. The app does not need a Python/Flask service, LangChain, Gemini, Twilio, Razorpay, Google Places, Google Maps, or a server-side model key to deliver the hackathon experience.
+Wandr v1 is a native iOS 27, local-first outing planner with Trips as a second planning surface. Siri can hand a **user-requested conversation summary** to Wandr; Wandr never queries WhatsApp, iMessage, or Messages itself.
 
-This is an intentional tradeoff: the demo proves trustworthy agentic orchestration, privacy, and iOS 27-native capability before adding provider-specific commercial integrations.
+Apple Foundation Models is the intelligence layer. Apple frameworks provide live evidence and user-owned handoffs. Deterministic Swift validates feasibility and controls all side effects. This replaces the previous Gemini/LangChain/backend-agent concept with a private, inspectable iOS architecture that needs no server model key.
 
 ## Stack at a Glance
 
-| Area | Selected technology | Purpose | V1 boundary |
+| Area | Selected technology | Purpose | V1 constraint |
 | --- | --- | --- | --- |
-| Planning intelligence | Foundation Models | Structured intake, tool use, synthesis, streaming, and typed plans | No ungrounded travel facts or irreversible action tools |
-| Default model | `SystemLanguageModel` | Private on-device planning and offline-capable synthesis | Requires Apple Intelligence-enabled, eligible device |
-| Complex synthesis | `PrivateCloudComputeLanguageModel` | Optional higher-capacity reasoning for large/complex plans | Capability/network/quota-gated; local model fallback always exists |
-| Speech input | `SpeechAnalyzer` + `SpeechTranscriber` | On-device spoken brief with volatile and finalized transcript states | Text input is always available |
-| Place research | MapKit | Place search, map items, map display, and directions | Treat output as evidence, not a booking guarantee |
-| Location | Core Location | Optional current origin/location bias | When-In-Use only; manual location fallback |
-| Weather | WeatherKit | Forecast constraints for outdoor and travel choices | Optional capability; retain a weather-unverified plan path |
-| Calendar | EventKitUI | Person-controlled calendar draft | System editor; no broad calendar read access |
-| System launch | App Intents + App Shortcuts | “Wandr it” entry point from Siri, Spotlight, Shortcuts, and Action button | Starts a draft/planning flow only |
-| Storage | SwiftData | Local trips, plan revisions, approval audit, and opt-in preferences | No CloudKit sync in v1 |
-| Sharing | ShareLink / Transferable | Share a selected itinerary with the group | Export is always user initiated |
-| Quality | Evaluations + Swift Testing | Regression tests for plan quality and tool trajectories | Developer/test target only |
+| Siri handoff | App Intents + App Shortcuts | Receives an explicit rich Siri summary into the foreground app | System/messaging app decides personal-context availability; no direct chat access |
+| Intake/synthesis | Foundation Models | Typed brief extraction, grounded option synthesis, and streamed plans | Raw Siri summary is volatile; no action tools in model sessions |
+| Default model | `SystemLanguageModel` | On-device, private model work for normal outing/trip plans | Runtime availability must be checked |
+| Optional escalation | Private Cloud Compute | Complex synthesis only when device/service capability allows | Never the default and always falls back locally |
+| Place and route evidence | MapKit | Venue/activity discovery, maps, route duration, and distance | Evidence, not a booking or opening-hours guarantee |
+| Optional origin | Core Location | Host-selected current-location origin or search bias | When-In-Use only; manual area is equal fallback |
+| Weather evidence | WeatherKit | Outdoor suitability and indoor fallback constraints | Optional entitlement/network path; explicit unavailable state |
+| Calendar | EventKitUI | Editable, system-owned event draft after approval | No broad calendar read/write permission |
+| Sharing | `ShareLink` + `Transferable` | Host-controlled export to Messages, WhatsApp, or another target | No automatic message or recipient selection |
+| Local data | SwiftData | Structured brief, plans, revisions, evidence metadata, approvals, opt-in preferences | No cloud sync, accounts, raw chat summary, or transcript storage |
+| Quality | Swift Testing + Evaluations | Deterministic and model-behavior regression coverage | Test-only infrastructure; no production data collection |
+
+## Siri and Messaging Boundary
+
+### Selected handoff
+
+`PlanOutingFromSiriSummaryIntent` accepts one `AttributedString` parameter named `summary`. The intent runs in the foreground and requires authentication. An `AppShortcutsProvider` exposes natural phrases such as “Plan this group outing in Wandr.”
+
+Rich text preserves a Siri/Shortcuts handoff more faithfully than a lossy plain string. On receipt, Wandr renders the summary solely on the Host Review screen. It extracts constrained fields after explicit confirmation, then deletes the raw `AttributedString` from in-memory state and never writes it to SwiftData.
+
+### Availability and recovery
+
+Apple Intelligence, Siri, Shortcuts, and the installed messaging app determine whether a personal-context summary can actually reach an App Intent. This capability must be tested on the exact judging device.
+
+If the intent receives no content, only whitespace, unsupported content, or an unavailable handoff, Wandr shows **“Ask Siri to send the summary to Wandr again.”** It does not offer a mock group chat, local WhatsApp/iMessage scraping, a Messages extension, or an external messaging API as a fallback.
+
+### Explicitly not used
+
+- No Messages extension or WhatsApp integration.
+- No contact access, chat transcript access, participant identity, polling, votes, or delivery tracking.
+- No microphone or `SpeechAnalyzer`/`SpeechTranscriber` in this flow: Siri owns speech understanding before Wandr opens.
+- No background App Intent behavior, purchases, booking submission, automatic calls, or automatic messages.
 
 ## Foundation Models Architecture
 
-### Structured data, never manual JSON
+### Typed boundaries
 
-All model boundaries use `@Generable` types and focused `@Guide` constraints. The model returns native Swift structures instead of a prose blob that must be parsed by `JSONDecoder`.
+All model input/output boundaries use `@Generable` domain types and focused `@Guide` constraints rather than manual JSON parsing. Guides constrain vocabulary, required fields, option counts, and safe response shape; deterministic services enforce feasibility and permissions.
 
-| Type | Responsibility |
-| --- | --- |
-| `TripBrief` | Normalized request and missing hard constraints |
-| `TravelConstraints` | Time, budget, group, accessibility, travel, and preference rules |
-| `GroundedOption` | A candidate place/route with evidence IDs and timestamps |
-| `TravelPlan` | Editable itinerary and explanations tied to evidence |
-| `ActionProposal` | A single user-approved native handoff |
-| `PlanningEvent` | A human-readable timeline entry with source, status, and limitation |
+| Typed value | Model responsibility | Deterministic guard |
+| --- | --- | --- |
+| `OutingBrief` | Extract only confirmed/suggested constraints from volatile summary | Host confirms constraints; raw summary is discarded |
+| `TravelConstraints` | Represent date, time, budget, group, access, and preference rules | Validator treats unknowns and conflicts explicitly |
+| `GroundedOption` | Reference venue/route/forecast evidence by ID | Evidence source and retrieval time required |
+| `WandrPlan` | Present an editable candidate with rationale and alternatives | Warnings/evidence cannot be removed by synthesis |
+| `ActionProposal` | Describe a possible native handoff | Executor accepts only host-approved, immutable proposals |
+| `PlanningEvent` | Explain an orchestration step or limitation | Never stores private model reasoning or raw chat content |
 
-Guides constrain finite categories, count ranges, and mandatory plan sections. They do not attempt to encode business validation that deterministic code can perform more reliably.
+### `LanguageModelSession` and Dynamic Profiles
 
-### Sessions and Dynamic Profiles
+One coordinator owns short-lived `LanguageModelSession`s for a `PlanningRun`. Dynamic Profiles isolate phases through different instructions, context, tool sets, and transcript-retention rules:
 
-`LanguageModelSession` is retained for the lifetime of one `PlanningRun`; a session is not recreated for every tap. Dynamic Profiles change its instructions, available tools, tool-calling mode, and transcript policy at phase boundaries.
+1. **Intake:** receives the volatile Siri summary, performs constrained extraction, and has no tools.
+2. **Research:** sees only the confirmed structured brief and opt-in preferences; exposes read-only tools and requires evidence collection before venue-specific synthesis.
+3. **Synthesis:** sees immutable evidence snapshots and validator output; has no live tools by default.
+4. **Approval:** creates typed proposals from a selected plan; has no tools.
 
-- **Intake profile:** typed extraction only; tools are disallowed.
-- **Research profile:** only read-only tools are present. Tool calling is required until evidence is acquired, then transitions to allowed so the request can finish.
-- **Synthesis profile:** tools are disallowed by default because the validated evidence snapshot is already in context.
-- **Approval profile:** emits typed action proposals only; no tool can perform an action.
+No profile receives an irreversible action tool. The raw Siri summary is redacted before research/synthesis contexts and is not retained in long-lived session history.
 
-Tool definitions and their argument schemas consume context. Descriptions therefore explain exactly when a tool is useful and avoid long prompt-like prose. Tool output is compact, structured where appropriate, timestamped, and source-linked.
+### Tools, streaming, and errors
 
-### Streaming and cancellation
+`Tool` implementations are deliberately narrow, with concise descriptions and compact typed results:
 
-Long plan generation uses Foundation Models streaming APIs and renders `PartiallyGenerated` content as provisional. The UI labels incomplete sections as loading and permits cancellation. A final plan is accepted only after the complete typed structure and local validator succeed.
-
-The coordinator serializes requests against a session to avoid concurrent-response errors. Its data tools may run independently via structured concurrency because tools can be called in parallel.
-
-### Errors and availability
-
-Before creating a session, inspect `SystemLanguageModel.default.availability`. The UI has deliberate states for:
-
-- Device not eligible.
-- Apple Intelligence disabled.
-- Model assets not ready or unavailable.
-- Unsupported language/locale.
-- Guardrail refusal or violation.
-- Context-size exhaustion.
-- Transient rate limit.
-- Typed-content decoding failure.
-- Concurrent model request or tool-call failure.
-
-Each state retains the draft, explains what could not happen, and offers the next safe path. In particular, a tool failure becomes a plan limitation, not invented data.
+- `ResolveOriginTool`, `SearchPlacesTool`, `EstimateRouteTool`, `GetForecastTool`, `LoadPreferencesTool`, and `ValidateItineraryTool` are read-only.
+- Research tool use is required before factual venue recommendations may be synthesized.
+- Tool errors become typed limitations that appear in the host’s timeline and plan; the model must not replace them with background knowledge.
+- Long candidate-plan generation uses streamed output. Partial output is labeled provisional until the completed typed plan passes deterministic validation.
+- Structured handling covers unavailable model assets, unsupported locale, guardrail refusal, context exhaustion, concurrent requests, malformed generated content, and tool failures.
 
 ### Model selection
 
-1. Use `SystemLanguageModel` for parsing, local preference extraction, and ordinary short-plan synthesis.
-2. If the request remains within the product’s privacy boundary but needs more reasoning or context, evaluate Private Cloud Compute availability and the necessary capability before creating a PCC-backed session.
-3. If PCC is unavailable, offline, quota-limited, or service-unavailable, continue with the on-device model and a reduced evidence set; never block the person from editing their trip.
+1. `SystemLanguageModel.default` is the default for all extraction and normal outing/trip synthesis.
+2. Private Cloud Compute may be considered only for a host-approved, unusually complex synthesis and only after its current iOS 27 capability, quota, and network requirements are satisfied.
+3. PCC unavailability, quota, network failure, or service failure returns to the system model with a reduced scope if necessary. It never blocks host editing or invokes a third-party LLM.
 
-PCC is an enhancement, not the default dependency. Its current availability, entitlement/capability policy, quota, and beta API shape must be checked in the shipping Xcode 27 SDK before enabling it for release.
+### Foundation Models exclusions
 
-### Explicit exclusions
+- No custom Foundation Models adapters.
+- No Gemini, LangChain, hosted orchestration backend, server LLM, API key, model proxy, or prompt log.
+- No model-generated side effects, booking decisions, payment decisions, or messaging decisions.
 
-- Do not train or ship a custom Foundation Models adapter. The adapter runtime is obsolete for an iOS 27 deployment target, while the system model, schemas, tools, and evidence design solve the v1 problem.
-- Do not add a custom Core AI/third-party model. Wandr needs orchestration and live grounding, not a bespoke model.
-- Do not pass user transcripts to Gemini, OpenAI, Claude, or any server model in v1.
-- Do not use Foundation Models for world knowledge, opening hours, prices, booking availability, map routing, or payment decisions.
+## Live Evidence and Native Handoffs
 
-## Speech Input
+### MapKit and Core Location
 
-On iOS 26+, use `SpeechAnalyzer` and `SpeechTranscriber` rather than the legacy speech recognizer. The iOS 27 `CaptureInputSequenceProvider` path supplies microphone input; use the provider variant that fits the app’s audio-session ownership.
+MapKit is the factual place/route layer. `MKLocalSearch` (or a focused equivalent) returns candidate venues and activities; directions returns distance and duration evidence used by validation. SwiftUI `Map` presents the selected route and venues.
 
-### Design rules
-
-- Request microphone and speech-recognition permission only after the person taps the voice control.
-- Render volatile transcription as a temporary draft and promote only finalized text to the submitted brief.
-- Keep a normal text field visible throughout capture and preserve it if speech is denied, interrupted, inaccurate, or unavailable.
-- Maintain only one active analyzer for Wandr’s input. Cancel it when the view exits or a plan starts; do not opt out of system resource limits.
-- Add `NSMicrophoneUsageDescription` and `NSSpeechRecognitionUsageDescription` when implementation begins.
-
-## Location, Maps, and Weather
-
-### Core Location
-
-Wandr uses location to establish an origin or bias a place search, not to track the person continuously. Request When-In-Use authorization only after a person asks Wandr to use current location. A manual destination picker is always equivalent.
-
-- Use `CLServiceSession(authorization: .whenInUse)` and the lowest suitable accuracy.
-- Stop live location updates once a usable origin is resolved.
-- Handle denied, globally disabled, and approximate location states directly in the UI.
-- Do not request Always authorization, use background location, store a location trail, or create geofences in v1.
-
-### MapKit
-
-Use SwiftUI `Map` for the reviewed itinerary because standard markers, map camera control, selection, and route overlays do not require `MKMapView` bridging. Store map/place results in models rather than recreating annotations in a view body.
-
-- `MKLocalSearch` or `MKLocalSearchCompleter` finds candidates and resolves selected places.
-- `MKDirections` creates route duration and distance evidence for validation.
-- Each candidate retains `MKMapItem` identity/coordinate, source URL if provided, and retrieval time.
-- MapKit route output is an estimate, not a promise; show it as such.
+Core Location is optional. Ask for When-In-Use authorization only after the host taps **Use my location**. Stop after resolving a usable origin, use the lowest practical accuracy, and provide manual city/neighborhood entry whenever permission is denied, approximate, or unnecessary. No background location, route history, geofencing, or Always authorization is in v1.
 
 ### WeatherKit
 
-WeatherKit is optional grounding for outdoor stops. Fetch only the forecast fields the validator needs and display Apple-required attribution in any UI that renders WeatherKit data. If entitlement/configuration or network is unavailable, mark weather-dependent recommendations as unverified and provide indoor alternatives rather than failing the entire plan.
+WeatherKit supplies the minimum forecast fields needed to validate outdoor plans. Any WeatherKit UI must include required attribution. Missing entitlement, network, or forecast data yields a visible weather-unverified warning and an indoor option—not invented weather data or a blocked plan.
 
-## Native System Handoffs
+### EventKitUI, URLs, and sharing
 
-### EventKitUI
+`EKEventEditViewController` presents an editable calendar draft after the host approves a proposal. This avoids broad calendar access and keeps the save decision in system UI.
 
-Use `EKEventEditViewController` to present a single editable calendar event after approval. This is the minimum-privilege path: the system presents calendar selection and save UI without Wandr requesting broad read access. The app does not silently write or modify an existing calendar.
+The deterministic executor may open a visible Maps route, booking page, or `tel:` handoff only after explicit host selection. It cannot infer completion of a reservation or call.
 
-### App Intents and App Shortcuts
+`ShareLink` and `Transferable` export a host-selected final plan. The system share sheet may include iMessage or WhatsApp according to installed apps, but Wandr never chooses recipients or sends in the background.
 
-Create one `PlanAdventureIntent` and an `AppShortcutsProvider` phrase set such as “Wandr it.” The intent opens a new `draftingBrief` or resumes an explicitly selected saved draft. Its parameters describe a starting brief; it must not run research, make handoffs, or trigger actions without foreground confirmation.
+## Storage, Retention, and Privacy
 
-This creates discovery through Siri, Spotlight, Shortcuts, and supported Action buttons while respecting the same approval boundary as the app UI.
+SwiftData stores locally:
 
-### Sharing
+- confirmed `OutingBrief`/trip fields, without raw Siri summary text;
+- plan revisions, structured evidence IDs, retrieval timestamps, source names, and validation warnings;
+- immutable approval records and native-handoff status;
+- optional, user-accepted preference facts.
 
-Use `ShareLink` to export a person-selected `TravelPlan` summary. If a custom transferable payload is added later, make its rich format first and provide a plain-text/URL fallback. Sharing never exposes an opted-in preference profile, raw transcript, or hidden internal planning events by default.
+The summary-source audit record contains only metadata such as `source = siriMediatedSummary`, handoff time, confirmation/cancellation outcome, and a retention flag. It contains neither the summary text nor a transcript-derived identifier.
 
-## Storage and Privacy
+Preference memory is opt-in, editable, and removable. Wandr has no account requirement, CloudKit sync, analytics pipeline, embeddings store, contact data, location trail, payments data, or booking credentials in v1.
 
-SwiftData stores only what Wandr needs locally:
+## Evaluation and Test Strategy
 
-- Trip brief and plan revisions.
-- Selected evidence/source metadata and retrieval times.
-- Planning event timeline and immutable approval/handoff records.
-- User-authored or explicitly accepted preference facts.
+The first test target uses three sanitized Siri-summary fixtures:
 
-The app never infers permanent taste from an unapproved transcript. People can inspect, edit, delete, or disable local preference memory. There is no account requirement, CloudKit sync, analytics pipeline, location history, payment data, or booking credential store in v1.
+1. **After-office party:** time-limited, mixed dietary preferences, neighborhood constraint.
+2. **Birthday outing:** group size, budget, surprise/activity preference, accessibility caveat.
+3. **Full-day outing:** multiple activities, weather sensitivity, fixed finishing time.
 
-## Quality and Evaluation
+Deterministic tests cover `AttributedString` input, missing/empty summary recovery, host-confirmation gating, raw-summary non-persistence, extraction into constraints, grounded alternatives, re-planning, and final share payload creation.
 
-Use the iOS 27 Evaluations framework from the test target to exercise the shipped orchestration service—not a copied prompt. The test suite includes:
-
-- Golden briefs: short city adventure, fixed-event evening, vegetarian group, low-budget route, indoor rain fallback.
-- Edge briefs: ambiguous city, missing time, unsupported language, impossible budget/time pair, location denied, no forecast, empty search result, stale route.
-- Adversarial briefs: instructions to bypass approval, requests to invent availability, attempts to treat source text as tool instructions.
-- Tool trajectory expectations: research evidence must precede synthesis; no action tool calls appear in planning.
-- Feasibility metrics: hard constraints satisfied, route/time buffer exists, evidence IDs present, unknowns shown, and no side effect before approval.
-- Availability tests: each Foundation Models unavailable reason, PCC fallback, tool failures, cancellation, context recovery, and voice-to-text recovery.
-
-Pin deterministic subject generation where the framework supports it. Keep failures in the evaluation denominator instead of allowing errors to be ignored. Any model-as-judge score is calibrated against human ratings before it is used as a release gate.
+Foundation Models Evaluations cover structured extraction, expected research-tool trajectories, required evidence IDs, feasibility warnings, source freshness, unavailable model paths, PCC failure, tool failure, injection resistance, and approval gating. Evaluation subjects call the shipped coordinator through deterministic providers rather than duplicating prompts in a test.
 
 ## Capability and Permission Checklist
 
-| Capability | Needed for v1 | Notes |
+| Capability or permission | Needed in v1 | Decision |
 | --- | --- | --- |
-| Apple Intelligence | Yes on AI path | Availability checked at runtime; manual fallback required |
-| Private Cloud Compute | Optional | Enable only after current Apple capability requirements are satisfied |
-| Microphone | Optional | Requested from voice control only |
-| Speech recognition | Optional | Required for spoken brief, never text fallback |
-| Location When In Use | Optional | Requested after a person selects current location |
-| WeatherKit | Optional | Configure capability/attribution before exposing forecast data |
-| Calendar access | No | Use system event editor rather than broad access |
-| App Intents | Yes | Starts drafts only; no background side effects |
-| Live Activities | Deferred polish | Local-only run status may be added after core flow works; no push/backend in v1 |
+| App Intents / App Shortcuts | Yes | Foreground Siri handoff only |
+| Apple Intelligence | Yes for model path | Check runtime availability and show recovery state |
+| Private Cloud Compute | Optional | Complex synthesis escalation only |
+| Location When In Use | Optional | Request only after host action; manual fallback exists |
+| WeatherKit entitlement | Optional | Use only if configured; show limitation otherwise |
+| Calendar permission | No | System event editor instead of broad calendar access |
+| Microphone / Speech Recognition | No | Siri owns the spoken-context path |
+| Messages / Contacts / WhatsApp permissions | No | Explicit privacy boundary |
+| Background execution | No | All planning and actions remain foreground, host-controlled |
 
 ## Sources
 
 - [Apple: Foundation Models](https://developer.apple.com/documentation/foundationmodels/)
 - [Apple: Tool protocol](https://developer.apple.com/documentation/foundationmodels/tool)
 - [Apple: Expanding generation with tool calling](https://developer.apple.com/documentation/foundationmodels/expanding-generation-with-tool-calling)
-- [Apple: Foundation Models and AI at WWDC26](https://developer.apple.com/wwdc26/guides/machine-learning/)
 - [Apple: App Intents](https://developer.apple.com/documentation/appintents)
-- [Apple: App Shortcuts HIG](https://developer.apple.com/design/human-interface-guidelines/app-shortcuts)
-- [Apple: EventKit](https://developer.apple.com/documentation/eventkit)
-- [Apple: WeatherKit](https://developer.apple.com/documentation/weatherkit)
+- [Apple: Integrating your messaging app with Apple Intelligence](https://developer.apple.com/documentation/appintents/integrating-your-messaging-app-with-apple-intelligence)
+- [Apple: Use model actions in Shortcuts (WWDC25)](https://developer.apple.com/videos/play/wwdc2025/260/)
 - [Apple: MapKit](https://developer.apple.com/documentation/mapkit)
 - [Apple: Core Location](https://developer.apple.com/documentation/corelocation)
+- [Apple: WeatherKit](https://developer.apple.com/documentation/weatherkit)
 - [Apple: Evaluating tool-calling behavior](https://developer.apple.com/documentation/Evaluations/evaluating-tool-calling-behavior)
+- [Google Cloud: grounded agentic travel architecture](https://docs.cloud.google.com/architecture/agentic-ai-system-with-grounding-using-maps)
+- [TravelAgent research paper](https://arxiv.org/abs/2409.08069)
