@@ -133,6 +133,10 @@ struct Deck: Identifiable {
     let window: String
     var candidates: [Candidate]
 
+    /// Slot-level validator warnings not already carried by a rendered card.
+    /// Never editable, never suppressible, never model-authored.
+    var warnings: [String] = []
+
     /// Index of the top card. Advances on every swipe, either direction.
     var cursor: Int = 0
     /// Candidates the host swiped right on, in the order they were added.
