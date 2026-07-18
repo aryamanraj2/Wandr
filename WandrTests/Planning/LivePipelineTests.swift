@@ -51,7 +51,7 @@ struct LivePipelineTests {
         }
     }
 
-    @Test("The impossible budget fails deterministically, never silently succeeds")
+    @Test("The impossible budget fails on the validator's budget rule (step2-baseline)")
     func impossibleBudgetFails() async throws {
         guard modelAvailable else { return }
         let service = try liveService()
@@ -59,14 +59,31 @@ struct LivePipelineTests {
         let run = try await service.plan(Fixtures.input(Fixtures.Request.impossibleBudget))
         #expect(run.state == .failed)
 
-        // The honest categories for "no venue can meet ₹200/head": the validator's
-        // budget rule (validationFailed) or a thin deck (insufficientEvidence). Either
-        // is a deterministic refusal, which is the baseline's contract for this row.
-        switch run.failure?.category {
-        case .validationFailed, .insufficientEvidence:
-            break
-        default:
-            Issue.record("impossibleBudget produced an unexpected failure: \(String(describing: run.failure?.category))")
+        // step2-baseline.md pins this row to `.validationFailed([.overBudget…])`:
+        // ₹200/head against real prices, budget RANKS in research and FAILS in
+        // validation with the venue named. A different category here is a regression
+        // to explain, not a result to accept.
+        guard case .validationFailed(let violations) = run.failure?.category else {
+            Issue.record("impossibleBudget expected .validationFailed, got \(String(describing: run.failure?.category))")
+            return
+        }
+        let hasOverBudget = violations.contains { if case .overBudget = $0 { return true } else { return false } }
+        #expect(hasOverBudget, "expected an .overBudget violation per the baseline")
+    }
+
+    @Test("A thin area (Lodhi) fails on insufficient evidence (step2-baseline additional outcome)")
+    func thinAreaInsufficientEvidence() async throws {
+        guard modelAvailable else { return }
+        let service = try liveService()
+
+        // step2-baseline.md records: Lodhi has only 2 food venues against the
+        // validator's floor of 3 → `.failed(.insufficientEvidence)`, from the real
+        // provider. This exercises the evidence-shortfall path distinct from a thin
+        // deck of valid venues.
+        let run = try await service.plan(Fixtures.input("A quiet afternoon in Lodhi"))
+        #expect(run.state == .failed)
+        if case .insufficientEvidence = run.failure?.category {} else {
+            Issue.record("Lodhi expected .insufficientEvidence, got \(String(describing: run.failure?.category))")
         }
     }
 

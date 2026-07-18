@@ -24,13 +24,13 @@ Last updated: 2026-07-19.
   26.0/18.0 simulator is rejected at launch.
 - **Project:** uses `PBXFileSystemSynchronizedRootGroup`, so new `.swift` files under
   the synced group are auto-included in the target — no `project.pbxproj` edits needed.
-- **`nonuistuff/step2-baseline.md` is MISSING** from the repo (only `plan.md` and
-  `implementation-prompt.md` are present), even though the plan cites it as the §3.2
-  acceptance contract. Terminal states were therefore derived from the code/fixtures
-  instead: afterWork/birthday/sparse/injection → `.ready`; impossibleBudget →
-  `.failed(.validationFailed)`; blank → thrown `.inputEmpty`. A fresh
-  `nonuistuff/step3-baseline.md` will be created at commit 5 per the plan's Verification
-  section (which permits "step2-baseline.md **or** a new step3-baseline.md").
+- **`nonuistuff/step2-baseline.md` is present** (uploaded mid-session). The terminal
+  states were independently derived from the code first and then **confirmed to match
+  step2-baseline.md exactly**, including the `impossibleBudget → .validationFailed([.overBudget…])`
+  category and the additional `"A quiet afternoon in Lodhi" → .insufficientEvidence`
+  outcome (both now asserted in `LivePipelineTests`). A companion
+  `nonuistuff/step3-baseline.md` records the Step 3 live contract per the plan's
+  Verification section.
 
 ---
 
