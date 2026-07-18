@@ -1,0 +1,4 @@
+interface:
+  display_name: "Find SwiftUI Motion Opportunities"
+  short_description: "Read-only motion opportunity analysis"
+  default_prompt: "Use $swiftui-find-animation-opportunities to find only high-value motion opportunities in this SwiftUI screen."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "SwiftUI Animation Vocabulary"
+  short_description: "Name native iOS motion patterns"
+  default_prompt: "Use $swiftui-animation-vocabulary to name the SwiftUI or iOS motion effect I am describing."

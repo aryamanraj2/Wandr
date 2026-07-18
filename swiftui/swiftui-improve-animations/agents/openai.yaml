@@ -1,0 +1,4 @@
+interface:
+  display_name: "Improve SwiftUI Animations"
+  short_description: "Read-only SwiftUI motion audit plans"
+  default_prompt: "Use $swiftui-improve-animations to audit this app’s SwiftUI motion and produce prioritized implementation plans."

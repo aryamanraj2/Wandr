@@ -1,0 +1,4 @@
+interface:
+  display_name: "Apple Design for SwiftUI"
+  short_description: "WWDC26 iOS 27 design guidance"
+  default_prompt: "Use $apple-design to review this SwiftUI feature for iOS 27 design, accessibility, and performance."

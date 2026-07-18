@@ -1,0 +1,4 @@
+interface:
+  display_name: "SwiftUI Design Engineering"
+  short_description: "Polished native iOS interaction design"
+  default_prompt: "Use $swiftui-design-engineering to review this SwiftUI feature for native interaction, motion, and craft."
