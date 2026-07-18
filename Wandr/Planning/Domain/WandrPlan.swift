@@ -187,6 +187,12 @@ nonisolated struct WandrPlan: Sendable, Equatable, Identifiable {
     /// Every venue ID this plan is grounded in, sorted for determinism.
     let evidenceIDs: [VenueID]
     let evidenceSources: [EvidenceSource]
+    /// The evidence snapshot this plan was validated against.
+    ///
+    /// Carried on the plan so presentation can resolve `CuratedCandidate.venueID` into
+    /// display facts without re-querying a provider — which would lose MapKit enrichment
+    /// and would not work at all for a live (non-bundled) provider.
+    let evidence: [GroundedVenue]
     let revision: PlanRevisionMetadata
     let generatedAt: Date
 
@@ -198,6 +204,7 @@ nonisolated struct WandrPlan: Sendable, Equatable, Identifiable {
         warnings: [PlanWarning],
         evidenceIDs: [VenueID],
         evidenceSources: [EvidenceSource],
+        evidence: [GroundedVenue] = [],
         revision: PlanRevisionMetadata = .first,
         generatedAt: Date
     ) {
@@ -208,6 +215,7 @@ nonisolated struct WandrPlan: Sendable, Equatable, Identifiable {
         self.warnings = warnings
         self.evidenceIDs = evidenceIDs
         self.evidenceSources = evidenceSources
+        self.evidence = evidence
         self.revision = revision
         self.generatedAt = generatedAt
     }
@@ -218,6 +226,11 @@ nonisolated struct WandrPlan: Sendable, Equatable, Identifiable {
 
     func warnings(about venueID: VenueID) -> [PlanWarning] {
         warnings.filter { $0.venueID == venueID }
+    }
+
+    /// Resolves a curated ID against the retained snapshot.
+    func venue(_ id: VenueID) -> GroundedVenue? {
+        evidence.first { $0.venueID == id }
     }
 }
 

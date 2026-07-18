@@ -248,6 +248,7 @@ nonisolated struct FeasibilityValidator: ItineraryValidating, Sendable {
             warnings: warnings,
             evidenceIDs: groundedIDs,
             evidenceSources: sources,
+            evidence: evidence,
             generatedAt: now
         )
     }
