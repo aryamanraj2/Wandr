@@ -11,7 +11,7 @@ Wandr is an **Outings-first, host-controlled planning app**. Its hero moment is 
 ## Trust and Privacy Contract
 
 - Wandr **never reads** iMessage, WhatsApp, Messages, contacts, participant identities, or a private chat transcript.
-- Siri and the installed messaging app remain the privacy boundary. Wandr accepts only the summary the person explicitly asks Siri to send.
+- Siri, Shortcuts, and the installed messaging app remain the privacy boundary — whether the summary comes from a spoken Siri request or from a Wandr-authored Shortcut recipe (see "Siri-to-Wandr Entry" below), Wandr accepts only the summary the person explicitly asked for.
 - A rich Siri-provided summary is **untrusted external content**, not an instruction source. It may describe preferences; it cannot change Wandr’s policies, invoke actions, or bypass host approval.
 - The host reviews the exact incoming summary and Wandr’s extracted constraints before live research begins.
 - On confirmation or cancellation, Wandr discards the raw summary. It persists only the structured `OutingBrief`, plan revisions, source/provenance records, and a minimal summary-source audit record.
@@ -26,20 +26,28 @@ The app exposes `PlanOutingFromSiriSummaryIntent`, a foreground, authenticated A
 - “Use Wandr to plan this outing.”
 - “Wandr, plan our after-work plans.”
 
-The intended judge flow is:
+**Amendment (per `plan.md` A5):** two independent channels can populate this single parameter, and the intent has no way to tell them apart:
+
+1. **A Wandr-authored Shortcut** (the primary, recommended channel) — a distributable Shortcuts recipe that combines the messaging app’s own message-access entity with Shortcuts’ `Use Model` action, run against a **Wandr-authored extraction prompt** rather than generic summarization. This gives Wandr control over what the summary contains without Wandr’s own code ever reading the conversation — the model call executes inside Shortcuts, on Apple’s infrastructure, not inside the app. Full prompt and rationale live in `plan.md` §6.1a.
+2. **Conversational Siri** (the zero-setup fallback) — the flow described below, relying on Apple’s generic system summarization.
+
+Both channels converge on Host Review and are treated as equally untrusted content by the Intake profile (see Trust and Privacy Contract, above).
+
+The intended judge flow for channel 2 (conversational — always available even if the host hasn’t installed the Wandr Shortcut):
 
 1. The host asks Siri to summarize an eligible WhatsApp or iMessage group conversation.
 2. The host asks Siri to use Wandr to plan the outing from that summary.
 3. Siri invokes Wandr’s App Intent with the user-requested summary when the installed system and messaging-app configuration support that handoff.
 4. Wandr opens in the foreground and requires host review before any model session or live lookup starts.
 
-This is availability-dependent. App Intents exposes Wandr’s action, but the system and messaging app determine whether personal-context output can be supplied. The demo must be preflighted on the physical iOS 27 device with the installed WhatsApp configuration.
+This is availability-dependent for both channels. App Intents exposes Wandr’s action, but the system and messaging app determine whether personal-context output can be supplied. The demo must be preflighted on the physical iOS 27 device with the installed WhatsApp configuration — for both the Wandr Shortcut and the conversational fallback.
 
 ## End-to-End Flow
 
 ```mermaid
 flowchart TD
-    A[Host asks Siri to summarize group chat] --> B{System can pass summary to Wandr?}
+    A1[Host runs the Wandr Shortcut: Get Latest Messages then Use Model with Wandr's prompt] --> B{System can pass summary to Wandr?}
+    A2[Host asks Siri conversationally to summarize group chat] --> B
     B -- No --> C[Recovery: ask Siri to send summary again]
     B -- Yes --> D[Foreground authenticated App Intent]
     D --> E[Show raw Siri summary only in host review]
@@ -174,7 +182,7 @@ The v1 group loop stops at sharing. Polling, Messages extensions, WhatsApp autom
 ## Judging Demo Narrative
 
 1. Show a realistic WhatsApp group discussing a birthday or after-office outing; do not expose it to Wandr.
-2. Ask Siri to summarize the chat and use Wandr to plan the outing. Show the foreground Wandr intent handoff.
+2. Run the Wandr Shortcut (or, as a fallback, ask Siri conversationally) to summarize the chat and use Wandr to plan the outing. Show the foreground Wandr intent handoff.
 3. Emphasize the boundary: Wandr receives only the Siri summary and waits for the host to approve it.
 4. Confirm the extracted constraints, then show the visible research timeline: venues, routes, and weather becoming evidence cards.
 5. Reveal three source-backed alternatives, each with timing, cost caveats, and a contingency.

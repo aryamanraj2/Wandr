@@ -2,7 +2,7 @@
 
 ## Decision Summary
 
-Wandr v1 is a native iOS 27, local-first outing planner with Trips as a second planning surface. Siri can hand a **user-requested conversation summary** to Wandr; Wandr never queries WhatsApp, iMessage, or Messages itself.
+Wandr v1 is a native iOS 27, local-first outing planner with Trips as a second planning surface. Siri can hand a **user-requested conversation summary** to Wandr — either through a spoken request or through a Wandr-authored Shortcut that shapes the extraction (`plan.md` A5) — Wandr never queries WhatsApp, iMessage, or Messages itself, and Wandr's own code never executes a model call against a live chat.
 
 Apple Foundation Models is the intelligence layer. Apple frameworks provide live evidence and user-owned handoffs. Deterministic Swift validates feasibility and controls all side effects. This replaces the previous Gemini/LangChain/backend-agent concept with a private, inspectable iOS architecture that needs no server model key.
 
@@ -10,7 +10,7 @@ Apple Foundation Models is the intelligence layer. Apple frameworks provide live
 
 | Area | Selected technology | Purpose | V1 constraint |
 | --- | --- | --- | --- |
-| Siri handoff | App Intents + App Shortcuts | Receives an explicit rich Siri summary into the foreground app | System/messaging app decides personal-context availability; no direct chat access |
+| Siri handoff | App Intents + App Shortcuts (incl. a Wandr-authored `Use Model` recipe) | Receives an explicit rich summary — conversational or Shortcut-produced — into the foreground app | System/messaging app decides personal-context availability; no direct chat access either way |
 | Intake/synthesis | Foundation Models | Typed brief extraction, grounded option synthesis, and streamed plans | Raw Siri summary is volatile; no action tools in model sessions |
 | Default model | `SystemLanguageModel` | On-device, private model work for normal outing/trip plans | Runtime availability must be checked |
 | Optional escalation | Private Cloud Compute | Complex synthesis only when device/service capability allows | Never the default and always falls back locally |
@@ -30,9 +30,11 @@ Apple Foundation Models is the intelligence layer. Apple frameworks provide live
 
 Rich text preserves a Siri/Shortcuts handoff more faithfully than a lossy plain string. On receipt, Wandr renders the summary solely on the Host Review screen. It extracts constrained fields after explicit confirmation, then deletes the raw `AttributedString` from in-memory state and never writes it to SwiftData.
 
+**Two channels feed this parameter** (`plan.md` A5 has full detail): a Wandr-authored Shortcut using Shortcuts' `Use Model` action with a Wandr-written extraction prompt, and the plain conversational Siri request relying on Apple's generic summarization. The Shortcut channel is the one place Wandr can shape the *prompt* driving summarization — but the model call still executes inside Shortcuts, not inside Wandr's process, so it changes nothing about which process reads the chat. `Use Model` also offers a Dictionary output type for structured extraction; Wandr deliberately targets Text/`AttributedString` output instead, so the intent's single-parameter surface never changes and Wandr's own Foundation Models Intake session remains the one place typed extraction is authoritative.
+
 ### Availability and recovery
 
-Apple Intelligence, Siri, Shortcuts, and the installed messaging app determine whether a personal-context summary can actually reach an App Intent. This capability must be tested on the exact judging device.
+Apple Intelligence, Siri, Shortcuts, and the installed messaging app determine whether a personal-context summary can actually reach an App Intent — true for both the Wandr Shortcut and the conversational path. This capability must be tested on the exact judging device, for both channels.
 
 If the intent receives no content, only whitespace, unsupported content, or an unavailable handoff, Wandr shows **“Ask Siri to send the summary to Wandr again.”** It does not offer a mock group chat, local WhatsApp/iMessage scraping, a Messages extension, or an external messaging API as a fallback.
 

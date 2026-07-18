@@ -8,7 +8,7 @@ The system accepts a Siri-mediated summary only after the host asks for the hand
 
 | Original idea | Concrete iOS 27 capability | V1 result |
 | --- | --- | --- |
-| Conversation coordinator | `PlanOutingFromSiriSummaryIntent` + Host Review | Receives only a user-requested summary; never reads messages |
+| Conversation coordinator | `PlanOutingFromSiriSummaryIntent` + Host Review, fed by either a Wandr-authored Shortcut or conversational Siri (`plan.md` A5) | Receives only a user-requested summary; never reads messages, in either channel |
 | Multi-agent planner | `TravelPlanningService` with Dynamic Profiles | One coordinator, clear state transitions, visible orchestration |
 | Research agent | MapKit, Core Location, WeatherKit, preferences, validator tools | Grounded venue, route, forecast, and constraint evidence |
 | Logistics agent | Deterministic `FeasibilityValidator` | Feasible timing, route, budget, group, and accessibility checks |
@@ -20,7 +20,8 @@ The system accepts a Siri-mediated summary only after the host asks for the hand
 
 ```mermaid
 flowchart LR
-    SIRI[Siri and messaging app] -->|User-requested rich summary| INTENT[PlanOutingFromSiriSummaryIntent]
+    SHORTCUT[Wandr Shortcut: Get Latest Messages then Use Model with Wandr's prompt] -->|Labeled text summary| INTENT[PlanOutingFromSiriSummaryIntent]
+    SIRI[Conversational Siri and messaging app] -->|User-requested rich summary| INTENT
     INTENT --> REVIEW[Host Review: volatile summary]
     REVIEW -->|Confirm| COORD[TravelPlanningService]
     REVIEW -->|Cancel| DISCARD[Discard raw summary]
@@ -113,14 +114,20 @@ Allowed proposal kinds are `calendarDraft`, `openRoute`, `openBookingURL`, `open
 ```mermaid
 sequenceDiagram
     participant H as Host
-    participant S as Siri / messaging app
+    participant SC as Wandr Shortcut (Use Model)
+    participant S as Conversational Siri / messaging app
     participant I as Wandr App Intent
     participant C as Coordinator
     participant T as Read-only tools
     participant V as Validator
     participant D as SwiftData
-    H->>S: Ask for summary and Wandr outing plan
-    S->>I: User-requested AttributedString summary
+    alt Primary channel - Wandr Shortcut
+        H->>SC: Run the installed Wandr Shortcut
+        SC->>I: Labeled-text AttributedString summary
+    else Fallback channel - conversational
+        H->>S: Ask for summary and Wandr outing plan
+        S->>I: User-requested AttributedString summary
+    end
     I->>H: Show summary + extracted constraints for review
     H->>I: Confirm
     I->>C: Structured OutingBrief; discard raw summary
@@ -147,7 +154,7 @@ sequenceDiagram
 
 | Condition | What the host sees | System behavior |
 | --- | --- | --- |
-| Siri supplies no summary | “Ask Siri to send the summary to Wandr again.” | No extraction, research, or manual chat-import fallback |
+| Neither intake channel supplies a summary | “Ask Siri to send the summary to Wandr again.” | No extraction, research, or manual chat-import fallback |
 | Summary is empty/unusable | Same recovery with a concise explanation | Clear volatile data; do not persist it |
 | Host rejects summary | Return to Await Siri Summary | Discard summary and make no lookup |
 | Foundation Models unavailable | Availability explanation and retained host-review state | No external-model fallback or fabricated plan |
@@ -165,6 +172,7 @@ This is a planning checklist only; no product code is implied by this document.
 
 - Define the domain types and `PlanningRun` state machine above.
 - Add the foreground authenticated `PlanOutingFromSiriSummaryIntent` with rich summary input and missing-summary recovery.
+- Author, test, and distribute the Wandr Shortcut (`Use Model` extraction prompt) as the primary intake channel; keep the plain conversational path as a zero-setup fallback into the same intent (`plan.md` A5).
 - Build Host Review, constraint chips, volatile raw-summary deletion, and minimal summary-source audit metadata.
 - Make Outings the default tab; retain Trips as a separate `PlanKind` on the shared pipeline.
 
