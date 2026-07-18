@@ -6,14 +6,22 @@
 //  (`IntakeInbox`): first-launch setup → awaiting a Siri/Shortcut summary → host review
 //  → confirm/recover. On confirm it hands off to curation, the existing downstream surface.
 //
-//  The full `PlanningRun` coordinator (researching, validating, curating, …) replaces
-//  the `.confirmed` branch in a later milestone; today it opens the design-pass curation.
+//  Once `TravelPlanningService` lands, this view switches on `PlanningRun.state`
+//  (awaitingSiriSummary → hostReview → … → curating → approving). For the design
+//  pass it opens straight onto curation, which is where the plan becomes visible.
 //
 
 import SwiftUI
 
 struct RootView: View {
     @State private var inbox = IntakeInbox.shared
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var curating: Bool {
+        if case .confirmed = inbox.state { return true }
+        return false
+    }
 
     var body: some View {
         Group {
@@ -30,9 +38,20 @@ struct RootView: View {
                 // Downstream planning/curation. The confirmed brief will seed the
                 // coordinator here once it lands; for now it opens the curation surface.
                 CurationView()
+                    // Settling the last hair of scale, rather than sliding in: the plan
+                    // was already on its way, this is it arriving.
+                    .scaleEffect(reduceMotion ? 1 : (curating ? 1 : 1.015))
+                    .transition(.opacity)
             }
         }
-        .animation(.wandrTransition, value: stateID)
+        .animation(stateAnimation, value: stateID)
+    }
+
+    /// Whichever screen is arriving waits for the other to clear; whichever is
+    /// leaving goes immediately. Reads as a handoff in one direction rather
+    /// than a symmetric crossfade.
+    private var stateAnimation: Animation {
+        curating ? .wandrStageIn : .wandrStageOut
     }
 
     /// A cheap identity for the state, so the container animates on transitions between
@@ -64,6 +83,10 @@ struct RootView: View {
 
 #Preview("Recovery") {
     RootView_PreviewHost { $0.receive(rawText: "   ") }
+}
+
+#Preview("Curation") {
+    CurationView()
 }
 
 /// Preview-only shell that drives the intake screens from a freshly configured inbox
