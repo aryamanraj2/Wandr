@@ -13,7 +13,26 @@
 
 import AVFoundation
 import Foundation
+import OSLog
 import Speech
+
+private let logger = Logger(subsystem: "com.wandr.app", category: "dictation")
+
+/// Failures that are ours rather than the framework's, so they can carry a
+/// sentence worth showing instead of arriving as an opaque NSError.
+enum DictationError: LocalizedError {
+    case locale(Locale)
+    case unsupported(Locale)
+
+    var errorDescription: String? {
+        switch self {
+        case .locale(let locale):
+            "Speech models for \(locale.identifier) could not be reserved."
+        case .unsupported(let locale):
+            "On-device dictation isn't available for \(locale.identifier) here. Type your plan instead."
+        }
+    }
+}
 
 @MainActor
 @Observable
@@ -85,7 +104,12 @@ final class PlanDictation {
             phase = .listening
         } catch {
             teardown()
-            phase = .failed("Couldn't start listening. Try typing it instead.")
+            // The user gets the calm sentence; the log gets the truth. Without
+            // this the underlying error was discarded at the catch, so every
+            // distinct failure — no model, no reservation, audio session
+            // refused — presented identically and none could be told apart.
+            logger.error("Dictation failed to start: \(error, privacy: .public)")
+            phase = .failed(Self.explain(error))
         }
     }
 
@@ -116,10 +140,42 @@ final class PlanDictation {
         let transcriber = SpeechTranscriber(locale: locale, preset: .progressiveTranscription)
         self.transcriber = transcriber
 
+        // `noModel` says the configuration has no model behind it, but not
+        // which half is at fault — the locale we picked, or the fact that no
+        // asset was ever installed for it. Asking the inventory directly is
+        // the only way to tell those apart, and it costs one call.
+        // Bound outside the log call: string interpolation is an autoclosure,
+        // which cannot carry an `await`.
+        let status = await AssetInventory.status(forModules: [transcriber])
+        let installed = await SpeechTranscriber.installedLocales.map(\.identifier)
+        let reserved = await AssetInventory.reservedLocales.map(\.identifier)
+        logger.log("""
+            Speech preflight — locale \(locale.identifier, privacy: .public), \
+            status \(String(describing: status), privacy: .public), \
+            installed \(installed, privacy: .public), \
+            reserved \(reserved, privacy: .public)
+            """)
+
+        guard status != .unsupported else {
+            throw DictationError.unsupported(locale)
+        }
+
         // Models are downloaded on demand, once per locale. Doing it here (not
         // lazily mid-sentence) keeps the first word from being swallowed.
         if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
+            logger.log("Downloading speech model for \(locale.identifier, privacy: .public)")
             try await request.downloadAndInstall()
+        }
+
+        // Downloading the model is not the same as being allowed to use it.
+        // An app holds a small number of locale reservations, and the
+        // transcriber only produces results for a locale it has reserved —
+        // without this the pipeline starts cleanly and then stays silent,
+        // which is exactly the failure that looks like a dead microphone.
+        if await !AssetInventory.reservedLocales.contains(locale) {
+            guard try await AssetInventory.reserve(locale: locale) else {
+                throw DictationError.locale(locale)
+            }
         }
 
         analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber])
@@ -169,6 +225,32 @@ final class PlanDictation {
         guard !volatile.isEmpty else { return }
         appendFinalized(volatile)
         volatile = ""
+    }
+
+    /// Distinct causes get distinct sentences. A dead mic and an undownloaded
+    /// model need different things from the user, so collapsing them into one
+    /// "try typing instead" hides the only actionable part.
+    ///
+    /// Matched on `error.code` rather than in a `catch`: `insufficientResources`
+    /// is a Swift-only `static var`, so it exists on `SFSpeechError.Code` but
+    /// never as a shorthand member on `SFSpeechError` itself.
+    private static func explain(_ error: Error) -> String {
+        if let error = error as? DictationError {
+            return error.localizedDescription
+        }
+        if let error = error as? SFSpeechError {
+            switch error.code {
+            case .insufficientResources:
+                return "The device is busy with another transcription. Try again in a moment."
+            case .noModel, .cannotAllocateUnsupportedLocale:
+                return "On-device dictation isn't available on this device yet. Type your plan instead."
+            case .tooManyAssetLocalesAllocated:
+                return "Too many speech languages are reserved. Free one in Settings and try again."
+            default:
+                break
+            }
+        }
+        return "Couldn't start listening. Try typing it instead."
     }
 
     private func transcriptionFailed() {

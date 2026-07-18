@@ -86,6 +86,15 @@ extension Animation {
 
     /// Occasional structural transitions: deck advance, sheet content swap.
     static let wandrTransition = Animation.spring(response: 0.45, dampingFraction: 0.9)
+
+    /// Whole-screen handoff, outgoing half. Leaves briskly and on its own —
+    /// a screen that lingers while the next one arrives reads as two screens.
+    static let wandrStageOut = Animation.easeOut(duration: 0.24)
+
+    /// Whole-screen handoff, incoming half. Held back just past the outgoing
+    /// screen's midpoint so the two never share the frame at full strength;
+    /// without the offset the chrome of both is briefly legible at once.
+    static let wandrStageIn = Animation.easeInOut(duration: 0.32).delay(0.14)
 }
 
 // MARK: - Metrics
