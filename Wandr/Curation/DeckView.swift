@@ -261,7 +261,7 @@ struct DeckView: View {
 
             Spacer()
 
-            Text(candidate.perHead == 0 ? "Free" : "₹\(candidate.perHead)")
+            Text(candidate.priceLabel)
                 .font(.caption.weight(.semibold).monospacedDigit())
                 .foregroundStyle(Wandr.secondaryText)
 

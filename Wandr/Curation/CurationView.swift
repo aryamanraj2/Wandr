@@ -30,10 +30,12 @@ struct CurationView: View {
     }
 
     /// Per-head cost is a range, not a figure — the squad has not chosen yet.
-    /// Both ends are computed deterministically from dataset fields.
+    /// Both ends are computed deterministically from dataset fields. Unknown
+    /// costs are excluded from the arithmetic and disclosed alongside it — a
+    /// live plan must not silently render a narrower range than the truth.
     private var costRange: ClosedRange<Int>? {
         let perSlot = decks.compactMap { deck -> (Int, Int)? in
-            let costs = deck.shortlisted.map(\.perHead)
+            let costs = deck.shortlisted.compactMap(\.perHead)
             guard let low = costs.min(), let high = costs.max() else { return nil }
             return (low, high)
         }
@@ -41,11 +43,27 @@ struct CurationView: View {
         return perSlot.reduce(0, { $0 + $1.0 })...perSlot.reduce(0, { $0 + $1.1 })
     }
 
+    /// Shortlisted candidates whose cost the evidence never established.
+    private var unpricedCount: Int {
+        decks.reduce(0) { total, deck in
+            total + deck.shortlisted.count(where: { $0.perHead == nil })
+        }
+    }
+
     private var costLabel: String {
-        guard let range = costRange else { return "Nothing on the slate yet" }
-        return range.lowerBound == range.upperBound
+        guard let range = costRange else {
+            if unpricedCount > 0 {
+                return "\(unpricedCount) unpriced on the slate"
+            }
+            return "Nothing on the slate yet"
+        }
+        var label = range.lowerBound == range.upperBound
             ? "₹\(range.lowerBound) per head"
             : "₹\(range.lowerBound)–\(range.upperBound) per head"
+        if unpricedCount > 0 {
+            label += " + \(unpricedCount) unpriced"
+        }
+        return label
     }
 
     var body: some View {

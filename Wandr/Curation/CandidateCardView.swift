@@ -132,8 +132,12 @@ struct CandidateCardView: View {
     /// the same weighting the eye already expects from a card's action row.
     private var footer: some View {
         HStack(alignment: .center, spacing: 14) {
-            detail("clock", candidate.openWindow)
-            detail("figure.walk", candidate.travelNote)
+            if let openWindow = candidate.openWindow {
+                detail("clock", openWindow)
+            }
+            if let travelNote = candidate.travelNote {
+                detail("figure.walk", travelNote)
+            }
 
             Spacer(minLength: 8)
 
@@ -143,11 +147,11 @@ struct CandidateCardView: View {
 
     private var pricePill: some View {
         HStack(spacing: 5) {
-            Text(candidate.perHead == 0 ? "Free" : "₹\(candidate.perHead)")
+            Text(candidate.priceLabel)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Wandr.ink)
+                .foregroundStyle(candidate.perHead == nil ? Wandr.ink.opacity(0.55) : Wandr.ink)
 
-            if candidate.perHead > 0 {
+            if let perHead = candidate.perHead, perHead > 0 {
                 Text("/head")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(Wandr.ink.opacity(0.45))
@@ -215,8 +219,10 @@ struct CandidateCardView: View {
     }
 
     private var accessibilityDetail: String {
-        var parts = [candidate.tagline, candidate.openWindow, candidate.travelNote]
-        parts.append(candidate.perHead == 0 ? "Free" : "₹\(candidate.perHead) per head")
+        var parts = [candidate.tagline]
+        if let openWindow = candidate.openWindow { parts.append(openWindow) }
+        if let travelNote = candidate.travelNote { parts.append(travelNote) }
+        parts.append(candidate.perHead == nil ? "Price unknown" : "\(candidate.priceLabel) per head")
         if let offer = candidate.offer { parts.append(offer) }
         return parts.joined(separator: ". ")
     }

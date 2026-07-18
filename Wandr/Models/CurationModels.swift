@@ -41,29 +41,80 @@ enum StopCategory: String, CaseIterable, Identifiable, Hashable {
 // MARK: - Candidate
 
 /// One swipeable option inside a deck.
+///
+/// Every field that can be unknown in the evidence is optional here, so an
+/// unknown renders as absent instead of forcing the UI to assert a fact the
+/// dataset never stated.
 struct Candidate: Identifiable, Hashable {
     let id: UUID = UUID()
+    /// The evidence this card is grounded in. Warnings attach through this.
+    /// `nil` only for `DemoPlan` preview fixtures.
+    let venueID: VenueID?
     let name: String
     let area: String
     let tagline: String
     let category: StopCategory
 
     /// Deterministic commerce metadata — computed by the app, never by the model.
-    let perHead: Int
+    /// `nil` means `VenueCost.unknown` — never collapsed into ₹0.
+    let perHead: Int?
     let listPrice: Int?
     let offer: String?
     let offerWindow: String?
 
-    let openWindow: String
-    let travelNote: String
+    /// `nil` means `OpeningHours.unknown`.
+    let openWindow: String?
+    /// `nil` until MKDirections exists — there is no travel-time source yet,
+    /// and rendering a computed-looking one would be a fabricated fact.
+    let travelNote: String?
 
     /// Backdrop gradient seed, standing in for venue photography.
     let imageSeed: Int
 
+    /// Validator warnings about this venue. Never editable by the UI, never
+    /// suppressible, never model-authored.
+    let warnings: [String]
+
+    init(
+        venueID: VenueID? = nil,
+        name: String,
+        area: String,
+        tagline: String,
+        category: StopCategory,
+        perHead: Int?,
+        listPrice: Int?,
+        offer: String?,
+        offerWindow: String?,
+        openWindow: String?,
+        travelNote: String?,
+        imageSeed: Int,
+        warnings: [String] = []
+    ) {
+        self.venueID = venueID
+        self.name = name
+        self.area = area
+        self.tagline = tagline
+        self.category = category
+        self.perHead = perHead
+        self.listPrice = listPrice
+        self.offer = offer
+        self.offerWindow = offerWindow
+        self.openWindow = openWindow
+        self.travelNote = travelNote
+        self.imageSeed = imageSeed
+        self.warnings = warnings
+    }
+
     /// "Paisa Vasool" — savings against list price. Pure arithmetic, no inference.
     var savings: Int? {
-        guard let listPrice, listPrice > perHead else { return nil }
+        guard let perHead, let listPrice, listPrice > perHead else { return nil }
         return listPrice - perHead
+    }
+
+    /// Honest price copy: ₹0 is "Free", unknown is unknown — never the same thing.
+    var priceLabel: String {
+        guard let perHead else { return "Price unknown" }
+        return perHead == 0 ? "Free" : "₹\(perHead)"
     }
 }
 
