@@ -14,6 +14,10 @@ struct CurationView: View {
     @State private var scrolledDeck: Deck.ID?
     @State private var showSchedule = false
 
+    /// True once the display header has scrolled up under the navigation bar,
+    /// at which point the short title takes over up there.
+    @State private var headerCollapsed = false
+
     @Namespace private var scheduleTransition
 
     /// Total options across every slot that the squad will vote on.
@@ -67,10 +71,23 @@ struct CurationView: View {
                 .scrollTargetLayout()
             }
             .scrollPosition(id: $scrolledDeck, anchor: .top)
+            // Threshold rather than raw offset: state only changes on the two
+            // frames where the header crosses the bar, not on every scroll tick.
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y + geometry.contentInsets.top > Metrics.headerCollapse
+            } action: { _, collapsed in
+                withAnimation(.wandrResponse) { headerCollapsed = collapsed }
+            }
             .background(Wandr.pageBackground)
-            .navigationTitle("Your night")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Stops")
+                        .font(.headline)
+                        .foregroundStyle(Wandr.primaryText)
+                        .opacity(headerCollapsed ? 1 : 0)
+                }
+
                 ToolbarItem(placement: .topBarTrailing) {
                     categoryJumpMenu
                 }
@@ -94,12 +111,15 @@ struct CurationView: View {
 
     // MARK: Intro
 
+    /// Fades out as the bar title fades in, so the two read as one title
+    /// moving up rather than two titles briefly on screen together.
     private var intro: some View {
         Text("Pick your stops")
             .font(.wandrDisplay(40))
             .foregroundStyle(Wandr.primaryText)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 8)
+            .opacity(headerCollapsed ? 0 : 1)
     }
 
     // MARK: Toolbar

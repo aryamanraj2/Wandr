@@ -101,6 +101,10 @@ enum Metrics {
 
     /// Reschedule snaps to this grain.
     static let snapMinutes: Int = 15
+
+    /// How far a page scrolls before its display header hands off to the
+    /// short title in the navigation bar.
+    static let headerCollapse: CGFloat = 44
 }
 
 // MARK: - Reusable surfaces
