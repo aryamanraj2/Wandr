@@ -237,6 +237,9 @@ nonisolated struct DistrictVenueProvider: VenueResearching, Sendable {
         case "hauz khas", "hauz khaz", "hkv": return "hauz khas"
         case "lodhi", "lodi", "lodhi colony", "lodhi road": return "lodhi"
         case "cyberhub", "cyber hub", "gurgaon", "gurugram": return "cyberhub"
+        case "saket": return "saket"
+        case "aerocity", "aero city": return "aerocity"
+        case "nizamuddin", "hazrat nizamuddin", "nizam": return "nizamuddin"
         default: return trimmed
         }
     }

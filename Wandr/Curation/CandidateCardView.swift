@@ -81,6 +81,27 @@ struct CandidateCardView: View {
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
 
+            // The model's reason for the pick — the one piece of model prose on the
+            // card, styled as a quiet aside so it never reads as a hard fact.
+            if let rationale = candidate.rationale {
+                Text(rationale)
+                    .font(.footnote.italic())
+                    .foregroundStyle(Wandr.accent(for: candidate.category))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 2)
+            }
+
+            // The validator's caveats, if any — an honest flag, never hidden.
+            if let warning = candidate.warnings.first {
+                Label(warning, systemImage: "exclamationmark.circle")
+                    .font(.caption2)
+                    .foregroundStyle(Wandr.ink.opacity(0.5))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 1)
+            }
+
             if let offer = candidate.offer {
                 offerLine(offer)
                     .padding(.top, 1)
@@ -133,7 +154,10 @@ struct CandidateCardView: View {
     private var footer: some View {
         HStack(alignment: .center, spacing: 14) {
             detail("clock", candidate.openWindow)
-            detail("figure.walk", candidate.travelNote)
+            // Travel time is a deferred rule — show the walk line only when we have one.
+            if !candidate.travelNote.isEmpty {
+                detail("figure.walk", candidate.travelNote)
+            }
 
             Spacer(minLength: 8)
 
@@ -141,13 +165,19 @@ struct CandidateCardView: View {
         }
     }
 
+    /// Unknown cost renders as "₹ ?" — never as ₹0/"Free", which would be a false fact.
+    private var priceHeadline: String {
+        if candidate.costUnknown { return "₹ ?" }
+        return candidate.perHead == 0 ? "Free" : "₹\(candidate.perHead)"
+    }
+
     private var pricePill: some View {
         HStack(spacing: 5) {
-            Text(candidate.perHead == 0 ? "Free" : "₹\(candidate.perHead)")
+            Text(priceHeadline)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(Wandr.ink)
 
-            if candidate.perHead > 0 {
+            if !candidate.costUnknown && candidate.perHead > 0 {
                 Text("/head")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(Wandr.ink.opacity(0.45))
@@ -215,9 +245,17 @@ struct CandidateCardView: View {
     }
 
     private var accessibilityDetail: String {
-        var parts = [candidate.tagline, candidate.openWindow, candidate.travelNote]
-        parts.append(candidate.perHead == 0 ? "Free" : "₹\(candidate.perHead) per head")
+        var parts = [candidate.tagline]
+        if let rationale = candidate.rationale { parts.append(rationale) }
+        parts.append(candidate.openWindow)
+        if !candidate.travelNote.isEmpty { parts.append(candidate.travelNote) }
+        parts.append(
+            candidate.costUnknown
+                ? "Price not listed"
+                : (candidate.perHead == 0 ? "Free" : "₹\(candidate.perHead) per head")
+        )
         if let offer = candidate.offer { parts.append(offer) }
+        if let warning = candidate.warnings.first { parts.append(warning) }
         return parts.joined(separator: ". ")
     }
 }

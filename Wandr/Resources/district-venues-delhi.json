@@ -1,5 +1,5 @@
 {
-  "version": "delhi-ncr-2026-07",
+  "version": "delhi-ncr-2026-07b",
   "venues": [
     {
       "id": "hk-food-1",
@@ -11,14 +11,21 @@
       "listPrice": 850,
       "offer": "20% off the tasting board",
       "offerWindow": "Weeknights before 8:00 pm",
-      "openWindow": "12:00 pm – 11:00 pm",
-      "dietaryTags": ["vegetarian", "vegan"],
-      "accessibilityTags": ["stepFreeEntry"],
+      "openWindow": "12:00 pm - 11:00 pm",
+      "dietaryTags": [
+        "vegetarian",
+        "vegan"
+      ],
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
       "indoorOutdoor": "indoor",
-      "vibeTags": ["cosy", "conversation"],
+      "vibeTags": [
+        "cosy",
+        "conversation"
+      ],
       "availability": "available",
-      "limitations": [],
-      "imageSeed": 101
+      "imageSeed": 100
     },
     {
       "id": "hk-food-2",
@@ -28,14 +35,21 @@
       "tagline": "Courtyard seating, long menus, longer evenings.",
       "perHead": 950,
       "listPrice": 1200,
-      "openWindow": "6:00 pm – 1:00 am",
-      "dietaryTags": ["vegetarian"],
+      "openWindow": "6:00 pm - 1:00 am",
+      "dietaryTags": [
+        "vegetarian"
+      ],
       "accessibilityTags": [],
       "indoorOutdoor": "mixed",
-      "vibeTags": ["lively", "music"],
+      "vibeTags": [
+        "lively",
+        "music"
+      ],
       "availability": "available",
-      "limitations": ["Courtyard seating is first-come only."],
-      "imageSeed": 102
+      "limitations": [
+        "Courtyard seating is first-come only."
+      ],
+      "imageSeed": 101
     },
     {
       "id": "hk-food-3",
@@ -44,12 +58,57 @@
       "category": "food",
       "tagline": "Coastal plates, tall windows, slow service by design.",
       "perHead": 1350,
-      "openWindow": "7:00 pm – 12:00 am",
-      "dietaryTags": ["vegetarian", "jain"],
+      "openWindow": "7:00 pm - 12:00 am",
+      "dietaryTags": [
+        "vegetarian",
+        "jain"
+      ],
       "indoorOutdoor": "indoor",
-      "vibeTags": ["date", "quiet"],
+      "vibeTags": [
+        "date",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 102
+    },
+    {
+      "id": "hk-food-4",
+      "name": "Qila Terrace",
+      "area": "Hauz Khas",
+      "category": "food",
+      "tagline": "Rooftop tasting menu over the fort — book ahead.",
+      "perHead": 2400,
+      "openWindow": "7:00 pm - 11:00 pm",
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "date",
+        "special"
+      ],
       "availability": "available",
       "imageSeed": 103
+    },
+    {
+      "id": "hk-food-5",
+      "name": "Green Room Deli",
+      "area": "Hauz Khas",
+      "category": "food",
+      "tagline": "Walk-in deli counter; prices change with the market.",
+      "openWindow": "9:00 am - 9:00 pm",
+      "dietaryTags": [
+        "vegetarian",
+        "vegan",
+        "glutenFree"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quick",
+        "casual"
+      ],
+      "availability": "available",
+      "imageSeed": 104
     },
     {
       "id": "hk-sight-1",
@@ -58,12 +117,17 @@
       "category": "sights",
       "tagline": "Fourteenth-century madrasa over the reservoir.",
       "perHead": 0,
-      "openWindow": "Sunrise – sunset",
+      "openWindow": "Sunrise - sunset",
       "indoorOutdoor": "outdoor",
-      "vibeTags": ["historic", "photo"],
+      "vibeTags": [
+        "historic",
+        "photo"
+      ],
       "availability": "available",
-      "limitations": ["Uneven stone steps throughout."],
-      "imageSeed": 111
+      "limitations": [
+        "Uneven stone steps throughout."
+      ],
+      "imageSeed": 105
     },
     {
       "id": "hk-sight-2",
@@ -72,12 +136,17 @@
       "category": "sights",
       "tagline": "A walking loop that empties out after dusk.",
       "perHead": 50,
-      "openWindow": "5:00 am – 8:00 pm",
-      "accessibilityTags": ["stepFreeEntry"],
+      "openWindow": "5:00 am - 8:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
       "indoorOutdoor": "outdoor",
-      "vibeTags": ["green", "walk"],
+      "vibeTags": [
+        "green",
+        "walk"
+      ],
       "availability": "available",
-      "imageSeed": 112
+      "imageSeed": 106
     },
     {
       "id": "hk-sight-3",
@@ -87,12 +156,18 @@
       "tagline": "Working letterpress studio open to walk-ins.",
       "perHead": 300,
       "listPrice": 450,
-      "openWindow": "11:00 am – 7:00 pm",
-      "accessibilityTags": ["stepFreeEntry", "accessibleRestroom"],
+      "openWindow": "11:00 am - 7:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry",
+        "accessibleRestroom"
+      ],
       "indoorOutdoor": "indoor",
-      "vibeTags": ["craft", "quiet"],
+      "vibeTags": [
+        "craft",
+        "quiet"
+      ],
       "availability": "available",
-      "imageSeed": 113
+      "imageSeed": 107
     },
     {
       "id": "hk-night-1",
@@ -103,13 +178,18 @@
       "perHead": 900,
       "listPrice": 1150,
       "offer": "Two-for-one on house pours",
-      "offerWindow": "Tuesday to Thursday, 7:00 – 9:00 pm",
-      "openWindow": "7:00 pm – 1:00 am",
-      "dietaryTags": ["vegetarian"],
+      "offerWindow": "Tue-Thu, 7:00-9:00 pm",
+      "openWindow": "7:00 pm - 1:00 am",
+      "dietaryTags": [
+        "vegetarian"
+      ],
       "indoorOutdoor": "indoor",
-      "vibeTags": ["intimate", "cocktails"],
+      "vibeTags": [
+        "intimate",
+        "cocktails"
+      ],
       "availability": "available",
-      "imageSeed": 121
+      "imageSeed": 108
     },
     {
       "id": "hk-night-2",
@@ -119,13 +199,20 @@
       "tagline": "Open-air terrace with a live set most Fridays.",
       "perHead": 1200,
       "listPrice": 1500,
-      "openWindow": "8:00 pm – 2:00 am",
-      "dietaryTags": ["vegetarian"],
+      "openWindow": "8:00 pm - 2:00 am",
+      "dietaryTags": [
+        "vegetarian"
+      ],
       "indoorOutdoor": "outdoor",
-      "vibeTags": ["music", "lively"],
+      "vibeTags": [
+        "music",
+        "lively"
+      ],
       "availability": "available",
-      "limitations": ["Live music nights are not confirmed in advance."],
-      "imageSeed": 122
+      "limitations": [
+        "Live music nights are not confirmed in advance."
+      ],
+      "imageSeed": 109
     },
     {
       "id": "hk-night-3",
@@ -134,11 +221,14 @@
       "category": "nightlife",
       "tagline": "Late room, loud room, cash bar downstairs.",
       "perHead": 1450,
-      "openWindow": "9:00 pm – 3:00 am",
+      "openWindow": "9:00 pm - 3:00 am",
       "indoorOutdoor": "indoor",
-      "vibeTags": ["music", "dancing"],
+      "vibeTags": [
+        "music",
+        "dancing"
+      ],
       "availability": "available",
-      "imageSeed": 123
+      "imageSeed": 110
     },
     {
       "id": "hk-disc-1",
@@ -147,13 +237,18 @@
       "category": "discover",
       "tagline": "Drop-in pottery bench, two hours a sitting.",
       "perHead": 400,
-      "openWindow": "10:00 am – 8:00 pm",
+      "openWindow": "10:00 am - 8:00 pm",
       "dietaryTags": [],
-      "accessibilityTags": ["stepFreeEntry"],
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
       "indoorOutdoor": "indoor",
-      "vibeTags": ["hands-on", "craft"],
+      "vibeTags": [
+        "hands-on",
+        "craft"
+      ],
       "availability": "available",
-      "imageSeed": 131
+      "imageSeed": 111
     },
     {
       "id": "hk-disc-2",
@@ -163,11 +258,14 @@
       "tagline": "A bookshop that genuinely does not close early.",
       "perHead": 700,
       "listPrice": 900,
-      "openWindow": "11:00 am – 2:00 am",
+      "openWindow": "11:00 am - 2:00 am",
       "indoorOutdoor": "indoor",
-      "vibeTags": ["quiet", "browse"],
+      "vibeTags": [
+        "quiet",
+        "browse"
+      ],
       "availability": "available",
-      "imageSeed": 132
+      "imageSeed": 112
     },
     {
       "id": "hk-disc-3",
@@ -176,14 +274,37 @@
       "category": "discover",
       "tagline": "Vinyl-only listening bar, no requests taken.",
       "perHead": 1100,
-      "openWindow": "6:00 pm – 12:00 am",
+      "openWindow": "6:00 pm - 12:00 am",
       "indoorOutdoor": "indoor",
-      "vibeTags": ["music", "quiet"],
+      "vibeTags": [
+        "music",
+        "quiet"
+      ],
       "availability": "unknown",
-      "limitations": ["Capacity is twelve people at a time."],
-      "imageSeed": 133
+      "limitations": [
+        "Capacity is twelve people at a time."
+      ],
+      "imageSeed": 113
     },
-
+    {
+      "id": "hk-disc-4",
+      "name": "Sunday Flea Market",
+      "area": "Hauz Khas",
+      "category": "discover",
+      "tagline": "Weekend makers' market along the village lane.",
+      "perHead": 150,
+      "openWindow": "10:00 am - 8:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "mixed",
+      "vibeTags": [
+        "browse",
+        "craft"
+      ],
+      "availability": "available",
+      "imageSeed": 114
+    },
     {
       "id": "cp-food-1",
       "name": "Regal Canteen",
@@ -191,44 +312,137 @@
       "category": "food",
       "tagline": "Counter service that has not changed since 1974.",
       "perHead": 450,
-      "openWindow": "8:00 am – 11:00 pm",
-      "dietaryTags": ["vegetarian", "jain"],
+      "openWindow": "8:00 am - 11:00 pm",
+      "dietaryTags": [
+        "vegetarian",
+        "jain"
+      ],
       "accessibilityTags": [],
       "indoorOutdoor": "indoor",
-      "vibeTags": ["classic", "quick"],
+      "vibeTags": [
+        "classic",
+        "quick"
+      ],
       "availability": "available",
-      "imageSeed": 201
+      "imageSeed": 115
     },
     {
       "id": "cp-food-2",
       "name": "Circle House",
       "area": "Connaught Place",
       "category": "food",
-      "tagline": "Colonnade table, big group menus, late kitchen.",
+      "tagline": "Colonnade table, big-group menus, late kitchen.",
       "perHead": 1150,
       "listPrice": 1450,
-      "offer": "Complimentary dessert for parties of six or more",
+      "offer": "Free dessert for parties of six or more",
       "offerWindow": "All week",
-      "openWindow": "12:00 pm – 12:00 am",
-      "dietaryTags": ["vegetarian", "halal"],
+      "openWindow": "12:00 pm - 12:00 am",
+      "dietaryTags": [
+        "vegetarian",
+        "halal"
+      ],
       "indoorOutdoor": "mixed",
-      "vibeTags": ["group", "lively"],
+      "vibeTags": [
+        "group",
+        "lively"
+      ],
       "availability": "available",
-      "imageSeed": 202
+      "imageSeed": 116
     },
     {
       "id": "cp-food-3",
+      "name": "Embassy Room",
+      "area": "Connaught Place",
+      "category": "food",
+      "tagline": "White-tablecloth continental off the outer circle.",
+      "perHead": 1400,
+      "openWindow": "12:00 pm - 11:30 pm",
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "classic",
+        "date"
+      ],
+      "availability": "available",
+      "imageSeed": 117
+    },
+    {
+      "id": "cp-food-4",
       "name": "Block N Grill",
       "area": "Connaught Place",
       "category": "food",
       "tagline": "Charcoal grill, no reservations, expect a wait.",
       "perHead": 2200,
-      "dietaryTags": [],
+      "openWindow": "12:00 pm - 11:00 pm",
       "indoorOutdoor": "indoor",
-      "vibeTags": ["meat", "loud"],
+      "vibeTags": [
+        "meat",
+        "loud"
+      ],
       "availability": "available",
-      "limitations": ["No reservations; waits run past an hour on weekends."],
-      "imageSeed": 203
+      "limitations": [
+        "No reservations; waits run past an hour on weekends."
+      ],
+      "imageSeed": 118
+    },
+    {
+      "id": "cp-sight-1",
+      "name": "Jantar Mantar",
+      "area": "Connaught Place",
+      "category": "sights",
+      "tagline": "Eighteenth-century masonry instruments, still accurate.",
+      "perHead": 25,
+      "openWindow": "9:00 am - 6:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "historic",
+        "photo"
+      ],
+      "availability": "available",
+      "imageSeed": 119
+    },
+    {
+      "id": "cp-sight-2",
+      "name": "Agrasen ki Baoli",
+      "area": "Connaught Place",
+      "category": "sights",
+      "tagline": "A stepwell dropping five storeys below street level.",
+      "perHead": 0,
+      "openWindow": "7:00 am - 6:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "historic",
+        "quiet"
+      ],
+      "availability": "available",
+      "limitations": [
+        "Descending steps have no handrail."
+      ],
+      "imageSeed": 120
+    },
+    {
+      "id": "cp-sight-3",
+      "name": "Central Park Bandstand",
+      "area": "Connaught Place",
+      "category": "sights",
+      "tagline": "Sunken lawns in the middle of the inner circle.",
+      "perHead": 0,
+      "openWindow": "6:00 am - 9:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "green",
+        "walk"
+      ],
+      "availability": "available",
+      "imageSeed": 121
     },
     {
       "id": "cp-night-1",
@@ -238,12 +452,17 @@
       "tagline": "Twelve taps, low ceilings, older crowd.",
       "perHead": 700,
       "listPrice": 950,
-      "openWindow": "5:00 pm – 1:00 am",
-      "dietaryTags": ["vegetarian"],
+      "openWindow": "5:00 pm - 1:00 am",
+      "dietaryTags": [
+        "vegetarian"
+      ],
       "indoorOutdoor": "indoor",
-      "vibeTags": ["beer", "casual"],
+      "vibeTags": [
+        "beer",
+        "casual"
+      ],
       "availability": "available",
-      "imageSeed": 211
+      "imageSeed": 122
     },
     {
       "id": "cp-night-2",
@@ -252,52 +471,49 @@
       "category": "nightlife",
       "tagline": "Sunset-facing roof over the outer circle.",
       "perHead": 1300,
-      "openWindow": "6:00 pm – 1:00 am",
+      "openWindow": "6:00 pm - 1:00 am",
       "indoorOutdoor": "outdoor",
-      "vibeTags": ["sunset", "music"],
+      "vibeTags": [
+        "sunset",
+        "music"
+      ],
       "availability": "available",
-      "imageSeed": 212
+      "imageSeed": 123
     },
     {
       "id": "cp-night-3",
+      "name": "PCO Speakeasy",
+      "area": "Connaught Place",
+      "category": "nightlife",
+      "tagline": "Password at the door, list of forty cocktails.",
+      "perHead": 1400,
+      "openWindow": "7:00 pm - 1:00 am",
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "cocktails",
+        "intimate"
+      ],
+      "availability": "available",
+      "imageSeed": 124
+    },
+    {
+      "id": "cp-night-4",
       "name": "The Long Bar",
       "area": "Connaught Place",
       "category": "nightlife",
       "tagline": "Standing room, jazz trio, cash only after midnight.",
       "perHead": 2000,
-      "openWindow": "8:00 pm – 3:00 am",
+      "openWindow": "8:00 pm - 3:00 am",
       "indoorOutdoor": "indoor",
-      "vibeTags": ["jazz", "music"],
+      "vibeTags": [
+        "jazz",
+        "music"
+      ],
       "availability": "unknown",
-      "imageSeed": 213
-    },
-    {
-      "id": "cp-sight-1",
-      "name": "Jantar Mantar",
-      "area": "Connaught Place",
-      "category": "sights",
-      "tagline": "Eighteenth-century masonry instruments, still accurate.",
-      "perHead": 25,
-      "openWindow": "9:00 am – 6:00 pm",
-      "accessibilityTags": ["stepFreeEntry"],
-      "indoorOutdoor": "outdoor",
-      "vibeTags": ["historic", "photo"],
-      "availability": "available",
-      "imageSeed": 221
-    },
-    {
-      "id": "cp-sight-2",
-      "name": "Agrasen ki Baoli",
-      "area": "Connaught Place",
-      "category": "sights",
-      "tagline": "A stepwell dropping five storeys below street level.",
-      "perHead": 0,
-      "openWindow": "7:00 am – 6:00 pm",
-      "indoorOutdoor": "outdoor",
-      "vibeTags": ["historic", "quiet"],
-      "availability": "available",
-      "limitations": ["Descending steps have no handrail."],
-      "imageSeed": 222
+      "imageSeed": 125
     },
     {
       "id": "cp-disc-1",
@@ -306,27 +522,73 @@
       "category": "discover",
       "tagline": "One building, every state's crafts, fixed prices.",
       "perHead": 0,
-      "openWindow": "10:00 am – 7:00 pm",
-      "accessibilityTags": ["stepFreeEntry", "elevatorAccess"],
+      "openWindow": "10:00 am - 7:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry",
+        "elevatorAccess"
+      ],
       "indoorOutdoor": "indoor",
-      "vibeTags": ["browse", "craft"],
+      "vibeTags": [
+        "browse",
+        "craft"
+      ],
       "availability": "available",
-      "imageSeed": 231
+      "imageSeed": 126
     },
-
+    {
+      "id": "cp-disc-2",
+      "name": "Statesman House Records",
+      "area": "Connaught Place",
+      "category": "discover",
+      "tagline": "Second-floor record shop with listening booths.",
+      "perHead": 400,
+      "openWindow": "11:00 am - 8:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "music",
+        "browse"
+      ],
+      "availability": "available",
+      "imageSeed": 127
+    },
+    {
+      "id": "cp-disc-3",
+      "name": "Odeon Balcony Screening",
+      "area": "Connaught Place",
+      "category": "discover",
+      "tagline": "Single-screen balcony seats, one show a night.",
+      "perHead": 300,
+      "listPrice": 450,
+      "openWindow": "3:00 pm - 11:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "cinema",
+        "retro"
+      ],
+      "availability": "available",
+      "imageSeed": 128
+    },
     {
       "id": "lodhi-sight-1",
       "name": "Lodhi Garden Tombs",
       "area": "Lodhi",
       "category": "sights",
-      "tagline": "Ninety acres of park built around fifteenth-century tombs.",
+      "tagline": "Ninety acres of park around fifteenth-century tombs.",
       "perHead": 0,
-      "openWindow": "6:00 am – 8:00 pm",
-      "accessibilityTags": ["stepFreeEntry"],
+      "openWindow": "6:00 am - 8:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
       "indoorOutdoor": "outdoor",
-      "vibeTags": ["green", "historic"],
+      "vibeTags": [
+        "green",
+        "historic"
+      ],
       "availability": "available",
-      "imageSeed": 301
+      "imageSeed": 129
     },
     {
       "id": "lodhi-sight-2",
@@ -336,11 +598,17 @@
       "tagline": "India's first open-air public art district.",
       "perHead": 0,
       "openWindow": "Always open",
-      "accessibilityTags": ["stepFreeEntry"],
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
       "indoorOutdoor": "outdoor",
-      "vibeTags": ["art", "photo", "walk"],
+      "vibeTags": [
+        "art",
+        "photo",
+        "walk"
+      ],
       "availability": "available",
-      "imageSeed": 302
+      "imageSeed": 130
     },
     {
       "id": "lodhi-sight-3",
@@ -349,11 +617,14 @@
       "category": "sights",
       "tagline": "The last of the garden tombs, and the emptiest.",
       "perHead": 600,
-      "openWindow": "7:00 am – 5:00 pm",
+      "openWindow": "7:00 am - 5:00 pm",
       "indoorOutdoor": "outdoor",
-      "vibeTags": ["historic", "quiet"],
+      "vibeTags": [
+        "historic",
+        "quiet"
+      ],
       "availability": "available",
-      "imageSeed": 303
+      "imageSeed": 131
     },
     {
       "id": "lodhi-food-1",
@@ -363,13 +634,23 @@
       "tagline": "Garden-side all-day café inside the nursery walls.",
       "perHead": 1250,
       "listPrice": 1600,
-      "openWindow": "8:00 am – 10:00 pm",
-      "dietaryTags": ["vegetarian", "vegan", "glutenFree"],
-      "accessibilityTags": ["stepFreeEntry", "accessibleRestroom"],
+      "openWindow": "8:00 am - 10:00 pm",
+      "dietaryTags": [
+        "vegetarian",
+        "vegan",
+        "glutenFree"
+      ],
+      "accessibilityTags": [
+        "stepFreeEntry",
+        "accessibleRestroom"
+      ],
       "indoorOutdoor": "mixed",
-      "vibeTags": ["garden", "brunch"],
+      "vibeTags": [
+        "garden",
+        "brunch"
+      ],
       "availability": "available",
-      "imageSeed": 311
+      "imageSeed": 132
     },
     {
       "id": "lodhi-food-2",
@@ -378,12 +659,98 @@
       "category": "food",
       "tagline": "Thali counter behind the market, cash preferred.",
       "perHead": 500,
-      "openWindow": "11:00 am – 4:00 pm",
-      "dietaryTags": ["vegetarian", "jain"],
+      "openWindow": "11:00 am - 4:00 pm",
+      "dietaryTags": [
+        "vegetarian",
+        "jain"
+      ],
       "indoorOutdoor": "indoor",
-      "vibeTags": ["quick", "classic"],
+      "vibeTags": [
+        "quick",
+        "classic"
+      ],
       "availability": "available",
-      "imageSeed": 312
+      "imageSeed": 133
+    },
+    {
+      "id": "lodhi-food-3",
+      "name": "Perch Lodhi",
+      "area": "Lodhi",
+      "category": "food",
+      "tagline": "Wine-and-coffee bar with a short European menu.",
+      "perHead": 1300,
+      "openWindow": "9:00 am - 11:00 pm",
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "date",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 134
+    },
+    {
+      "id": "lodhi-night-1",
+      "name": "Cellar by the Market",
+      "area": "Lodhi",
+      "category": "nightlife",
+      "tagline": "Basement wine bar under Meharchand market.",
+      "perHead": 1200,
+      "openWindow": "6:00 pm - 12:30 am",
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "wine",
+        "intimate"
+      ],
+      "availability": "available",
+      "imageSeed": 135
+    },
+    {
+      "id": "lodhi-night-2",
+      "name": "Amaya Terrace",
+      "area": "Lodhi",
+      "category": "nightlife",
+      "tagline": "Colony rooftop, acoustic sets on weekends.",
+      "perHead": 1400,
+      "listPrice": 1700,
+      "openWindow": "7:00 pm - 1:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "music",
+        "relaxed"
+      ],
+      "availability": "available",
+      "imageSeed": 136
+    },
+    {
+      "id": "lodhi-night-3",
+      "name": "Meharchand Taproom",
+      "area": "Lodhi",
+      "category": "nightlife",
+      "tagline": "Craft taps and a quiet back garden.",
+      "perHead": 1100,
+      "openWindow": "5:00 pm - 12:00 am",
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "mixed",
+      "vibeTags": [
+        "beer",
+        "casual"
+      ],
+      "availability": "available",
+      "imageSeed": 137
     },
     {
       "id": "lodhi-disc-1",
@@ -392,13 +759,20 @@
       "category": "discover",
       "tagline": "Weekend performances on the restored bandstand.",
       "perHead": 200,
-      "openWindow": "7:00 am – 7:00 pm",
-      "accessibilityTags": ["stepFreeEntry"],
+      "openWindow": "7:00 am - 7:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
       "indoorOutdoor": "outdoor",
-      "vibeTags": ["music", "green"],
+      "vibeTags": [
+        "music",
+        "green"
+      ],
       "availability": "unknown",
-      "limitations": ["Performance schedule is announced week to week."],
-      "imageSeed": 321
+      "limitations": [
+        "Performance schedule is announced week to week."
+      ],
+      "imageSeed": 138
     },
     {
       "id": "lodhi-disc-2",
@@ -407,30 +781,82 @@
       "category": "discover",
       "tagline": "Hand-bound notebooks while you wait.",
       "perHead": 350,
-      "openWindow": "10:00 am – 6:00 pm",
+      "openWindow": "10:00 am - 6:00 pm",
       "indoorOutdoor": "indoor",
-      "vibeTags": ["craft", "quiet"],
+      "vibeTags": [
+        "craft",
+        "quiet"
+      ],
       "availability": "available",
-      "imageSeed": 322
+      "imageSeed": 139
     },
-
+    {
+      "id": "lodhi-disc-3",
+      "name": "Dayanita Print Room",
+      "area": "Lodhi",
+      "category": "discover",
+      "tagline": "Rotating photography prints in a converted flat.",
+      "perHead": 300,
+      "openWindow": "11:00 am - 7:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "art",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 140
+    },
+    {
+      "id": "lodhi-disc-4",
+      "name": "Habitat Visual Arts Gallery",
+      "area": "Lodhi",
+      "category": "discover",
+      "tagline": "Free rotating shows at the arts centre.",
+      "perHead": 0,
+      "openWindow": "11:00 am - 7:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry",
+        "elevatorAccess",
+        "accessibleRestroom"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "art",
+        "browse"
+      ],
+      "availability": "available",
+      "imageSeed": 141
+    },
     {
       "id": "cyber-food-1",
-      "name": "Sector Twenty Nine Kitchen",
+      "name": "Sector 29 Kitchen",
       "area": "Cyberhub",
       "category": "food",
       "tagline": "Glass-fronted pan-Asian with a late kitchen.",
       "perHead": 1400,
       "listPrice": 1750,
       "offer": "Happy hour on small plates",
-      "offerWindow": "Daily 4:00 – 7:00 pm",
-      "openWindow": "12:00 pm – 1:00 am",
-      "dietaryTags": ["vegetarian", "vegan"],
-      "accessibilityTags": ["stepFreeEntry", "elevatorAccess", "accessibleRestroom"],
+      "offerWindow": "Daily 4:00-7:00 pm",
+      "openWindow": "12:00 pm - 1:00 am",
+      "dietaryTags": [
+        "vegetarian",
+        "vegan"
+      ],
+      "accessibilityTags": [
+        "stepFreeEntry",
+        "elevatorAccess",
+        "accessibleRestroom"
+      ],
       "indoorOutdoor": "indoor",
-      "vibeTags": ["group", "lively"],
+      "vibeTags": [
+        "group",
+        "lively"
+      ],
       "availability": "available",
-      "imageSeed": 401
+      "imageSeed": 142
     },
     {
       "id": "cyber-food-2",
@@ -438,12 +864,99 @@
       "area": "Cyberhub",
       "category": "food",
       "tagline": "Outdoor tables along the promenade strip.",
-      "perHead": 1800,
-      "openWindow": "12:00 pm – 12:00 am",
+      "perHead": 1350,
+      "openWindow": "12:00 pm - 12:00 am",
+      "dietaryTags": [
+        "vegetarian"
+      ],
       "indoorOutdoor": "outdoor",
-      "vibeTags": ["group", "loud"],
+      "vibeTags": [
+        "group",
+        "loud"
+      ],
       "availability": "available",
-      "imageSeed": 402
+      "imageSeed": 143
+    },
+    {
+      "id": "cyber-food-3",
+      "name": "Dumpling Republic",
+      "area": "Cyberhub",
+      "category": "food",
+      "tagline": "Counter dim-sum, communal benches, quick turns.",
+      "perHead": 900,
+      "openWindow": "11:00 am - 11:00 pm",
+      "dietaryTags": [
+        "vegetarian",
+        "vegan"
+      ],
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quick",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 144
+    },
+    {
+      "id": "cyber-sight-1",
+      "name": "Kingdom of Dreams Facade",
+      "area": "Cyberhub",
+      "category": "sights",
+      "tagline": "Illuminated cultural complex — walk the concourse.",
+      "perHead": 0,
+      "openWindow": "5:00 pm - 11:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry",
+        "elevatorAccess"
+      ],
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "photo",
+        "lights"
+      ],
+      "availability": "available",
+      "imageSeed": 145
+    },
+    {
+      "id": "cyber-sight-2",
+      "name": "Cyber Green Amphitheatre",
+      "area": "Cyberhub",
+      "category": "sights",
+      "tagline": "Terraced lawns between the towers.",
+      "perHead": 0,
+      "openWindow": "7:00 am - 9:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "green",
+        "walk"
+      ],
+      "availability": "available",
+      "imageSeed": 146
+    },
+    {
+      "id": "cyber-sight-3",
+      "name": "Leisure Valley Walk",
+      "area": "Cyberhub",
+      "category": "sights",
+      "tagline": "A landscaped ravine cutting through the sectors.",
+      "perHead": 0,
+      "openWindow": "6:00 am - 8:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "green",
+        "walk"
+      ],
+      "availability": "available",
+      "imageSeed": 147
     },
     {
       "id": "cyber-night-1",
@@ -453,13 +966,21 @@
       "tagline": "In-house brewery, six tanks visible from the bar.",
       "perHead": 1100,
       "listPrice": 1400,
-      "openWindow": "12:00 pm – 1:00 am",
-      "dietaryTags": ["vegetarian"],
-      "accessibilityTags": ["stepFreeEntry", "elevatorAccess"],
+      "openWindow": "12:00 pm - 1:00 am",
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "accessibilityTags": [
+        "stepFreeEntry",
+        "elevatorAccess"
+      ],
       "indoorOutdoor": "indoor",
-      "vibeTags": ["beer", "group"],
+      "vibeTags": [
+        "beer",
+        "group"
+      ],
       "availability": "available",
-      "imageSeed": 411
+      "imageSeed": 148
     },
     {
       "id": "cyber-night-2",
@@ -468,12 +989,50 @@
       "category": "nightlife",
       "tagline": "Two floors, resident DJs, entry list after 10.",
       "perHead": 1900,
-      "openWindow": "9:00 pm – 3:00 am",
+      "openWindow": "9:00 pm - 3:00 am",
       "indoorOutdoor": "indoor",
-      "vibeTags": ["dancing", "music"],
+      "vibeTags": [
+        "dancing",
+        "music"
+      ],
       "availability": "unavailable",
       "unavailableReason": "Closed for renovation this season.",
-      "imageSeed": 412
+      "imageSeed": 149
+    },
+    {
+      "id": "cyber-night-3",
+      "name": "Prive Skybar",
+      "area": "Cyberhub",
+      "category": "nightlife",
+      "tagline": "Nineteenth-floor bar, list after ten.",
+      "perHead": 1450,
+      "openWindow": "7:00 pm - 2:00 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "dancing",
+        "music"
+      ],
+      "availability": "available",
+      "imageSeed": 150
+    },
+    {
+      "id": "cyber-night-4",
+      "name": "Raasta Courtyard",
+      "area": "Cyberhub",
+      "category": "nightlife",
+      "tagline": "Reggae bar with an open-air courtyard.",
+      "perHead": 1200,
+      "openWindow": "6:00 pm - 1:00 am",
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "indoorOutdoor": "mixed",
+      "vibeTags": [
+        "music",
+        "casual"
+      ],
+      "availability": "available",
+      "imageSeed": 151
     },
     {
       "id": "cyber-disc-1",
@@ -483,13 +1042,681 @@
       "tagline": "Open-mic downstairs, four nights a week.",
       "perHead": 500,
       "listPrice": 700,
-      "openWindow": "7:00 pm – 11:00 pm",
+      "openWindow": "7:00 pm - 11:00 pm",
       "accessibilityTags": [],
       "indoorOutdoor": "indoor",
-      "vibeTags": ["comedy", "lively"],
+      "vibeTags": [
+        "comedy",
+        "lively"
+      ],
       "availability": "available",
-      "limitations": ["Line-up is not confirmed until the day of the show."],
-      "imageSeed": 421
+      "limitations": [
+        "Line-up is not confirmed until the day of the show."
+      ],
+      "imageSeed": 152
+    },
+    {
+      "id": "cyber-disc-2",
+      "name": "Smaaash Arcade",
+      "area": "Cyberhub",
+      "category": "discover",
+      "tagline": "Two floors of VR bays and bowling lanes.",
+      "perHead": 800,
+      "listPrice": 1000,
+      "openWindow": "12:00 pm - 12:00 am",
+      "accessibilityTags": [
+        "stepFreeEntry",
+        "elevatorAccess"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "games",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 153
+    },
+    {
+      "id": "cyber-disc-3",
+      "name": "Escape Sector Lab",
+      "area": "Cyberhub",
+      "category": "discover",
+      "tagline": "Themed escape rooms, sixty minutes a run.",
+      "perHead": 700,
+      "openWindow": "11:00 am - 11:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "games",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 154
+    },
+    {
+      "id": "saket-food-1",
+      "name": "Champa Gali Courtyard",
+      "area": "Saket",
+      "category": "food",
+      "tagline": "Fairy-lit lane of tiny kitchens and cafés.",
+      "perHead": 700,
+      "openWindow": "11:00 am - 11:00 pm",
+      "dietaryTags": [
+        "vegetarian",
+        "vegan"
+      ],
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "mixed",
+      "vibeTags": [
+        "cosy",
+        "lanes"
+      ],
+      "availability": "available",
+      "imageSeed": 155
+    },
+    {
+      "id": "saket-food-2",
+      "name": "Mehrauli Table",
+      "area": "Saket",
+      "category": "food",
+      "tagline": "Slow North Indian near the archaeological park.",
+      "perHead": 1250,
+      "listPrice": 1500,
+      "openWindow": "12:30 pm - 11:00 pm",
+      "dietaryTags": [
+        "vegetarian",
+        "jain"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "date",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 156
+    },
+    {
+      "id": "saket-food-3",
+      "name": "Select Foodhall",
+      "area": "Saket",
+      "category": "food",
+      "tagline": "Mall food hall — everyone orders somewhere different.",
+      "perHead": 900,
+      "openWindow": "11:00 am - 11:00 pm",
+      "dietaryTags": [
+        "vegetarian",
+        "vegan",
+        "halal"
+      ],
+      "accessibilityTags": [
+        "stepFreeEntry",
+        "elevatorAccess",
+        "accessibleRestroom"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "group",
+        "quick"
+      ],
+      "availability": "available",
+      "imageSeed": 157
+    },
+    {
+      "id": "saket-sight-1",
+      "name": "Qutub Minar View",
+      "area": "Saket",
+      "category": "sights",
+      "tagline": "The tower and its ruined cloisters at golden hour.",
+      "perHead": 600,
+      "openWindow": "7:00 am - 6:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "historic",
+        "photo"
+      ],
+      "availability": "available",
+      "imageSeed": 158
+    },
+    {
+      "id": "saket-sight-2",
+      "name": "Mehrauli Archaeological Park",
+      "area": "Saket",
+      "category": "sights",
+      "tagline": "Eight hundred years of ruins in open scrub.",
+      "perHead": 0,
+      "openWindow": "Sunrise - sunset",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "historic",
+        "walk"
+      ],
+      "availability": "available",
+      "limitations": [
+        "Paths are unpaved and unlit."
+      ],
+      "imageSeed": 159
+    },
+    {
+      "id": "saket-sight-3",
+      "name": "Garden of Five Senses",
+      "area": "Saket",
+      "category": "sights",
+      "tagline": "Terraced sculpture garden built into the rocks.",
+      "perHead": 50,
+      "openWindow": "9:00 am - 9:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "green",
+        "photo"
+      ],
+      "availability": "available",
+      "imageSeed": 160
+    },
+    {
+      "id": "saket-night-1",
+      "name": "Social Saket",
+      "area": "Saket",
+      "category": "nightlife",
+      "tagline": "All-day café that turns into a bar after nine.",
+      "perHead": 1000,
+      "listPrice": 1300,
+      "openWindow": "9:00 am - 1:00 am",
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "casual",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 161
+    },
+    {
+      "id": "saket-night-2",
+      "name": "Winehouse Saket",
+      "area": "Saket",
+      "category": "nightlife",
+      "tagline": "Bottle list and a small plates menu.",
+      "perHead": 1350,
+      "openWindow": "6:00 pm - 12:30 am",
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "wine",
+        "date"
+      ],
+      "availability": "available",
+      "imageSeed": 162
+    },
+    {
+      "id": "saket-night-3",
+      "name": "Rooftop Malviya",
+      "area": "Saket",
+      "category": "nightlife",
+      "tagline": "Neighbourhood roof bar, no cover.",
+      "perHead": 1100,
+      "openWindow": "7:00 pm - 1:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "music",
+        "relaxed"
+      ],
+      "availability": "available",
+      "imageSeed": 163
+    },
+    {
+      "id": "saket-disc-1",
+      "name": "PVR Director's Cut",
+      "area": "Saket",
+      "category": "discover",
+      "tagline": "Recliner cinema with a full kitchen.",
+      "perHead": 1200,
+      "listPrice": 1500,
+      "openWindow": "10:00 am - 12:00 am",
+      "accessibilityTags": [
+        "stepFreeEntry",
+        "elevatorAccess",
+        "accessibleRestroom"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "cinema",
+        "relaxed"
+      ],
+      "availability": "available",
+      "imageSeed": 164
+    },
+    {
+      "id": "saket-disc-2",
+      "name": "Dastkari Craft Yard",
+      "area": "Saket",
+      "category": "discover",
+      "tagline": "Rotating artisan market in the plaza.",
+      "perHead": 0,
+      "openWindow": "11:00 am - 8:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "craft",
+        "browse"
+      ],
+      "availability": "available",
+      "imageSeed": 165
+    },
+    {
+      "id": "saket-disc-3",
+      "name": "Saket Board Game Café",
+      "area": "Saket",
+      "category": "discover",
+      "tagline": "Four hundred games, pay by the hour.",
+      "perHead": 400,
+      "openWindow": "12:00 pm - 12:00 am",
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "games",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 166
+    },
+    {
+      "id": "aero-food-1",
+      "name": "AnnaMaya Foodhall",
+      "area": "Aerocity",
+      "category": "food",
+      "tagline": "European-style market hall, communal tables.",
+      "perHead": 1450,
+      "listPrice": 1800,
+      "offer": "Squad platter for six",
+      "offerWindow": "All week",
+      "openWindow": "7:00 am - 11:00 pm",
+      "dietaryTags": [
+        "vegetarian",
+        "vegan",
+        "glutenFree"
+      ],
+      "accessibilityTags": [
+        "stepFreeEntry",
+        "elevatorAccess",
+        "accessibleRestroom"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "group",
+        "brunch"
+      ],
+      "availability": "available",
+      "imageSeed": 167
+    },
+    {
+      "id": "aero-food-2",
+      "name": "Plaza Street Kitchen",
+      "area": "Aerocity",
+      "category": "food",
+      "tagline": "Open-air plaza dining between the hotels.",
+      "perHead": 1100,
+      "openWindow": "12:00 pm - 12:00 am",
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "group",
+        "lively"
+      ],
+      "availability": "available",
+      "imageSeed": 168
+    },
+    {
+      "id": "aero-food-3",
+      "name": "Comorin Counter",
+      "area": "Aerocity",
+      "category": "food",
+      "tagline": "Regional small plates, long bar, loud room.",
+      "perHead": 1400,
+      "openWindow": "12:00 pm - 1:00 am",
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "group",
+        "lively"
+      ],
+      "availability": "available",
+      "imageSeed": 169
+    },
+    {
+      "id": "aero-sight-1",
+      "name": "Aerocity Art Walk",
+      "area": "Aerocity",
+      "category": "sights",
+      "tagline": "Commissioned installations along the plaza.",
+      "perHead": 0,
+      "openWindow": "Always open",
+      "accessibilityTags": [
+        "stepFreeEntry",
+        "elevatorAccess"
+      ],
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "art",
+        "photo"
+      ],
+      "availability": "available",
+      "imageSeed": 170
+    },
+    {
+      "id": "aero-sight-2",
+      "name": "Skyline Deck",
+      "area": "Aerocity",
+      "category": "sights",
+      "tagline": "Runway-facing viewing deck for plane spotters.",
+      "perHead": 200,
+      "openWindow": "6:00 am - 11:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry",
+        "elevatorAccess"
+      ],
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "photo",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 171
+    },
+    {
+      "id": "aero-sight-3",
+      "name": "Worldmark Atrium",
+      "area": "Aerocity",
+      "category": "sights",
+      "tagline": "Glass atrium with a rotating public sculpture.",
+      "perHead": 0,
+      "openWindow": "8:00 am - 11:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry",
+        "elevatorAccess",
+        "accessibleRestroom"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "photo",
+        "browse"
+      ],
+      "availability": "available",
+      "imageSeed": 172
+    },
+    {
+      "id": "aero-night-1",
+      "name": "Jet Lag Bar",
+      "area": "Aerocity",
+      "category": "nightlife",
+      "tagline": "Airport-hotel bar that never really closes.",
+      "perHead": 1300,
+      "openWindow": "Open 24 hours",
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "accessibilityTags": [
+        "stepFreeEntry",
+        "elevatorAccess"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "cocktails",
+        "late"
+      ],
+      "availability": "available",
+      "imageSeed": 173
+    },
+    {
+      "id": "aero-night-2",
+      "name": "Plaza Live Stage",
+      "area": "Aerocity",
+      "category": "nightlife",
+      "tagline": "Weekend live music on the open plaza.",
+      "perHead": 1200,
+      "listPrice": 1500,
+      "openWindow": "7:00 pm - 1:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "music",
+        "group"
+      ],
+      "availability": "available",
+      "limitations": [
+        "Live acts depend on weather."
+      ],
+      "imageSeed": 174
+    },
+    {
+      "id": "aero-night-3",
+      "name": "Terminal Lounge",
+      "area": "Aerocity",
+      "category": "nightlife",
+      "tagline": "Low-lit lounge with a resident DJ.",
+      "perHead": 1450,
+      "openWindow": "6:00 pm - 2:00 am",
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "accessibilityTags": [
+        "stepFreeEntry",
+        "elevatorAccess",
+        "accessibleRestroom"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "dancing",
+        "music"
+      ],
+      "availability": "available",
+      "imageSeed": 175
+    },
+    {
+      "id": "aero-disc-1",
+      "name": "Aero Bowling Lanes",
+      "area": "Aerocity",
+      "category": "discover",
+      "tagline": "Twelve lanes, arcade along the back wall.",
+      "perHead": 800,
+      "listPrice": 1000,
+      "openWindow": "11:00 am - 12:00 am",
+      "accessibilityTags": [
+        "stepFreeEntry",
+        "elevatorAccess",
+        "accessibleRestroom"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "games",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 176
+    },
+    {
+      "id": "aero-disc-2",
+      "name": "Flight Sim Bay",
+      "area": "Aerocity",
+      "category": "discover",
+      "tagline": "Full-motion cockpit simulators, thirty-minute slots.",
+      "perHead": 1200,
+      "openWindow": "10:00 am - 10:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry",
+        "elevatorAccess"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "games",
+        "novel"
+      ],
+      "availability": "available",
+      "imageSeed": 177
+    },
+    {
+      "id": "aero-disc-3",
+      "name": "Transit Gallery",
+      "area": "Aerocity",
+      "category": "discover",
+      "tagline": "Photography gallery on aviation and travel.",
+      "perHead": 0,
+      "openWindow": "10:00 am - 8:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry",
+        "elevatorAccess"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "art",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 178
+    },
+    {
+      "id": "nizam-food-1",
+      "name": "Ghalib Kabab Corner",
+      "area": "Nizamuddin",
+      "category": "food",
+      "tagline": "Charcoal kababs in the basti lanes.",
+      "perHead": 400,
+      "openWindow": "5:00 pm - 12:00 am",
+      "dietaryTags": [
+        "halal"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "street",
+        "classic"
+      ],
+      "availability": "available",
+      "imageSeed": 179
+    },
+    {
+      "id": "nizam-food-2",
+      "name": "Basti Biryani House",
+      "area": "Nizamuddin",
+      "category": "food",
+      "tagline": "Slow-dum biryani, sold until it runs out.",
+      "perHead": 550,
+      "openWindow": "12:00 pm - 11:00 pm",
+      "dietaryTags": [
+        "halal"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "classic",
+        "quick"
+      ],
+      "availability": "available",
+      "limitations": [
+        "Often sells out by 9:00 pm."
+      ],
+      "imageSeed": 180
+    },
+    {
+      "id": "nizam-food-3",
+      "name": "Sufi Terrace",
+      "area": "Nizamuddin",
+      "category": "food",
+      "tagline": "Rooftop overlooking the dargah courtyards.",
+      "perHead": 1200,
+      "openWindow": "6:00 pm - 12:00 am",
+      "dietaryTags": [
+        "vegetarian",
+        "halal"
+      ],
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "view",
+        "relaxed"
+      ],
+      "availability": "available",
+      "imageSeed": 181
+    },
+    {
+      "id": "nizam-sight-1",
+      "name": "Nizamuddin Dargah",
+      "area": "Nizamuddin",
+      "category": "sights",
+      "tagline": "Qawwali on Thursday nights in the marble courtyard.",
+      "perHead": 0,
+      "openWindow": "5:00 am - 10:30 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "music",
+        "historic"
+      ],
+      "availability": "available",
+      "limitations": [
+        "Cover your head; leave shoes at the gate."
+      ],
+      "imageSeed": 182
+    },
+    {
+      "id": "nizam-sight-2",
+      "name": "Humayun's Tomb",
+      "area": "Nizamuddin",
+      "category": "sights",
+      "tagline": "The garden tomb that rehearsed the Taj.",
+      "perHead": 600,
+      "openWindow": "Sunrise - 6:00 pm",
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "historic",
+        "photo"
+      ],
+      "availability": "available",
+      "imageSeed": 183
+    },
+    {
+      "id": "nizam-sight-3",
+      "name": "Rahim Khan Tomb",
+      "area": "Nizamuddin",
+      "category": "sights",
+      "tagline": "A quiet restored tomb off the main axis.",
+      "perHead": 0,
+      "openWindow": "Sunrise - sunset",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "historic",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 184
     }
   ]
 }

@@ -64,11 +64,20 @@ nonisolated struct ScheduleDrafter: ScheduleDrafting, Sendable {
         var assumptions: [ScheduleAssumption] = []
         var blocks: [ScheduleDraftBlock] = []
 
-        // Slots are laid out in template order, not curation order, so two slots of
-        // the same category resolve their collision deterministically.
+        // The host's time window decides start and length when it was stated. An
+        // unstated window falls through to the template — the same numbers the
+        // design already used — so nothing regresses for an open-ended plan.
+        let schedule = SlotSchedule.compute(for: plan.brief.timeWindow.value)
+
+        func baseStart(for category: SlotCategory) -> Int {
+            schedule.slot(for: category)?.startMinute ?? template.startMinute(for: category)
+        }
+
+        // Slots are laid out in start-time order, not curation order, so two slots
+        // of the same category resolve their collision deterministically.
         let ordered = plan.slots.sorted { lhs, rhs in
-            let left = template.startMinute(for: lhs.category)
-            let right = template.startMinute(for: rhs.category)
+            let left = baseStart(for: lhs.category)
+            let right = baseStart(for: rhs.category)
             return left == right ? lhs.slotID < rhs.slotID : left < right
         }
 
@@ -84,10 +93,20 @@ nonisolated struct ScheduleDrafter: ScheduleDrafting, Sendable {
             }
 
             let start = nextAvailableStart(
-                for: slot.category,
+                from: baseStart(for: slot.category),
                 after: blocks,
                 duration: template.durationMinutes
             )
+
+            // Clamp the block so it never runs past the host's window. `SlotSchedule`
+            // already guaranteed the slot has ≥ 60 min of room at its unpushed start.
+            let feasible = schedule.slot(for: slot.category)
+            let windowConstrained = schedule.isWindowConstrained && feasible != nil
+            let duration: Int = {
+                guard windowConstrained, let feasible else { return template.durationMinutes }
+                let room = feasible.endMinute - start
+                return room >= 30 ? min(template.durationMinutes, room) : template.durationMinutes
+            }()
 
             blocks.append(
                 ScheduleDraftBlock(
@@ -96,15 +115,22 @@ nonisolated struct ScheduleDrafter: ScheduleDrafting, Sendable {
                     title: venue.name,
                     category: venue.category,
                     startMinute: start,
-                    durationMinutes: template.durationMinutes
+                    durationMinutes: duration
                 )
             )
 
-            // Both numbers on the block above are defaults, so both get disclosed.
-            assumptions.append(.defaultStartMinute(start))
-            assumptions.append(
-                .defaultDuration(minutes: template.durationMinutes, slotID: slot.slotID)
-            )
+            if windowConstrained {
+                // Host-derived: the window set both numbers. Disclosed as one fact.
+                assumptions.append(
+                    .windowConstrained(startMinute: start, durationMinutes: duration, slotID: slot.slotID)
+                )
+            } else {
+                // Both numbers are template defaults, so both get disclosed.
+                assumptions.append(.defaultStartMinute(start))
+                assumptions.append(
+                    .defaultDuration(minutes: template.durationMinutes, slotID: slot.slotID)
+                )
+            }
         }
 
         // True of every schedule this step can produce.
@@ -129,14 +155,14 @@ nonisolated struct ScheduleDrafter: ScheduleDrafting, Sendable {
         slot.candidates.first { $0.rank == 1 } ?? slot.candidates.min { $0.rank < $1.rank }
     }
 
-    /// The template start for this category, pushed past any block already sitting
-    /// there. Two `food` slots become 8:00 and 9:30 rather than two stops at once.
+    /// The given base start, pushed past any block already sitting there. Two
+    /// `food` slots become 8:00 and 9:30 rather than two stops at once.
     private func nextAvailableStart(
-        for category: SlotCategory,
+        from base: Int,
         after blocks: [ScheduleDraftBlock],
         duration: Int
     ) -> Int {
-        var start = template.startMinute(for: category)
+        var start = base
         while blocks.contains(where: { $0.startMinute == start }) {
             start += duration
         }

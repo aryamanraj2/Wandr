@@ -115,25 +115,10 @@ nonisolated struct FakeItineraryCurator: ItineraryCurating, Sendable {
 
     // MARK: - Hard constraints
 
-    /// Surveyed-and-contradicted is excluded. Never-surveyed is kept.
+    /// Surveyed-and-contradicted is excluded. Never-surveyed is kept. Shared with
+    /// the real curator via `ConstraintEligibility` so both apply the same rule.
     private func isEligible(_ venue: GroundedVenue, for brief: OutingBrief) -> Bool {
-        if brief.dietary.isHardConstraint,
-           let missing = venue.dietaryTags.unsatisfied(by: brief.dietary.requirements),
-           !missing.isEmpty {
-            return false
-        }
-
-        if brief.accessibility.isHardConstraint,
-           let missing = venue.accessibilityTags.unsatisfied(by: brief.accessibility.requirements),
-           !missing.isEmpty {
-            return false
-        }
-
-        if brief.setting.isHardConstraint, venue.setting.satisfies(brief.setting) == false {
-            return false
-        }
-
-        return true
+        ConstraintEligibility.isEligible(venue, for: brief)
     }
 
     /// Slot names matching the decks the current curation UI already shows.

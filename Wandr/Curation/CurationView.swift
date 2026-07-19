@@ -27,10 +27,34 @@ struct CurationView: View {
     /// summary left it open — the poll falls back to the slate's implied size.
     private let groupSize: Int?
 
-    /// `groupSize` threads the confirmed brief's head-count through to the squad poll.
+    /// One-line explanation shown when the group's time window shaped the plan
+    /// (e.g. "You're free 8–9 pm — time for one stop"). `nil` for an open plan.
+    private let banner: String?
+
+    /// Per-category window [start...end] in minutes, so the squad's winners land
+    /// inside the group's real window on the schedule. Empty ⇒ category defaults.
+    private let slotWindows: [StopCategory: ClosedRange<Int>]
+
+    /// Preview / design-pass entry point: the hardcoded demo decks, no window.
     init(groupSize: Int? = nil) {
         _decks = State(initialValue: DemoPlan.decks)
         self.groupSize = groupSize
+        self.banner = nil
+        self.slotWindows = [:]
+    }
+
+    /// The live entry point: model-curated, grounded decks with a window banner and
+    /// window-aware schedule placement.
+    init(
+        decks: [Deck],
+        groupSize: Int?,
+        banner: String?,
+        slotWindows: [StopCategory: ClosedRange<Int>]
+    ) {
+        _decks = State(initialValue: decks)
+        self.groupSize = groupSize
+        self.banner = banner
+        self.slotWindows = slotWindows
     }
 
     /// Total options across every slot that the squad will vote on.
@@ -77,8 +101,6 @@ struct CurationView: View {
                         DeckView(deck: $deck)
                             .id(deck.id)
                     }
-
-                    Color.clear.frame(height: 90)
                 }
                 .padding(.horizontal, Metrics.gutter)
                 .scrollTargetLayout()
@@ -138,12 +160,23 @@ struct CurationView: View {
     /// Fades out as the bar title fades in, so the two read as one title
     /// moving up rather than two titles briefly on screen together.
     private var intro: some View {
-        Text("Pick your stops")
-            .font(.wandrDisplay(40))
-            .foregroundStyle(Wandr.primaryText)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 8)
-            .opacity(headerCollapsed ? 0 : 1)
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Pick your stops")
+                .font(.wandrDisplay(40))
+                .foregroundStyle(Wandr.primaryText)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 8)
+
+            // The one line that makes a time-boxed night read differently from an
+            // open one: it names the window and how many stops it fits.
+            if let banner {
+                Label(banner, systemImage: "clock.badge.checkmark")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Wandr.primaryText.opacity(0.7))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .opacity(headerCollapsed ? 0 : 1)
     }
 
     // MARK: Toolbar
@@ -232,11 +265,22 @@ struct CurationView: View {
     ) -> [ScheduleBlock] {
         let day = DemoPlan.days[0]
         return winners.map { _, candidate in
-            ScheduleBlock(
+            // A window-shaped plan places the block inside the group's real window
+            // and clamps its length to fit; an open plan uses the category default.
+            let start: Int
+            let duration: Int
+            if let window = slotWindows[candidate.category] {
+                start = window.lowerBound
+                duration = min(90, max(30, window.upperBound - window.lowerBound))
+            } else {
+                start = Self.defaultStart(for: candidate.category)
+                duration = 90
+            }
+            return ScheduleBlock(
                 title: candidate.name,
                 category: candidate.category,
-                startMinute: Self.defaultStart(for: candidate.category),
-                durationMinutes: 90,
+                startMinute: start,
+                durationMinutes: duration,
                 dayID: day.id
             )
         }

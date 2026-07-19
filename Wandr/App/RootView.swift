@@ -35,10 +35,10 @@ struct RootView: View {
             case .recovery(let reason):
                 RecoveryView(inbox: inbox, reason: reason)
             case .confirmed(let payload):
-                // Downstream planning/curation. The confirmed brief will seed the
-                // coordinator here once it lands; for now it opens the curation surface,
-                // threading the group size through to the squad poll's quorum.
-                CurationView(groupSize: payload.groupSize)
+                // The confirmed summary now seeds the grounded pipeline: research the
+                // dataset, let the on-device model pick places, validate, and open the
+                // decks. `PlanningFlowView` owns that async lifecycle and its states.
+                PlanningFlowView(payload: payload, inbox: inbox)
                     // Settling the last hair of scale, rather than sliding in: the plan
                     // was already on its way, this is it arriving.
                     .scaleEffect(reduceMotion ? 1 : (curating ? 1 : 1.015))
@@ -88,6 +88,107 @@ struct RootView: View {
 
 #Preview("Curation") {
     CurationView()
+}
+
+// MARK: - Planning flow
+
+/// Owns one planning run: it kicks off the grounded pipeline for the confirmed
+/// summary and renders its three outcomes — working, decks ready, or a recoverable
+/// failure. Separated from `RootView` so the async lifecycle has a stable identity.
+private struct PlanningFlowView: View {
+    let payload: ChatSummaryPayload
+    let inbox: IntakeInbox
+
+    @State private var coordinator = PlanningCoordinator()
+
+    var body: some View {
+        Group {
+            switch coordinator.phase {
+            case .idle, .planning:
+                PlanningProgressView()
+            case .ready(let output, let groupSize):
+                CurationView(
+                    decks: output.decks,
+                    groupSize: groupSize,
+                    banner: output.banner,
+                    slotWindows: output.slotWindows
+                )
+            case .failed(let failure):
+                PlanningFailureView(
+                    failure: failure,
+                    onRetry: { Task { await coordinator.run(payload: payload) } },
+                    onStartOver: { inbox.cancel() }
+                )
+            }
+        }
+        .task {
+            // Run once when the confirmed summary first appears.
+            if case .idle = coordinator.phase {
+                await coordinator.run(payload: payload)
+            }
+        }
+    }
+}
+
+/// The wait while the dataset is researched and the on-device model picks places.
+private struct PlanningProgressView: View {
+    var body: some View {
+        VStack(spacing: 18) {
+            ProgressView()
+                .controlSize(.large)
+            VStack(spacing: 4) {
+                Text("Planning your night")
+                    .font(.headline)
+                    .foregroundStyle(Wandr.primaryText)
+                Text("Picking places for your group…")
+                    .font(.subheadline)
+                    .foregroundStyle(Wandr.primaryText.opacity(0.6))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Wandr.pageBackground)
+    }
+}
+
+/// A recoverable planning failure, with the structured message and the next step.
+private struct PlanningFailureView: View {
+    let failure: PlanningFailure
+    let onRetry: () -> Void
+    let onStartOver: () -> Void
+
+    var body: some View {
+        VStack(spacing: 22) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 40, weight: .light))
+                .foregroundStyle(Wandr.primaryText.opacity(0.7))
+
+            Text(failure.userMessage)
+                .font(.title3.weight(.medium))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(Wandr.primaryText)
+                .padding(.horizontal, 32)
+
+            VStack(spacing: 12) {
+                if failure.isRecoverable {
+                    Button(action: onRetry) {
+                        Text("Try again")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.glassProminent)
+                    .tint(Wandr.ink)
+                }
+
+                Button("Start over", action: onStartOver)
+                    .font(.subheadline.weight(.medium))
+                    .tint(Wandr.ink)
+            }
+            .padding(.horizontal, 40)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Wandr.pageBackground)
+    }
 }
 
 /// Preview-only shell that drives the intake screens from a freshly configured inbox

@@ -227,6 +227,10 @@ nonisolated struct WandrPlan: Sendable, Equatable, Identifiable {
 nonisolated enum ScheduleAssumption: Sendable, Equatable, Hashable {
     case defaultStartMinute(Int)
     case defaultDuration(minutes: Int, slotID: SlotID)
+    /// The stop's start and length came from the host's confirmed time window
+    /// (via `SlotSchedule`), not from a template default — so it is disclosed as a
+    /// host-derived fact rather than an assumption Wandr invented.
+    case windowConstrained(startMinute: Int, durationMinutes: Int, slotID: SlotID)
     /// Travel time between stops is a deferred rule — MapKit is not wired up.
     case travelTimeNotVerified
     /// The host gave no day, so the draft assumes one sitting.

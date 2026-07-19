@@ -60,9 +60,21 @@ struct Candidate: Identifiable, Hashable {
     /// Backdrop gradient seed, standing in for venue photography.
     let imageSeed: Int
 
+    /// The model's one-line reason for this pick. Prose, never a source of facts —
+    /// `nil` for the hardcoded demo deck, set for model-curated candidates.
+    var rationale: String? = nil
+
+    /// The dataset had no price. The card must show that honestly rather than
+    /// rendering `perHead == 0` as "Free".
+    var costUnknown: Bool = false
+
+    /// Deterministic validator caveats to surface on the card (unknown hours,
+    /// unverified dietary, provider limitations). Never model-authored.
+    var warnings: [String] = []
+
     /// "Paisa Vasool" — savings against list price. Pure arithmetic, no inference.
     var savings: Int? {
-        guard let listPrice, listPrice > perHead else { return nil }
+        guard !costUnknown, let listPrice, listPrice > perHead else { return nil }
         return listPrice - perHead
     }
 }

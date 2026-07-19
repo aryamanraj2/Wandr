@@ -52,17 +52,22 @@ struct DeckView: View {
         VStack(alignment: .leading, spacing: 14) {
             header
 
-            ZStack {
-                if deck.isExhausted {
-                    exhaustedState
-                } else if deck.isReviewed {
-                    reviewedState
-                } else {
-                    cardStack
-                }
+            if deck.isExhausted {
+                exhaustedState
+            } else if deck.isReviewed {
+                reviewedState
+            } else {
+                // Sized against the visible page rather than a fixed 400, so a
+                // deck fills the same share of an SE as it does a Pro Max, and
+                // the header above it always stays on screen with it.
+                cardStack
+                    .containerRelativeFrame(.vertical) { height, _ in
+                        min(max(height * 0.56, 330), 520)
+                    }
             }
-            .frame(height: 400)
         }
+        .animation(.wandrTransition, value: deck.isReviewed)
+        .animation(.wandrTransition, value: deck.isExhausted)
     }
 
     // MARK: Header
@@ -114,7 +119,12 @@ struct DeckView: View {
                 CandidateCardView(candidate: top, dragProgress: progress)
                     .offset(drag)
                     .rotationEffect(tilt, anchor: .bottom)
-                    .gesture(swipeGesture)
+                    // Simultaneous, not exclusive: `.gesture` claims the touch the
+                    // moment it recognises, so the scroll view never saw a drag that
+                    // began on a card — which is why the page felt stuck. Sharing the
+                    // touch lets the scroll view own vertical travel while the card
+                    // gates itself to horizontal.
+                    .simultaneousGesture(swipeGesture)
                     .allowsHitTesting(!isFlying)
                     // The swipe is the only visible affordance, so it must also
                     // exist as a named action for VoiceOver, Voice Control, and
@@ -156,11 +166,10 @@ struct DeckView: View {
                 }
                 guard isHorizontalDrag == true else { return }
 
-                // Follow the finger exactly across, and mostly down — full
-                // vertical tracking on a card inside a scroll view reads as the
-                // page failing to scroll.
-                drag = CGSize(width: value.translation.width,
-                              height: value.translation.height * 0.4)
+                // Horizontal only. Vertical travel belongs to the scroll view now
+                // that the two share the touch — a card that also slid down would
+                // double-count the same finger movement.
+                drag = CGSize(width: value.translation.width, height: 0)
             }
             .onEnded { value in
                 guard !isFlying else { return }
@@ -234,7 +243,9 @@ struct DeckView: View {
             .foregroundStyle(Wandr.secondaryText)
         }
         .padding(20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        // Grows with the slate instead of clipping it — a slot with five kept
+        // options used to run past the bottom of a fixed-height panel.
+        .frame(maxWidth: .infinity, minHeight: 300, alignment: .leading)
         .background(WandrCardBackground(fill: Wandr.cardSurface))
         .transition(.opacity.combined(with: .scale(scale: 0.97)))
     }
@@ -304,7 +315,8 @@ struct DeckView: View {
             .foregroundStyle(Wandr.primaryText)
             .padding(.top, 4)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.vertical, 34)
+        .frame(maxWidth: .infinity, minHeight: 300)
         .background(WandrCardBackground(fill: Wandr.sand.opacity(0.22)))
         .transition(.opacity)
     }
