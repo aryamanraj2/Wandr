@@ -48,9 +48,26 @@ nonisolated struct FoundationModelsItineraryCurator: ItineraryCurating, Sendable
         try ModelAvailabilityGate.check(model)
 
         do {
-            // The tool wraps the evidence snapshot the coordinator handed us — the
-            // model can only ever retrieve IDs that already exist here.
-            let tool = SearchDistrictVenuesTool(venues: evidence)
+            // Hard constraints are enforced by CONSTRUCTION, not by instruction.
+            //
+            // The instructions do ask the model to respect dietary/accessibility/
+            // setting constraints, but a 3B model asked politely is not a guarantee:
+            // against the birthday fixture it picked `hk-disc-1`, a venue the dataset
+            // surveyed as non-vegetarian, and the validator correctly rejected the
+            // whole plan — turning a `.ready` baseline row into `.failed`.
+            //
+            // Filtering the tool's corpus makes that pick unreachable: the model can
+            // only ever retrieve venues that are not already contradicted. This is
+            // grounding (the §5.4 tool boundary), NOT relaxing the validator — the
+            // validator still re-checks everything, and §5.6 stands untouched.
+            //
+            // This mirrors `FakeItineraryCurator.isEligible` exactly, which is what
+            // makes the fake a faithful stand-in and reproduces the Step 2 baseline.
+            let eligible = evidence.filter { Self.isEligible($0, for: brief) }
+
+            // The tool wraps that filtered snapshot — the model can only ever retrieve
+            // IDs that exist here and are not already known to violate the brief.
+            let tool = SearchDistrictVenuesTool(venues: eligible)
 
             let session = LanguageModelSession(
                 model: model,
@@ -64,12 +81,47 @@ nonisolated struct FoundationModelsItineraryCurator: ItineraryCurating, Sendable
                 options: GenerationOptions(samplingMode: .greedy)
             )
 
-            // Grounding on the way out: resolve model IDs against the snapshot. The
-            // validator re-checks everything this produces.
-            return response.content.resolved(against: evidence).slots
+            // Grounding on the way out: resolve model IDs against the SAME filtered
+            // snapshot the tool served. Resolving against the unfiltered `evidence`
+            // would re-open the hole the filter just closed — a hallucinated ID that
+            // happened to name a contradicted venue would resolve successfully.
+            // The validator re-checks everything this produces regardless.
+            return response.content.resolved(against: eligible).slots
         } catch {
             throw ModelErrorMapping.planningFailure(for: error)
         }
+    }
+
+    // MARK: - Hard constraints
+
+    /// Surveyed-and-contradicted is excluded. Never-surveyed is kept.
+    ///
+    /// The asymmetry is the whole point, and it is the same rule
+    /// `FakeItineraryCurator` applies. A venue the dataset *surveyed* and found
+    /// non-compliant is a real contradiction and must never reach the model. A venue
+    /// the dataset never surveyed is merely unverified — dropping those would hide
+    /// the gap, so they stay eligible and the validator turns them into
+    /// `unverifiedDietary` / `unverifiedAccessibility` / `unverifiedSetting` warnings.
+    /// That warning path is exactly what `step2-baseline.md` records for the birthday
+    /// fixture, and it is why this filter must not be "tightened" to drop unknowns.
+    static func isEligible(_ venue: GroundedVenue, for brief: OutingBrief) -> Bool {
+        if brief.dietary.isHardConstraint,
+           let missing = venue.dietaryTags.unsatisfied(by: brief.dietary.requirements),
+           !missing.isEmpty {
+            return false
+        }
+
+        if brief.accessibility.isHardConstraint,
+           let missing = venue.accessibilityTags.unsatisfied(by: brief.accessibility.requirements),
+           !missing.isEmpty {
+            return false
+        }
+
+        if brief.setting.isHardConstraint, venue.setting.satisfies(brief.setting) == false {
+            return false
+        }
+
+        return true
     }
 
     // MARK: - Instructions

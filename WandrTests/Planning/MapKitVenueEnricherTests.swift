@@ -107,7 +107,15 @@ struct MapKitVenueEnricherTests {
         #expect(limitations.count == 1)
         // Fixed string, no venue text.
         #expect(limitations.first?.title == MapKitVenueEnricher.limitationTitle)
-        #expect(!(limitations.first?.detail ?? "").contains("food-1"))
+        // Bind before asserting. Written inline as
+        // `#expect(!(limitations.first?.detail ?? "").contains("food-1"))` the prefix
+        // `!` binds across the parenthesized `??` in a way the macro reports as
+        // "<not evaluated>", and the expectation fails even though the detail plainly
+        // contains no venue text. Keep the subject in a local.
+        let detail = limitations.first?.detail ?? ""
+        #expect(detail == MapKitVenueEnricher.limitationDetail)
+        // The rule that matters: the fixed sentence names no venue.
+        #expect(detail.contains("food-1") == false)
     }
 
     @Test("A MapKit failure never becomes a PlanningFailure")

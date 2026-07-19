@@ -2,9 +2,18 @@
 
 ## 0. Implementation status — DONE so far
 
-Session ended early (budget). This section is the honest ledger: what actually
-landed, what did not, and where the next session picks up. **§15's build sequence
-is the numbering used throughout.**
+> **SUPERSEDED IN PART — read this box first.**
+> This section was written when only commits 1–2 existed. **All eight §15 commits are
+> now written and compiling**, and the deterministic test tier has been **executed**:
+> `** TEST SUCCEEDED **`, **215 passed, 0 failed**. One real defect was found and fixed
+> during that run (a bad assertion expression in `MapKitVenueEnricherTests` — the
+> enricher itself was correct). The "⛔ NOT DONE — commits 3–8" table further down is
+> **obsolete**; see `nonuistuff/step3-verification-status.md` for the current,
+> authoritative per-commit ledger and for the device-gated tier's status.
+> The commit-1 and commit-2 detail below remains accurate.
+
+This section is the honest ledger: what actually landed, what did not, and where the
+next session picks up. **§15's build sequence is the numbering used throughout.**
 
 ### ✅ DONE — commit 1: Gate + error mapping
 
@@ -83,11 +92,20 @@ One pre-existing warning survives, untouched and unrelated:
 `fakeExtractorRecognizesFixtures` uses `try await` inside `#expect`, which warns under
 the Swift 6 language mode.
 
-### ⛔ NOT DONE — commits 3–8
+### ⛔ ~~NOT DONE — commits 3–8~~ — OBSOLETE, all eight now landed
 
-Nothing below was started. No `LanguageModelSession` is constructed anywhere in the
+> **This table is out of date and kept only for history.** Commits 3–8 were
+> subsequently written: `GenerableBriefDraft`, `FoundationModelsBriefExtractor`,
+> `SearchDistrictVenuesTool`, `GenerableCuration`, `FoundationModelsItineraryCurator`,
+> `MapKitVenueEnricher` (+ `VenueCoordinate` on `GroundedVenue`), `PlanningAssembly`,
+> `LivePlanningHarness`, and the `LivePipelineTests` / `PlanningEvaluations` tiers.
+> `LanguageModelSession` **is** now constructed (only under `Planning/AI/`), and the
+> live pipeline is wired. Current status lives in
+> `nonuistuff/step3-verification-status.md`.
+
+~~Nothing below was started. No `LanguageModelSession` is constructed anywhere in the
 tree yet, and **`TravelPlanningService` is still wired to both fakes** — the app's
-runtime behavior is exactly the Step 2 baseline.
+runtime behavior is exactly the Step 2 baseline.~~
 
 | §15 commit | Status | Notes for the next session |
 | --- | --- | --- |

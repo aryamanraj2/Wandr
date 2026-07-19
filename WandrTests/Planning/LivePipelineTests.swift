@@ -41,13 +41,24 @@ struct LivePipelineTests {
         guard modelAvailable else { return } // skip, not fail
         let service = try liveService()
 
-        for request in [Fixtures.Request.afterWork,
-                        Fixtures.Request.birthday,
-                        Fixtures.Request.sparse,
-                        Fixtures.Request.injection] {
-            let run = try await service.plan(Fixtures.input(request))
-            // No request text in the failure message on the off-chance it failed.
-            #expect(run.state == .ready)
+        // Labelled so a failure names WHICH fixture regressed. The label is a fixed,
+        // test-authored string and the failure *category* is a domain enum — neither
+        // carries `PlanningInput.text`, so this stays inside the volatility rule while
+        // still being diagnosable. Asserting all four in a bare loop told us only that
+        // "one of four" broke, which is not enough to explain a baseline regression.
+        let fixtures: [(label: String, request: String)] = [
+            ("afterWork", Fixtures.Request.afterWork),
+            ("birthday", Fixtures.Request.birthday),
+            ("sparse", Fixtures.Request.sparse),
+            ("injection", Fixtures.Request.injection)
+        ]
+
+        for fixture in fixtures {
+            let run = try await service.plan(Fixtures.input(fixture.request))
+            #expect(
+                run.state == .ready,
+                "\(fixture.label) expected .ready (step2-baseline) but got \(run.state.rawValue), category: \(String(describing: run.failure?.category))"
+            )
         }
     }
 
