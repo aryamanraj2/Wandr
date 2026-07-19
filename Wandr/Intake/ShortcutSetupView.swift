@@ -18,7 +18,7 @@ struct ShortcutSetupView: View {
     /// The hosted iCloud link to the distributable `.shortcut`. A `.shortcut` cannot be
     /// authored in code — build it in the Shortcuts app and paste its iCloud share link here.
     // TODO: replace with the real iCloud Shortcut link before distribution / demo.
-    private static let shortcutURL = URL(string: "https://www.icloud.com/shortcuts/REPLACE_WITH_REAL_ID")
+    private static let shortcutURL = URL(string: "https://www.icloud.com/shortcuts/645bdedbff07494dbd6217352be565c8")
 
     @State private var didCopyPrompt = false
 

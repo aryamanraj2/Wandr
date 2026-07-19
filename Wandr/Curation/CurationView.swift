@@ -10,7 +10,7 @@
 import SwiftUI
 
 struct CurationView: View {
-    @State private var decks: [Deck] = DemoPlan.decks
+    @State private var decks: [Deck]
     @State private var scrolledDeck: Deck.ID?
     @State private var showSchedule = false
 
@@ -18,7 +18,20 @@ struct CurationView: View {
     /// at which point the short title takes over up there.
     @State private var headerCollapsed = false
 
-    @Namespace private var scheduleTransition
+    // Send-to-Squad. The slate goes to a per-slot vote; the winners seed the schedule.
+    @State private var showPoll = false
+    @State private var pollSession: PollSession?
+    @State private var stopsFromPoll: [ScheduleBlock] = []
+
+    /// Group size from the confirmed brief, pre-filling the poll's quorum. `nil` when the
+    /// summary left it open — the poll falls back to the slate's implied size.
+    private let groupSize: Int?
+
+    /// `groupSize` threads the confirmed brief's head-count through to the squad poll.
+    init(groupSize: Int? = nil) {
+        _decks = State(initialValue: DemoPlan.decks)
+        self.groupSize = groupSize
+    }
 
     /// Total options across every slot that the squad will vote on.
     private var slateCount: Int {
@@ -101,9 +114,20 @@ struct CurationView: View {
             .scrollEdgeEffectStyle(.soft, for: .top)
             .scrollEdgeEffectStyle(.soft, for: .bottom)
             .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+            // The poll is the doorway to the schedule: once it locks, its winners
+            // become the stops, and dismissing it opens the laid-out night.
+            .sheet(isPresented: $showPoll, onDismiss: {
+                if !stopsFromPoll.isEmpty { showSchedule = true }
+            }) {
+                if let pollSession {
+                    SquadPollView(session: pollSession) { winners in
+                        stopsFromPoll = scheduleBlocks(from: winners)
+                        showPoll = false
+                    }
+                }
+            }
             .sheet(isPresented: $showSchedule) {
-                ScheduleView(stops: lockedStops)
-                    .navigationTransition(.zoom(sourceID: "schedule", in: scheduleTransition))
+                ScheduleView(stops: stopsFromPoll)
             }
         }
         .tint(Wandr.ink)
@@ -178,9 +202,10 @@ struct CurationView: View {
                 Spacer(minLength: 0)
 
                 Button {
-                    showSchedule = true
+                    pollSession = PollSession(decks: decks, groupSize: groupSize)
+                    showPoll = true
                 } label: {
-                    Label("Schedule", systemImage: "calendar.day.timeline.left")
+                    Label("Send to Squad", systemImage: "paperplane.fill")
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
                         .fixedSize()
@@ -190,7 +215,6 @@ struct CurationView: View {
                 .buttonStyle(.glassProminent)
                 .tint(Wandr.ink)
                 .disabled(slateCount == 0)
-                .matchedTransitionSource(id: "schedule", in: scheduleTransition)
             }
             .padding(.horizontal, Metrics.gutter)
             .padding(.vertical, 8)
@@ -200,24 +224,33 @@ struct CurationView: View {
 
     // MARK: Handoff
 
-    /// The schedule shows the shape of the night, so each slot contributes one
-    /// block — the squad's leading option. Real slot times come from
-    /// `FeasibilityValidator`; these are placeholders for the design pass.
-    private var lockedStops: [ScheduleBlock] {
+    /// The squad's per-slot winners become the schedule. Each slot contributes one
+    /// block, timed by category. Real slot times come from `FeasibilityValidator`;
+    /// these category defaults are placeholders for the design pass.
+    private func scheduleBlocks(
+        from winners: [(slotID: String, candidate: Candidate)]
+    ) -> [ScheduleBlock] {
         let day = DemoPlan.days[0]
-        let starts = [12 * 60 + 30, 14 * 60 + 30, 20 * 60, 17 * 60]
-
-        return decks.enumerated().compactMap { index, deck in
-            guard let leading = deck.shortlisted.first else { return nil }
-            return ScheduleBlock(
-                title: leading.name,
-                category: leading.category,
-                startMinute: starts[index % starts.count],
+        return winners.map { _, candidate in
+            ScheduleBlock(
+                title: candidate.name,
+                category: candidate.category,
+                startMinute: Self.defaultStart(for: candidate.category),
                 durationMinutes: 90,
                 dayID: day.id
             )
         }
         .sorted { $0.startMinute < $1.startMinute }
+    }
+
+    /// A rough time-of-day per slot, so the winners land in a sensible order.
+    private static func defaultStart(for category: StopCategory) -> Int {
+        switch category {
+        case .sights:    return 14 * 60 + 30
+        case .discover:  return 17 * 60
+        case .food:      return 20 * 60
+        case .nightlife: return 22 * 60
+        }
     }
 }
 

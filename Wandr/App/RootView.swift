@@ -34,10 +34,11 @@ struct RootView: View {
                 HostReviewView(inbox: inbox, payload: payload, rawText: rawText)
             case .recovery(let reason):
                 RecoveryView(inbox: inbox, reason: reason)
-            case .confirmed:
+            case .confirmed(let payload):
                 // Downstream planning/curation. The confirmed brief will seed the
-                // coordinator here once it lands; for now it opens the curation surface.
-                CurationView()
+                // coordinator here once it lands; for now it opens the curation surface,
+                // threading the group size through to the squad poll's quorum.
+                CurationView(groupSize: payload.groupSize)
                     // Settling the last hair of scale, rather than sliding in: the plan
                     // was already on its way, this is it arriving.
                     .scaleEffect(reduceMotion ? 1 : (curating ? 1 : 1.015))
