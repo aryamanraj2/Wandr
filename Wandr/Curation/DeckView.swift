@@ -28,6 +28,10 @@ struct DeckView: View {
     /// starts vertical belongs to the scroll view and the card ignores it for
     /// the rest of the gesture — otherwise every scroll attempt nudges a card.
     @State private var isHorizontalDrag: Bool?
+    /// True only while a touch is actually held on the card. Unlike `onEnded`,
+    /// `@GestureState` resets when the gesture is *cancelled* — which is exactly
+    /// what happens when the scroll view takes the touch over.
+    @GestureState private var isDragging = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -125,6 +129,21 @@ struct DeckView: View {
                     // touch lets the scroll view own vertical travel while the card
                     // gates itself to horizontal.
                     .simultaneousGesture(swipeGesture)
+                    // A drag the scroll view takes over is *cancelled*, not ended,
+                    // so `onEnded` never runs and `drag` keeps its last value. The
+                    // card is then parked off-centre — and because `offset` moves a
+                    // view's hit region with it, it leaves a dead band that eats the
+                    // next touch-down instead of letting it scroll.
+                    .onChange(of: isDragging) { _, dragging in
+                        guard !dragging, !isFlying else { return }
+                        // Also stale after a cancel: a lock left at `false` makes the
+                        // next swipe get ignored for its whole duration.
+                        isHorizontalDrag = nil
+                        guard drag != .zero else { return }
+                        withAnimation(.spring(response: 0.34, dampingFraction: 0.68)) {
+                            drag = .zero
+                        }
+                    }
                     .allowsHitTesting(!isFlying)
                     // The swipe is the only visible affordance, so it must also
                     // exist as a named action for VoiceOver, Voice Control, and
@@ -152,6 +171,7 @@ struct DeckView: View {
 
     private var swipeGesture: some Gesture {
         DragGesture(minimumDistance: 12)
+            .updating($isDragging) { _, state, _ in state = true }
             .onChanged { value in
                 guard !isFlying else { return }
 
