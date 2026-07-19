@@ -11,14 +11,27 @@ import SwiftUI
 
 struct ScheduleView: View {
 
+    /// Live runs inject the drafted days and blocks. `DemoPlan` survives only
+    /// as the preview default; it is never what a live run displays.
+    init(days: [PlanDay], blocks: [ScheduleBlock]) {
+        self.allDays = days
+        _blocks = State(initialValue: blocks)
+        _selectedDay = State(initialValue: days.first?.id ?? PlanDay(date: .now).id)
+    }
+
     /// Stops handed over from curation. Falls back to the demo day when empty.
     init(stops: [ScheduleBlock] = []) {
         let day = DemoPlan.days[0]
+        self.allDays = DemoPlan.days
         _blocks = State(initialValue: stops.isEmpty ? DemoPlan.blocks(for: day) : stops)
+        _selectedDay = State(initialValue: day.id)
     }
 
+    /// Every day this schedule could span; the date bar filters to planned ones.
+    private let allDays: [PlanDay]
+
     @State private var blocks: [ScheduleBlock]
-    @State private var selectedDay: PlanDay.ID = DemoPlan.days[0].id
+    @State private var selectedDay: PlanDay.ID
     @State private var liftedID: ScheduleBlock.ID?
 
     /// The plan reads as finished until you say otherwise. Editing is a mode you
@@ -31,7 +44,7 @@ struct ScheduleView: View {
     /// planned is not a date the user needs to see.
     private var days: [PlanDay] {
         let plannedIDs = Set(blocks.map(\.dayID))
-        return DemoPlan.days.filter { plannedIDs.contains($0.id) }
+        return allDays.filter { plannedIDs.contains($0.id) }
     }
 
     /// The visible span of the day, in minutes from midnight.

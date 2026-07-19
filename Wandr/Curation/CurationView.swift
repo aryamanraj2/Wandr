@@ -14,11 +14,19 @@ struct CurationView: View {
     @State private var scrolledDeck: Deck.ID?
     @State private var showSchedule = false
 
-    /// Live runs inject their mapped decks; `DemoPlan` survives only as the
-    /// preview default and is never what a live run displays.
-    init(decks: [Deck] = DemoPlan.decks) {
+    /// Live runs inject their mapped decks and drafted schedule; `DemoPlan`
+    /// survives only as the preview default and is never what a live run displays.
+    init(
+        decks: [Deck] = DemoPlan.decks,
+        schedule: (days: [PlanDay], blocks: [ScheduleBlock])? = nil
+    ) {
         _decks = State(initialValue: decks)
+        self.liveSchedule = schedule
     }
+
+    /// The drafted timeline for a live run. `nil` means the preview path, whose
+    /// schedule handoff still builds placeholder blocks from the demo day.
+    private let liveSchedule: (days: [PlanDay], blocks: [ScheduleBlock])?
 
     /// True once the display header has scrolled up under the navigation bar,
     /// at which point the short title takes over up there.
@@ -126,8 +134,16 @@ struct CurationView: View {
             .scrollEdgeEffectStyle(.soft, for: .bottom)
             .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
             .sheet(isPresented: $showSchedule) {
-                ScheduleView(stops: lockedStops)
-                    .navigationTransition(.zoom(sourceID: "schedule", in: scheduleTransition))
+                Group {
+                    if let liveSchedule {
+                        // The drafted timeline: every minute disclosed by the
+                        // drafter, nothing placeholder.
+                        ScheduleView(days: liveSchedule.days, blocks: liveSchedule.blocks)
+                    } else {
+                        ScheduleView(stops: lockedStops)
+                    }
+                }
+                .navigationTransition(.zoom(sourceID: "schedule", in: scheduleTransition))
             }
         }
         .tint(Wandr.ink)

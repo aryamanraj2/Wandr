@@ -48,7 +48,7 @@ struct RootView: View {
             // empty — DemoPlan is a preview fixture, not a live fallback.
             // Re-keying on the plan ID resets the deck state (cursor,
             // shortlist) whenever a new plan arrives.
-            CurationView(decks: liveDecks)
+            CurationView(decks: liveDecks, schedule: liveSchedule)
                 .id(harness.readyPlan?.id)
                 .opacity(curating ? 1 : 0)
                 // Settling the last hair of scale, rather than sliding in:
@@ -98,7 +98,13 @@ struct RootView: View {
     /// ready — never `DemoPlan`, which exists only for previews.
     private var liveDecks: [Deck] {
         guard let plan = harness.readyPlan else { return [] }
-        return PlanPresentation.decks(from: plan)
+        return PlanPresentation.decks(from: plan, schedule: harness.readySchedule)
+    }
+
+    /// The drafted timeline mapped for the schedule sheet.
+    private var liveSchedule: (days: [PlanDay], blocks: [ScheduleBlock])? {
+        guard let plan = harness.readyPlan, let draft = harness.readySchedule else { return nil }
+        return SchedulePresentation.schedule(from: draft, plan: plan)
     }
 
     private var isRunning: Bool {

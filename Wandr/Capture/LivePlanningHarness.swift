@@ -38,9 +38,12 @@ final class LivePlanningHarness {
 
     private(set) var status: Status = .idle
 
-    /// The finished plan, held for the "plan ready" acknowledgment. Never rendered in
-    /// this step; the bridge step is what draws it. Cleared on reset.
+    /// The finished plan the bridge renders. Cleared on reset.
     private(set) var readyPlan: WandrPlan?
+
+    /// The schedule drafted for the ready run, fetched from the service when the
+    /// run lands. Cleared alongside `readyPlan`.
+    private(set) var readySchedule: ScheduleDraft?
 
     // Built once, lazily, and reused across submissions.
     private var service: TravelPlanningService?
@@ -58,6 +61,7 @@ final class LivePlanningHarness {
         self.runID = runID
         status = .running
         readyPlan = nil
+        readySchedule = nil
 
         task = Task { [weak self] in
             guard let self else { return }
@@ -67,6 +71,11 @@ final class LivePlanningHarness {
                     PlanningInput(text: text, source: .directCapture),
                     runID: runID
                 )
+                // Fetch the draft before flipping status, so anything observing
+                // `.ready` sees the schedule already in place.
+                if run.state == .ready {
+                    self.readySchedule = await service.scheduleDraft(for: runID)
+                }
                 self.absorb(run)
             } catch let failure as PlanningFailure {
                 // `plan(_:)` throws only `.inputEmpty`; everything else lands on the run.
@@ -88,6 +97,7 @@ final class LivePlanningHarness {
         guard case .running = status else {
             status = .idle
             readyPlan = nil
+            readySchedule = nil
             return
         }
     }
@@ -128,6 +138,7 @@ final class LivePlanningHarness {
         if resettingStatus {
             status = .idle
             readyPlan = nil
+            readySchedule = nil
         }
     }
 }
