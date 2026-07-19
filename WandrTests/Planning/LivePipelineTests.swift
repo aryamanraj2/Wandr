@@ -133,6 +133,7 @@ struct LivePipelineTests {
     // MARK: - Hauz Khas resolves and validates
 
     @Test("The Hauz Khas request's curated slots all resolve and validate")
+    @MainActor
     func hauzKhasResolvesAndValidates() async throws {
         guard modelAvailable else { return }
         let service = try liveService()
@@ -145,7 +146,28 @@ struct LivePipelineTests {
         // (the validator's Rule 1 would have thrown otherwise); assert the plan is
         // non-empty and every deck has picks.
         #expect(!plan.slots.isEmpty)
-        #expect(plan.slots.allSatisfy { !$0.candidates.isEmpty })
+        let everySlotFilled = plan.slots.allSatisfy { !$0.candidates.isEmpty }
+        #expect(everySlotFilled)
         #expect(!plan.evidenceIDs.isEmpty)
+
+        // §8.2 (Step 4 bridge): what the screen would actually draw. This is the
+        // assertion that catches "Gurgaon in a Hauz Khas plan" automatically
+        // instead of by eye.
+        let decks = PlanPresentation.decks(from: plan)
+        #expect(!decks.isEmpty)
+        let allCardsDrawn = decks.allSatisfy { !$0.candidates.isEmpty }
+        #expect(allCardsDrawn)
+
+        let evidenceIDs = Set(plan.evidenceIDs)
+        let rendered = decks.flatMap(\.candidates)
+        let allGrounded = rendered.allSatisfy { candidate in
+            candidate.venueID.map { evidenceIDs.contains($0) } ?? false
+        }
+        #expect(allGrounded)
+
+        // The brief named one area; no rendered card may claim another.
+        let briefArea = plan.brief.area.value
+        let allInArea = rendered.allSatisfy { $0.area == briefArea }
+        #expect(allInArea, "rendered areas: \(Set(rendered.map(\.area))), brief: \(briefArea)")
     }
 }

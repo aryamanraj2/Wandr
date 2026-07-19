@@ -86,6 +86,13 @@ struct CandidateCardView: View {
                     .padding(.top, 1)
             }
 
+            // Validator warnings. Never truncated, never suppressible — a card
+            // with an unverified fact must not read as a clean card.
+            if !candidate.warnings.isEmpty {
+                warningLines
+                    .padding(.top, 3)
+            }
+
             footer
                 .padding(.top, 9)
         }
@@ -113,6 +120,21 @@ struct CandidateCardView: View {
                     endPoint: .bottom
                 )
             }
+    }
+
+    private var warningLines: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            ForEach(Array(candidate.warnings.enumerated()), id: \.offset) { _, warning in
+                Label {
+                    Text(warning)
+                        .fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                }
+                .font(.caption)
+                .foregroundStyle(Wandr.caution)
+            }
+        }
     }
 
     private func offerLine(_ offer: String) -> some View {
@@ -224,6 +246,7 @@ struct CandidateCardView: View {
         if let travelNote = candidate.travelNote { parts.append(travelNote) }
         parts.append(candidate.perHead == nil ? "Price unknown" : "\(candidate.priceLabel) per head")
         if let offer = candidate.offer { parts.append(offer) }
+        parts.append(contentsOf: candidate.warnings.map { "Warning: \($0)" })
         return parts.joined(separator: ". ")
     }
 }

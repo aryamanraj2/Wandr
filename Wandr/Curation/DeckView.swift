@@ -52,6 +52,12 @@ struct DeckView: View {
         VStack(alignment: .leading, spacing: 14) {
             header
 
+            // Slot-level validator warnings not carried by any rendered card
+            // (e.g. one about a dropped candidate). Never suppressible.
+            if !deck.warnings.isEmpty {
+                deckWarnings
+            }
+
             ZStack {
                 if deck.isExhausted {
                     exhaustedState
@@ -91,6 +97,22 @@ struct DeckView: View {
                     .foregroundStyle(deck.shortlist.isEmpty
                                      ? Wandr.secondaryText.opacity(0.8)
                                      : Wandr.accent(for: deck.category))
+            }
+        }
+        .padding(.horizontal, 4)
+    }
+
+    private var deckWarnings: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            ForEach(Array(deck.warnings.enumerated()), id: \.offset) { _, warning in
+                Label {
+                    Text(warning)
+                        .fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                }
+                .font(.caption)
+                .foregroundStyle(Wandr.caution)
             }
         }
         .padding(.horizontal, 4)

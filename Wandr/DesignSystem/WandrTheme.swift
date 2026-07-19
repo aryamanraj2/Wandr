@@ -30,6 +30,9 @@ enum Wandr {
     static let primaryText = ink
     static let secondaryText = slate
     static let hairline = sand.opacity(0.55)
+    /// Burnt umber, kept inside the family — the one color allowed to
+    /// interrupt, and reserved for validator warnings. Nothing else may use it.
+    static let caution = Color(hex: 0x9A5B28)
 
     /// Category accents stay inside the family — desaturated so no stop shouts.
     static func accent(for category: StopCategory) -> Color {
