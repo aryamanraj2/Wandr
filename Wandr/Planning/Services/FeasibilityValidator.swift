@@ -197,16 +197,23 @@ nonisolated struct FeasibilityValidator: ItineraryValidating, Sendable {
         // MARK: Rule 6 — deck depth
         //
         // A thin deck means one of two very different things. If the snapshot
-        // never had enough venues of that category, research came up short and
-        // the host should widen the search. If it did, the curator under-picked
-        // and the run should be retried. Padding with invented venues is not an
-        // option either way.
+        // never had enough *offerable* venues of that category, research came up
+        // short and the host should widen the search. If it did, the curator
+        // under-picked and the run should be retried. Padding with invented
+        // venues is not an option either way.
+        //
+        // "Offerable" applies the same hard-constraint filter the curators do:
+        // a category with four venues of which two are proven incompatible has
+        // two real options, and retrying the model can never conjure a third —
+        // that shortfall is missing evidence, not a curation fault.
 
         var evidenceShortfalls: [PlanningFailure.InsufficientEvidenceDetail] = []
         var curationShortfalls: [FeasibilityViolation] = []
 
         for slot in slots where slot.candidates.count < rules.minimumCandidatesPerSlot {
-            let availableInCategory = evidence.count { $0.category == slot.category }
+            let availableInCategory = evidence.count {
+                $0.category == slot.category && ConstraintEligibility.isEligible($0, for: brief)
+            }
 
             if availableInCategory < rules.minimumCandidatesPerSlot {
                 evidenceShortfalls.append(
