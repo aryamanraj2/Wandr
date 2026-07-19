@@ -64,31 +64,41 @@ struct CurationView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                LazyVStack(spacing: 40) {
-                    intro
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 40) {
+                        intro
 
-                    ForEach($decks) { $deck in
-                        // Leading rule rather than trailing, so the list does
-                        // not end on a divider pointing at nothing.
-                        if deck.id != decks.first?.id {
-                            WandrDashedRule()
+                        ForEach($decks) { $deck in
+                            // Leading rule rather than trailing, so the list does
+                            // not end on a divider pointing at nothing.
+                            if deck.id != decks.first?.id {
+                                WandrDashedRule()
+                            }
+
+                            DeckView(deck: $deck)
+                                .id(deck.id)
                         }
-
-                        DeckView(deck: $deck)
-                            .id(deck.id)
                     }
+                    .padding(.horizontal, Metrics.gutter)
                 }
-                .padding(.horizontal, Metrics.gutter)
-                .scrollTargetLayout()
-            }
-            .scrollPosition(id: $scrolledDeck, anchor: .top)
-            // Threshold rather than raw offset: state only changes on the two
-            // frames where the header crosses the bar, not on every scroll tick.
-            .onScrollGeometryChange(for: Bool.self) { geometry in
-                geometry.contentOffset.y + geometry.contentInsets.top > Metrics.headerCollapse
-            } action: { _, collapsed in
-                withAnimation(.wandrResponse) { headerCollapsed = collapsed }
+                // Threshold rather than raw offset: state only changes on the two
+                // frames where the header crosses the bar, not on every scroll tick.
+                .onScrollGeometryChange(for: Bool.self) { geometry in
+                    geometry.contentOffset.y + geometry.contentInsets.top > Metrics.headerCollapse
+                } action: { _, collapsed in
+                    // Assign bare and let the two views that care animate on the
+                    // value. Wrapping this in `withAnimation` made every deck in
+                    // the stack a participant in a transaction about a title's
+                    // opacity — four card stacks, their materials and gradients
+                    // all re-evaluated on the exact frames the finger was moving.
+                    headerCollapsed = collapsed
+                }
+                .onChange(of: scrolledDeck) { _, target in
+                    guard let target else { return }
+                    withAnimation(.wandrTransition) { proxy.scrollTo(target, anchor: .top) }
+                    scrolledDeck = nil
+                }
             }
             .background(Wandr.pageBackground)
             .navigationBarTitleDisplayMode(.inline)
@@ -98,6 +108,7 @@ struct CurationView: View {
                         .font(.headline)
                         .foregroundStyle(Wandr.primaryText)
                         .opacity(headerCollapsed ? 1 : 0)
+                        .animation(.wandrResponse, value: headerCollapsed)
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
@@ -154,6 +165,7 @@ struct CurationView: View {
             }
         }
         .opacity(headerCollapsed ? 0 : 1)
+        .animation(.wandrResponse, value: headerCollapsed)
     }
 
     // MARK: Toolbar
@@ -164,7 +176,7 @@ struct CurationView: View {
         Menu {
             ForEach(decks) { deck in
                 Button {
-                    withAnimation(.wandrTransition) { scrolledDeck = deck.id }
+                    scrolledDeck = deck.id
                 } label: {
                     Label {
                         Text(deck.slotName)

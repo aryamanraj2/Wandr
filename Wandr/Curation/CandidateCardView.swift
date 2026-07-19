@@ -6,8 +6,15 @@
 //  frosted panel that the backdrop still shows through, so the venue imagery
 //  and the copy read as one surface rather than two stacked ones.
 //
+//  The face is split out from the card because the expanded view rebuilds the
+//  identical composition as its hero. Two hand-matched copies would drift by a
+//  point or two and the zoom transition would show the seam — sharing the view
+//  makes the growth read as the same object rather than a cross-fade.
+//
 
 import SwiftUI
+
+// MARK: - Card
 
 struct CandidateCardView: View {
     let candidate: Candidate
@@ -15,7 +22,8 @@ struct CandidateCardView: View {
     var dragProgress: CGFloat = 0
 
     var body: some View {
-        photo
+        CandidateCardFace(candidate: candidate)
+            .overlay { verdictOverlay }
             // No frame, no stroke, no shadow — the edge is the clip itself. The
             // stack reads as depth through scale and offset in DeckView, so the
             // card needs nothing bleeding out past its own bounds.
@@ -25,42 +33,65 @@ struct CandidateCardView: View {
             .accessibilityValue(accessibilityDetail)
     }
 
-    private var photo: some View {
+    // MARK: Verdict overlay
+
+    /// Confirms the destination of the drag before release — the trajectory
+    /// should reveal the outcome, not surprise on `onEnded`.
+    private var verdictOverlay: some View {
+        let keeping = dragProgress > 0
+        let strength = min(abs(dragProgress), 1)
+
+        return ZStack {
+            (keeping ? Wandr.accent(for: candidate.category) : Wandr.ink)
+                .opacity(strength * 0.32)
+
+            Image(systemName: keeping ? "checkmark" : "arrow.uturn.forward")
+                .font(.system(size: 34, weight: .semibold))
+                .foregroundStyle(Wandr.cream)
+                .padding(22)
+                .background(Circle().fill(.ultraThinMaterial.opacity(0.8)))
+                .scaleEffect(0.7 + strength * 0.3)
+                .opacity(strength)
+        }
+        .opacity(strength > 0.02 ? 1 : 0)
+        .allowsHitTesting(false)
+    }
+
+    private var accessibilityDetail: String {
+        var parts = [candidate.tagline]
+        if let rationale = candidate.rationale { parts.append(rationale) }
+        parts.append(candidate.openWindow)
+        if !candidate.travelNote.isEmpty { parts.append(candidate.travelNote) }
+        parts.append(
+            candidate.costUnknown
+                ? "Price not listed"
+                : (candidate.perHead == 0 ? "Free" : "₹\(candidate.perHead) per head")
+        )
+        if let offer = candidate.offer { parts.append(offer) }
+        if let warning = candidate.warnings.first { parts.append(warning) }
+        return parts.joined(separator: ". ")
+    }
+}
+
+// MARK: - Face
+
+/// The card's visible composition, minus the clip, the gesture affordances and
+/// the verdict wash. Shared by the deck card and the expanded hero.
+struct CandidateCardFace: View {
+    let candidate: Candidate
+
+    /// The expanded hero drops the deck-only marginalia — the model's rationale
+    /// and the validator warning both get their own proper section down the page,
+    /// and repeating them in the hero would read as a stutter.
+    var isHero: Bool = false
+
+    var body: some View {
         ZStack(alignment: .bottom) {
-            backdrop
+            CandidateBackdrop(candidate: candidate)
             areaTag
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .padding(14)
             caption
-            verdictOverlay
-        }
-    }
-
-    // MARK: Backdrop
-
-    /// Stands in for venue photography. Deterministic per-venue hue so a card
-    /// keeps the same identity across launches.
-    private var backdrop: some View {
-        let base = Wandr.accent(for: candidate.category)
-        let angle = Double(candidate.imageSeed % 7) * 24
-        return LinearGradient(
-            colors: [
-                base.opacity(0.95),
-                base.mix(with: Wandr.ink, by: 0.55, in: .perceptual),
-                Wandr.ink
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .overlay {
-            // Soft light break, so the surface reads as a photograph rather than a swatch.
-            EllipticalGradient(
-                colors: [Color.white.opacity(0.28), .clear],
-                center: .init(x: 0.3, y: 0.18),
-                startRadiusFraction: 0,
-                endRadiusFraction: 0.75
-            )
-            .rotationEffect(.degrees(angle))
         }
     }
 
@@ -69,37 +100,39 @@ struct CandidateCardView: View {
     private var caption: some View {
         VStack(alignment: .leading, spacing: 7) {
             Text(candidate.name)
-                .font(.wandrTitle(27))
+                .font(.wandrTitle(isHero ? 32 : 27))
                 .foregroundStyle(Wandr.ink)
-                .lineLimit(1)
+                .lineLimit(isHero ? 2 : 1)
                 .minimumScaleFactor(0.7)
 
             Text(candidate.tagline)
                 .font(.subheadline)
                 .lineHeight(.tight)
                 .foregroundStyle(Wandr.ink.opacity(0.66))
-                .lineLimit(2)
+                .lineLimit(isHero ? nil : 2)
                 .fixedSize(horizontal: false, vertical: true)
 
-            // The model's reason for the pick — the one piece of model prose on the
-            // card, styled as a quiet aside so it never reads as a hard fact.
-            if let rationale = candidate.rationale {
-                Text(rationale)
-                    .font(.footnote.italic())
-                    .foregroundStyle(Wandr.accent(for: candidate.category))
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 2)
-            }
+            if !isHero {
+                // The model's reason for the pick — the one piece of model prose on the
+                // card, styled as a quiet aside so it never reads as a hard fact.
+                if let rationale = candidate.rationale {
+                    Text(rationale)
+                        .font(.footnote.italic())
+                        .foregroundStyle(Wandr.accent(for: candidate.category))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 2)
+                }
 
-            // The validator's caveats, if any — an honest flag, never hidden.
-            if let warning = candidate.warnings.first {
-                Label(warning, systemImage: "exclamationmark.circle")
-                    .font(.caption2)
-                    .foregroundStyle(Wandr.ink.opacity(0.5))
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 1)
+                // The validator's caveats, if any — an honest flag, never hidden.
+                if let warning = candidate.warnings.first {
+                    Label(warning, systemImage: "exclamationmark.circle")
+                        .font(.caption2)
+                        .foregroundStyle(Wandr.ink.opacity(0.5))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 1)
+                }
             }
 
             if let offer = candidate.offer {
@@ -112,7 +145,7 @@ struct CandidateCardView: View {
         }
         .padding(.horizontal, 20)
         .padding(.top, 34)
-        .padding(.bottom, 18)
+        .padding(.bottom, isHero ? 22 : 18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(frost)
     }
@@ -219,44 +252,39 @@ struct CandidateCardView: View {
             .background(Capsule().fill(.ultraThinMaterial.opacity(0.55)))
             .background(Capsule().fill(Wandr.ink.opacity(0.22)))
     }
+}
 
-    // MARK: Verdict overlay
+// MARK: - Backdrop
 
-    /// Confirms the destination of the drag before release — the trajectory
-    /// should reveal the outcome, not surprise on `onEnded`.
-    private var verdictOverlay: some View {
-        let keeping = dragProgress > 0
-        let strength = min(abs(dragProgress), 1)
+/// Stands in for venue photography. Deterministic per-venue hue so a card
+/// keeps the same identity across launches — and so the expanded hero paints
+/// the exact same gradient the deck card was showing a frame earlier.
+struct CandidateBackdrop: View {
+    let candidate: Candidate
 
-        return ZStack {
-            (keeping ? Wandr.accent(for: candidate.category) : Wandr.ink)
-                .opacity(strength * 0.32)
+    var body: some View {
+        let base = Wandr.accent(for: candidate.category)
+        let angle = Double(candidate.imageSeed % 7) * 24
 
-            Image(systemName: keeping ? "checkmark" : "arrow.uturn.forward")
-                .font(.system(size: 34, weight: .semibold))
-                .foregroundStyle(Wandr.cream)
-                .padding(22)
-                .background(Circle().fill(.ultraThinMaterial.opacity(0.8)))
-                .scaleEffect(0.7 + strength * 0.3)
-                .opacity(strength)
-        }
-        .opacity(strength > 0.02 ? 1 : 0)
-        .allowsHitTesting(false)
-    }
-
-    private var accessibilityDetail: String {
-        var parts = [candidate.tagline]
-        if let rationale = candidate.rationale { parts.append(rationale) }
-        parts.append(candidate.openWindow)
-        if !candidate.travelNote.isEmpty { parts.append(candidate.travelNote) }
-        parts.append(
-            candidate.costUnknown
-                ? "Price not listed"
-                : (candidate.perHead == 0 ? "Free" : "₹\(candidate.perHead) per head")
+        LinearGradient(
+            colors: [
+                base.opacity(0.95),
+                base.mix(with: Wandr.ink, by: 0.55, in: .perceptual),
+                Wandr.ink
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
         )
-        if let offer = candidate.offer { parts.append(offer) }
-        if let warning = candidate.warnings.first { parts.append(warning) }
-        return parts.joined(separator: ". ")
+        .overlay {
+            // Soft light break, so the surface reads as a photograph rather than a swatch.
+            EllipticalGradient(
+                colors: [Color.white.opacity(0.28), .clear],
+                center: .init(x: 0.3, y: 0.18),
+                startRadiusFraction: 0,
+                endRadiusFraction: 0.75
+            )
+            .rotationEffect(.degrees(angle))
+        }
     }
 }
 

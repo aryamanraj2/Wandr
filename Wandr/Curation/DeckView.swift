@@ -33,6 +33,18 @@ struct DeckView: View {
     /// what happens when the scroll view takes the touch over.
     @GestureState private var isDragging = false
 
+    /// The card being read in full. Non-nil drives the zoom expansion.
+    @State private var expanded: Candidate?
+    /// True from touch-down until the long press resolves or the finger moves,
+    /// for the pre-expansion squeeze.
+    @State private var isPressing = false
+    /// A keep/pass chosen from the expanded card, applied on dismissal.
+    @State private var pendingVerdict: Bool?
+
+    /// Source geometry for the zoom. Only the top card is ever a source — the
+    /// backdrop cards are decoration and cannot be opened.
+    @Namespace private var cardZoom
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // Tuned against the standard card-swipe feel.
@@ -121,8 +133,32 @@ struct DeckView: View {
 
             if let top = deck.topCandidate {
                 CandidateCardView(candidate: top, dragProgress: progress)
+                    // The squeeze under the finger. Small enough to read as the
+                    // card taking the pressure rather than as a button press,
+                    // and it gives the expansion something to spring out of.
+                    .scaleEffect(isPressing && !isFlying ? 0.965 : 1)
+                    .animation(.wandrResponse, value: isPressing)
                     .offset(drag)
                     .rotationEffect(tilt, anchor: .bottom)
+                    // Marks this card as where the expansion grows from, so the
+                    // cover scales out of the card's own frame instead of
+                    // arriving from the bottom of the screen.
+                    .matchedTransitionSource(id: top.id, in: cardZoom)
+                    // A hold, not a tap: the deck's whole vocabulary is the
+                    // swipe, and a tap target here would fire on every aborted
+                    // scroll. `maximumDistance` cancels the press the moment the
+                    // finger commits to travel, so a swipe never opens a card.
+                    .onLongPressGesture(minimumDuration: 0.32, maximumDistance: 14) {
+                        guard !isFlying else { return }
+                        expanded = top
+                    } onPressingChanged: { pressing in
+                        isPressing = pressing
+                    }
+                    // Fires on the state change rather than inside the gesture,
+                    // so the tap of feedback lands with the expansion it belongs to.
+                    .sensoryFeedback(.impact(weight: .medium), trigger: expanded != nil) { _, open in
+                        open
+                    }
                     // Simultaneous, not exclusive: `.gesture` claims the touch the
                     // moment it recognises, so the scroll view never saw a drag that
                     // began on a card — which is why the page felt stuck. Sharing the
@@ -150,9 +186,32 @@ struct DeckView: View {
                     // Switch Control users who cannot perform it.
                     .accessibilityAction(named: "Add to slate") { commit(keep: true) }
                     .accessibilityAction(named: "Pass") { commit(keep: false) }
+                    // The long press is as invisible to assistive tech as the
+                    // swipe was, and the detail copy only exists behind it.
+                    .accessibilityAction(named: "Open details") { expanded = top }
             }
         }
         .animation(.wandrTransition, value: deck.cursor)
+        // A cover rather than a sheet: the card grows into the whole screen, and
+        // a sheet's inset card-on-card would fight the illusion that this *is*
+        // the card. The zoom carries its own interactive dismiss — dragging the
+        // expanded card down shrinks it back into the deck.
+        // Deciding from the expanded card can't commit immediately: the zoom
+        // dismissal animates back into the source card, and committing now would
+        // fly that card off mid-transition — the cover would collapse into a hole.
+        // The verdict is held and applied once the card is home.
+        .fullScreenCover(item: $expanded, onDismiss: {
+            guard let verdict = pendingVerdict else { return }
+            pendingVerdict = nil
+            commit(keep: verdict)
+        }) { candidate in
+            CandidateDetailView(
+                candidate: candidate,
+                onKeep: { pendingVerdict = true },
+                onPass: { pendingVerdict = false }
+            )
+            .navigationTransition(.zoom(sourceID: candidate.id, in: cardZoom))
+        }
     }
 
     /// The card behind eases up to full size as the top card clears — the stack
