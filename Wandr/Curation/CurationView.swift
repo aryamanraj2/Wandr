@@ -10,9 +10,15 @@
 import SwiftUI
 
 struct CurationView: View {
-    @State private var decks: [Deck] = DemoPlan.decks
+    @State private var decks: [Deck]
     @State private var scrolledDeck: Deck.ID?
     @State private var showSchedule = false
+
+    /// Live runs inject their mapped decks; `DemoPlan` survives only as the
+    /// preview default and is never what a live run displays.
+    init(decks: [Deck] = DemoPlan.decks) {
+        _decks = State(initialValue: decks)
+    }
 
     /// True once the display header has scrolled up under the navigation bar,
     /// at which point the short title takes over up there.

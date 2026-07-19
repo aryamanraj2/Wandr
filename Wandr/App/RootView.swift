@@ -43,7 +43,13 @@ struct RootView: View {
             Wandr.pageBackground
                 .ignoresSafeArea()
 
-            CurationView()
+            // The bridge: a ready run's validated plan is what the curation
+            // screen draws. Before a plan exists the stage is invisible and
+            // empty — DemoPlan is a preview fixture, not a live fallback.
+            // Re-keying on the plan ID resets the deck state (cursor,
+            // shortlist) whenever a new plan arrives.
+            CurationView(decks: liveDecks)
+                .id(harness.readyPlan?.id)
                 .opacity(curating ? 1 : 0)
                 // Settling the last hair of scale, rather than sliding in:
                 // the plan was already on its way, this is it arriving.
@@ -68,9 +74,7 @@ struct RootView: View {
             }
         }
         .animation(.wandrResponse, value: isRunning)
-        // A ready run is the "plan ready" acknowledgment: the curation screen appears,
-        // still showing DemoPlan (the live plan is held by the harness, not rendered,
-        // until the bridge step).
+        // A ready run raises the curation screen, now drawing the live plan.
         .onChange(of: harness.status) { _, status in
             if status == .ready { stage = .curating }
         }
@@ -89,6 +93,13 @@ struct RootView: View {
     }
 
     // MARK: - Live run surfacing
+
+    /// The validated plan mapped for the curation screen. Empty until a run is
+    /// ready — never `DemoPlan`, which exists only for previews.
+    private var liveDecks: [Deck] {
+        guard let plan = harness.readyPlan else { return [] }
+        return PlanPresentation.decks(from: plan)
+    }
 
     private var isRunning: Bool {
         if case .running = harness.status { return true }
