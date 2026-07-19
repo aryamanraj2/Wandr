@@ -25,6 +25,10 @@ struct ScheduleView: View {
     /// opt into, and the dashed ruler is the signal that you are in it.
     @State private var isEditing = false
 
+    /// The finished plan, presented over the timeline. This is where the flow
+    /// ends — the schedule is the working surface, the summary is the document.
+    @State private var showSummary = false
+
     @Environment(\.dismiss) private var dismiss
 
     /// Only the days the itinerary actually has stops on. A day with nothing
@@ -66,6 +70,9 @@ struct ScheduleView: View {
                 }
             }
             .overlay(alignment: .bottomTrailing) { sendButton }
+            .sheet(isPresented: $showSummary) {
+                ItinerarySummaryView(blocks: blocks)
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .close) { dismiss() }
@@ -122,10 +129,12 @@ struct ScheduleView: View {
         .accessibilityHint("Adjust stop times")
     }
 
-    /// Floats over the timeline rather than living in the toolbar — sending the
+    /// Floats over the timeline rather than living in the toolbar — finishing the
     /// plan is the one thing you can do from anywhere in the scroll.
     private var sendButton: some View {
-        Button { } label: {
+        Button {
+            showSummary = true
+        } label: {
             Image(systemName: "paperplane.fill")
                 .font(.system(size: 20, weight: .medium))
                 .foregroundStyle(Wandr.cream)

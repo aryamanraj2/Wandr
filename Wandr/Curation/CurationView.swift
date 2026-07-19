@@ -62,29 +62,6 @@ struct CurationView: View {
         decks.reduce(0) { $0 + $1.shortlist.count }
     }
 
-    private var slotsWithOptions: Int {
-        decks.filter { !$0.shortlist.isEmpty }.count
-    }
-
-    /// Per-head cost is a range, not a figure — the squad has not chosen yet.
-    /// Both ends are computed deterministically from dataset fields.
-    private var costRange: ClosedRange<Int>? {
-        let perSlot = decks.compactMap { deck -> (Int, Int)? in
-            let costs = deck.shortlisted.map(\.perHead)
-            guard let low = costs.min(), let high = costs.max() else { return nil }
-            return (low, high)
-        }
-        guard !perSlot.isEmpty else { return nil }
-        return perSlot.reduce(0, { $0 + $1.0 })...perSlot.reduce(0, { $0 + $1.1 })
-    }
-
-    private var costLabel: String {
-        guard let range = costRange else { return "Nothing on the slate yet" }
-        return range.lowerBound == range.upperBound
-            ? "₹\(range.lowerBound) per head"
-            : "₹\(range.lowerBound)–\(range.upperBound) per head"
-    }
-
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -208,30 +185,10 @@ struct CurationView: View {
 
     // MARK: Summary bar
 
-    /// Two glass elements floating over the deck, not a bar drawn across it.
-    /// They share a `GlassEffectContainer` so they sample the same backdrop and
-    /// their lensing blends where they come close, reading as one plane rather
-    /// than two pills that happen to be adjacent.
+    /// A single glass action floating over the deck, not a bar drawn across it.
     private var summaryBar: some View {
         GlassEffectContainer(spacing: 14) {
             HStack(spacing: 14) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(slateCount) on the slate · \(slotsWithOptions)/\(decks.count) slots")
-                        .font(.footnote.weight(.semibold).monospacedDigit())
-                        .contentTransition(.numericText())
-
-                    Text(costLabel)
-                        .font(.caption.monospacedDigit())
-                        .contentTransition(.numericText())
-                        .foregroundStyle(.secondary)
-                }
-                // Regular glass handles its own legibility — it frosts and
-                // shifts tint as cards pass underneath. Painting our own
-                // opaque fill here is what kills the effect.
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .glassEffect(.regular, in: .capsule)
-
                 Spacer(minLength: 0)
 
                 Button {
