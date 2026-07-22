@@ -1,9 +1,3 @@
-//
-//  WandrApp.swift
-//  Wandr
-//
-//  Created by aryaman jaiswal on 18/07/26.
-//
 
 import SwiftUI
 
