@@ -155,15 +155,96 @@ struct DistrictVenueProviderTests {
         #expect(provider.venues(in: "CP").allSatisfy { $0.area == "Connaught Place" })
         #expect(provider.venues(in: "  hauz khas ").allSatisfy { $0.area == "Hauz Khas" })
         #expect(provider.venues(in: "Gurgaon").allSatisfy { $0.area == "Cyberhub" })
+        #expect(provider.venues(in: "Khan Market").allSatisfy { $0.area == "Khan Market" })
     }
 
-    /// An unrecognised area widens the search rather than returning nothing —
-    /// otherwise a typo would masquerade as "we found no venues".
-    @Test("The default and unknown areas return the whole dataset")
-    func unknownAreaWidensTheSearch() throws {
+    /// The failure the host actually hit: asking for CP and being shown Nizamuddin.
+    ///
+    /// The extractor returns what the host *said*, not a tidy key, so whole-string
+    /// equality missed "Connaught Place, New Delhi" entirely, matched nothing, and
+    /// fell through to the city-wide branch — which returned every other
+    /// neighbourhood, cheapest first.
+    @Test(
+        "A named area survives the extra words the host says around it",
+        arguments: [
+            ("Connaught Place, New Delhi", "Connaught Place"),
+            ("the CP area", "Connaught Place"),
+            ("cp", "Connaught Place"),
+            ("Khan Market, Delhi", "Khan Market"),
+            ("khan market", "Khan Market"),
+            ("Hauz Khas Village", "Hauz Khas"),
+            ("DLF Cyber Hub, Gurugram", "Cyberhub"),
+            ("Lodhi Colony", "Lodhi"),
+            ("Select Citywalk", "Saket")
+        ]
+    )
+    func areaSurvivesSurroundingWords(spoken: String, expected: String) throws {
+        let venues = try makeProvider().venues(in: spoken)
+        #expect(!venues.isEmpty, "\(spoken) matched nothing")
+        #expect(venues.allSatisfy { $0.area == expected }, "\(spoken) leaked other areas")
+    }
+
+    /// A two-letter shorthand is only ever the whole answer. "5 km from CP" is a
+    /// distance, not a request for Khan Market.
+    @Test("A two-letter alias only matches on its own")
+    func shortAliasesDoNotMatchMidSentence() throws {
         let provider = try makeProvider()
-        #expect(provider.venues(in: OutingBrief.defaultArea).count == provider.allVenues.count)
-        #expect(provider.venues(in: "Atlantis").count == provider.allVenues.count)
+        #expect(provider.venues(in: "km").allSatisfy { $0.area == "Khan Market" })
+        #expect(provider.venues(in: "5 km from CP").allSatisfy { $0.area == "Connaught Place" })
+    }
+
+    @Test("A city-wide area returns the whole dataset")
+    func cityWideAreasWiden() throws {
+        let provider = try makeProvider()
+        for area in [OutingBrief.defaultArea, "Delhi", "New Delhi", "NCR", "anywhere"] {
+            #expect(provider.venues(in: area).count == provider.allVenues.count, "\(area) should widen")
+        }
+    }
+
+    /// The bug that made "Khan Market" show every neighbourhood except Khan Market:
+    /// an unmatched area used to fall back to the entire dataset, so a host who
+    /// named one place got a slate drawn from all the others with nothing saying so.
+    @Test("An area the dataset does not hold returns nothing, never everything")
+    func uncoveredAreaReturnsNothing() throws {
+        let provider = try makeProvider()
+        #expect(provider.venues(in: "Atlantis").isEmpty)
+        #expect(provider.venues(in: "Noida").isEmpty)
+    }
+
+    @Test("Research reports an uncovered area instead of silently widening it")
+    func uncoveredAreaFailsHonestly() async throws {
+        let provider = try makeProvider()
+        let brief = OutingBrief(area: .host("Noida"))
+
+        await #expect(throws: PlanningFailure.self) {
+            try await provider.research(for: brief)
+        }
+
+        do {
+            _ = try await provider.research(for: brief)
+            Issue.record("Expected an areaNotCovered failure")
+        } catch let failure as PlanningFailure {
+            guard case .areaNotCovered(let covered) = failure.category else {
+                Issue.record("Expected .areaNotCovered, got \(failure.category)")
+                return
+            }
+            #expect(covered.contains("Khan Market"))
+            #expect(failure.retryAction == .editRequest)
+            // The message names what Wandr *does* cover — never the host's own word.
+            #expect(!failure.userMessage.contains("Noida"))
+        }
+    }
+
+    /// Khan Market was the area the host asked for by name and the one the dataset
+    /// did not have. It carries a full night now, not a token entry.
+    @Test("Khan Market alone fills every category")
+    func khanMarketIsComplete() throws {
+        let venues = try makeProvider().venues(in: "Khan Market")
+
+        for category in SlotCategory.allCases {
+            let count = venues.count { $0.category == category }
+            #expect(count >= 3, "Khan Market has only \(count) \(category.rawValue) venues")
+        }
     }
 
     @Test("Research returns only the brief's area and is category-correct")

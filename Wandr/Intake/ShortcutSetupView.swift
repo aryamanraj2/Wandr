@@ -50,16 +50,32 @@ struct ShortcutSetupView: View {
         }
         .background(Wandr.pageBackground)
         .safeAreaBar(edge: .bottom) {
-            Button {
-                inbox.completeShortcutSetup()
-            } label: {
-                Text("Done")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
+            VStack(spacing: 10) {
+                Button {
+                    inbox.completeShortcutSetup()
+                } label: {
+                    Text("Done")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
+                }
+                .buttonStyle(.glassProminent)
+                .tint(Wandr.ink)
+
+                // Installing a Shortcut is a real barrier on first launch, and it is
+                // not the only way in. A host who just wants to plan something can
+                // skip all of this and say it out loud.
+                Button {
+                    inbox.beginCapture()
+                } label: {
+                    Label("Skip — just tell Wandr", systemImage: "mic")
+                        .font(.subheadline.weight(.medium))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 2)
+                }
+                .buttonStyle(.glass)
+                .tint(Wandr.ink)
             }
-            .buttonStyle(.glassProminent)
-            .tint(Wandr.ink)
             .padding(.horizontal, Metrics.gutter)
             .padding(.bottom, 8)
         }

@@ -68,11 +68,20 @@ nonisolated struct FakeItineraryCurator: ItineraryCurating, Sendable {
 
         var slots: [CurationSlot] = []
 
+        let builder = SlotDeckBuilder(maxCandidatesPerSlot: maxCandidatesPerSlot)
+
         for category in SlotCategory.allCases {
             let inCategory = eligible.filter { $0.category == category }
             guard !inCategory.isEmpty else { continue }
 
-            var picks = Array(inCategory.prefix(maxCandidatesPerSlot))
+            // Through `SlotDeckBuilder`, so the fake is held to the same deck rules
+            // as production. A blind `.prefix(n)` used to hand the validator
+            // over-budget venues whenever the dataset happened to list an expensive
+            // one early, which failed the whole run — a real bug the real curator
+            // shared, and one no test could catch while the two disagreed.
+            var picks = builder.deterministicDeck(venues: inCategory, brief: brief)
+                .candidates
+                .compactMap { candidate in inCategory.first { $0.venueID == candidate.venueID } }
 
             if misbehavior == .underPick {
                 picks = Array(picks.prefix(1))

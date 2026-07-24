@@ -201,14 +201,36 @@ struct TravelPlanningServiceTests {
 
     // MARK: - 4. Insufficient evidence
     //
-    // Sourced from the real provider's real, thin result set — not a fake.
+    // Driven by a researcher that returns a genuinely thin category, rather than by
+    // whichever Delhi neighbourhood happens to be short this week.
+    //
+    // These two used to point at Lodhi with the note "the dataset gives it two food
+    // venues". The dataset has since grown, and — more to the point — **no** category
+    // in it now sits at 1 or 2 venues: every one is either 0 (the slot is skipped
+    // before it ever reaches the validator) or 3+. So the branch these tests exist to
+    // defend had become unreachable through real data, and they failed for a reason
+    // that had nothing to do with the rule they guard. Injecting the thin snapshot
+    // tests the rule instead of the neighbourhood.
 
-    @Test("A thin area fails with insufficientEvidence from the real dataset")
+    /// A researcher whose snapshot is deliberately one venue short in `.food`.
+    private struct ThinResearcher: VenueResearching {
+        func research(for brief: OutingBrief) async throws -> VenueResearchResult {
+            VenueResearchResult(
+                venues: [
+                    Fixtures.venue("food-1", category: .food, perHead: 900),
+                    Fixtures.venue("food-2", category: .food, perHead: 1_000),
+                    Fixtures.venue("sight-1", category: .sights, perHead: 0),
+                    Fixtures.venue("sight-2", category: .sights, perHead: 0),
+                    Fixtures.venue("sight-3", category: .sights, perHead: 100)
+                ]
+            )
+        }
+    }
+
+    @Test("A thin category fails with insufficientEvidence")
     func thinAreaProducesInsufficientEvidence() async throws {
-        // Lodhi is genuinely thin: the dataset gives it two food venues, below the
-        // validator's floor of three.
-        let service = try service()
-        let run = try await service.plan(Fixtures.input("A quiet afternoon in Lodhi"))
+        let service = try service(researcher: ThinResearcher())
+        let run = try await service.plan(Fixtures.input(Fixtures.Request.afterWork))
 
         #expect(run.state == .failed)
         let failure = try #require(run.failure)
@@ -222,10 +244,10 @@ struct TravelPlanningServiceTests {
         #expect(failure.retryAction == .editRequest)
     }
 
-    @Test("The thin-area failure names the category that came up short")
+    @Test("The thin-category failure names the category that came up short")
     func insufficientEvidenceNamesTheCategory() async throws {
-        let service = try service()
-        let run = try await service.plan(Fixtures.input("A quiet afternoon in Lodhi"))
+        let service = try service(researcher: ThinResearcher())
+        let run = try await service.plan(Fixtures.input(Fixtures.Request.afterWork))
 
         guard case .insufficientEvidence(let details) = run.failure?.category else {
             Issue.record("Expected .insufficientEvidence")

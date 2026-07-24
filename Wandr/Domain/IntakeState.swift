@@ -34,6 +34,14 @@ enum IntakeState: Sendable, Equatable {
     case onboarding
     /// Resting state: waiting for a summary to arrive through the intent.
     case awaitingSummary
+    /// The host is describing the outing themselves — speaking or typing — because
+    /// there is no group chat to summarise. Volatile: nothing is held but the text
+    /// in `PlanDictation`, and leaving discards it.
+    case capturing
+    /// The on-device model is turning what the host said into a structured summary.
+    /// Transient and never persisted; `rawText` is held only so the host still
+    /// reaches Host Review with their own words if extraction comes back empty.
+    case extracting(rawText: String)
     /// A summary arrived. Shown to the host for review before anything else happens.
     /// `payload` is present when the text decoded into the structured schema; `rawText`
     /// is always the exact volatile content, held only for this screen.

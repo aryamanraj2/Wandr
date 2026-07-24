@@ -86,6 +86,66 @@ struct ChatSummaryBriefMapperTests {
         #expect(window.dayLabel == "Saturday")
         #expect(window.earliestStartMinute == nil)
         #expect(window.latestEndMinute == nil)
+        #expect(window.maximumDurationMinutes == nil)
+    }
+
+    // MARK: - Durations
+    //
+    // The reported bug in one line: "3 hours" and "3 o'clock" share their digits.
+    // The clock scanner found the `3`, applied its unqualified-evening rule, and
+    // returned a 3 pm *start* — so a host who said they were short on time got a
+    // window that constrained nothing and a plan that ran until 1 am.
+
+    @Test(
+        "A stated duration is read as a length, never as a clock time",
+        arguments: [
+            ("3 hours", 180), ("3 hrs", 180), ("only about 3 hours", 180),
+            ("2h", 120), ("90 mins", 90), ("90 minutes", 90),
+            ("1.5 hours", 90), ("an hour", 60), ("a couple of hours", 120),
+            ("half an hour", 30), ("hour and a half", 90), ("we have four hours", 240)
+        ]
+    )
+    func durationIsNotAClockTime(phrase: String, minutes: Int) {
+        let window = ChatSummaryBriefMapper.timeWindow(day: nil, time: phrase)
+
+        #expect(window.maximumDurationMinutes == minutes, "\(phrase)")
+        #expect(window.earliestStartMinute == nil, "\(phrase) must not become a start time")
+        #expect(window.latestEndMinute == nil, "\(phrase) must not become a finish time")
+    }
+
+    @Test("A duration and a clock time coexist without eating each other's digits")
+    func durationAlongsideAClockTime() {
+        let window = ChatSummaryBriefMapper.timeWindow(day: "Friday", time: "from 8pm, only 3 hours")
+
+        #expect(window.earliestStartMinute == 20 * 60)
+        #expect(window.maximumDurationMinutes == 180)
+        #expect(window.latestEndMinute == nil)
+        #expect(window.dayLabel == "Friday")
+    }
+
+    @Test("A clock phrase with no duration is unchanged")
+    func clockPhrasesKeepTheirOldMeaning() {
+        let window = ChatSummaryBriefMapper.timeWindow(day: nil, time: "free only 8-9pm")
+
+        #expect(window.earliestStartMinute == 20 * 60)
+        #expect(window.latestEndMinute == 21 * 60)
+        #expect(window.maximumDurationMinutes == nil)
+    }
+
+    /// Unit letters must not swallow ordinary words: "3 monday" is a day.
+    @Test("A bare number next to a non-unit word is not a duration")
+    func nonUnitWordsAreNotDurations() {
+        #expect(ChatSummaryBriefMapper.timeWindow(day: nil, time: "3 monday").maximumDurationMinutes == nil)
+        #expect(ChatSummaryBriefMapper.timeWindow(day: nil, time: "8pm").maximumDurationMinutes == nil)
+    }
+
+    @Test("An absurd duration is clamped rather than trusted")
+    func absurdDurationsAreClamped() {
+        let huge = ChatSummaryBriefMapper.timeWindow(day: nil, time: "400 hours")
+        #expect(huge.maximumDurationMinutes == 18 * 60)
+
+        let tiny = ChatSummaryBriefMapper.timeWindow(day: nil, time: "5 minutes")
+        #expect(tiny.maximumDurationMinutes == 30)
     }
 
     // MARK: - Whole payload

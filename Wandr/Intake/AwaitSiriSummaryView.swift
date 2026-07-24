@@ -32,16 +32,32 @@ struct AwaitSiriSummaryView: View {
         }
         .background(Wandr.pageBackground)
         .safeAreaBar(edge: .bottom) {
-            Button {
-                inbox.openShortcutSetup()
-            } label: {
-                Label("Set up chat import", systemImage: "square.and.arrow.down.on.square")
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
+            VStack(spacing: 10) {
+                // The prominent one: a host with no group chat to summarise still has
+                // an outing to plan, and this is the only route that does not require
+                // a Shortcut, Siri, or a chat to exist at all.
+                Button {
+                    inbox.beginCapture()
+                } label: {
+                    Label("Tell Wandr yourself", systemImage: "mic.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
+                }
+                .buttonStyle(.glassProminent)
+                .tint(Wandr.ink)
+
+                Button {
+                    inbox.openShortcutSetup()
+                } label: {
+                    Label("Set up chat import", systemImage: "square.and.arrow.down.on.square")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
+                }
+                .buttonStyle(.glass)
+                .tint(Wandr.ink)
             }
-            .buttonStyle(.glass)
-            .tint(Wandr.ink)
             .padding(.horizontal, Metrics.gutter)
             .padding(.bottom, 8)
         }
@@ -67,12 +83,24 @@ struct AwaitSiriSummaryView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// The privacy promise, kept accurate now that there is a second doorway.
+    ///
+    /// This card used to read "Wandr never reads your chats, contacts, or mic." That
+    /// was true when Siri was the only way in. It stopped being true the moment this
+    /// screen grew a microphone button, and a privacy claim that is quietly false is
+    /// worse than one that is merely narrow — so it now says exactly what holds:
+    /// chats and contacts are still never read, and the mic is only ever on when the
+    /// host presses it themselves.
     private var boundaryCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("The boundary")
                 .wandrLabelStyle(Wandr.accent(for: .sights))
 
-            Label("Wandr never reads your chats, contacts, or mic.", systemImage: "hand.raised.fill")
+            Label("Wandr never reads your chats or contacts.", systemImage: "hand.raised.fill")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(Wandr.primaryText)
+
+            Label("The mic only listens when you tap it, and stops when you're done.", systemImage: "mic.slash.fill")
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(Wandr.primaryText)
 

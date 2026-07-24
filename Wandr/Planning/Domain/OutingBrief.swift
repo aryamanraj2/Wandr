@@ -54,12 +54,26 @@ nonisolated struct OutingTimeWindow: Sendable, Equatable, Hashable {
     var earliestStartMinute: Int?
     /// e.g. 21 * 60 for "finish by 9". `nil` means the host didn't say.
     var latestEndMinute: Int?
+    /// How long the whole outing may run, e.g. 180 for "we've only got 3 hours".
+    ///
+    /// A separate axis from the two clock bounds, and the reason this field exists:
+    /// a duration is not a time of day. Without it, "3 hours" had nowhere to go but
+    /// the clock parser, which read the bare `3` as an evening hour and produced
+    /// "starts at 3 pm" — a window that keeps *every* slot and plans a whole day for
+    /// a group that said they had an afternoon's worth of time.
+    var maximumDurationMinutes: Int?
     /// e.g. "Friday". A label only — never parsed into a `Date` at this layer.
     var dayLabel: String?
 
-    init(earliestStartMinute: Int? = nil, latestEndMinute: Int? = nil, dayLabel: String? = nil) {
+    init(
+        earliestStartMinute: Int? = nil,
+        latestEndMinute: Int? = nil,
+        maximumDurationMinutes: Int? = nil,
+        dayLabel: String? = nil
+    ) {
         self.earliestStartMinute = earliestStartMinute
         self.latestEndMinute = latestEndMinute
+        self.maximumDurationMinutes = maximumDurationMinutes
         self.dayLabel = dayLabel
     }
 
@@ -67,11 +81,15 @@ nonisolated struct OutingTimeWindow: Sendable, Equatable, Hashable {
     static let unknown = OutingTimeWindow()
 
     var isUnknown: Bool {
-        earliestStartMinute == nil && latestEndMinute == nil && dayLabel == nil
+        earliestStartMinute == nil && latestEndMinute == nil
+            && maximumDurationMinutes == nil && dayLabel == nil
     }
 
     /// A hard finish time the host stated.
     var hasFixedEnd: Bool { latestEndMinute != nil }
+
+    /// Whether the host capped how long they have, however they phrased it.
+    var hasDurationCap: Bool { maximumDurationMinutes != nil }
 }
 
 // MARK: - Bounded numbers

@@ -1,5 +1,5 @@
 {
-  "version": "delhi-ncr-2026-07b",
+  "version": "delhi-ncr-2026-07c",
   "venues": [
     {
       "id": "hk-food-1",
@@ -1717,6 +1717,271 @@
       ],
       "availability": "available",
       "imageSeed": 184
+    },
+    {
+      "id": "km-food-1",
+      "name": "Khan Chacha",
+      "area": "Khan Market",
+      "category": "food",
+      "tagline": "The roll counter the whole market queues at.",
+      "perHead": 450,
+      "openWindow": "12:00 pm - 11:00 pm",
+      "dietaryTags": [
+        "halal"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quick",
+        "classic"
+      ],
+      "availability": "available",
+      "limitations": [
+        "Counter seating only; the queue spills onto the walkway."
+      ],
+      "imageSeed": 185
+    },
+    {
+      "id": "km-food-2",
+      "name": "Big Chill Cafe",
+      "area": "Khan Market",
+      "category": "food",
+      "tagline": "Enormous pastas and taller cakes, unchanged for decades.",
+      "perHead": 1100,
+      "openWindow": "12:00 pm - 11:30 pm",
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "lively",
+        "classic"
+      ],
+      "availability": "available",
+      "limitations": [
+        "No reservations; 30-45 min waits on weekends."
+      ],
+      "imageSeed": 186
+    },
+    {
+      "id": "km-food-3",
+      "name": "Mamagoto",
+      "area": "Khan Market",
+      "category": "food",
+      "tagline": "Loud pan-Asian plates under comic-book walls.",
+      "perHead": 1600,
+      "openWindow": "12:00 pm - 11:00 pm",
+      "dietaryTags": [
+        "vegetarian",
+        "vegan"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "loud",
+        "fun",
+        "colourful"
+      ],
+      "availability": "available",
+      "offer": "15% off weekday lunch",
+      "offerWindow": "Mon-Fri before 4:00 pm",
+      "imageSeed": 187
+    },
+    {
+      "id": "km-food-4",
+      "name": "Town Hall",
+      "area": "Khan Market",
+      "category": "food",
+      "tagline": "Continental plates on a first-floor terrace.",
+      "perHead": 2200,
+      "openWindow": "12:00 pm - 1:00 am",
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "accessibilityTags": [
+        "elevatorAccess"
+      ],
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "upscale",
+        "view"
+      ],
+      "availability": "available",
+      "imageSeed": 188
+    },
+    {
+      "id": "km-night-1",
+      "name": "Perch Wine & Coffee Bar",
+      "area": "Khan Market",
+      "category": "nightlife",
+      "tagline": "Wine by the glass and a room that stays conversational.",
+      "perHead": 1800,
+      "openWindow": "8:00 am - 1:00 am",
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "relaxed",
+        "intimate"
+      ],
+      "availability": "available",
+      "limitations": [
+        "Small room; groups over six rarely seat together."
+      ],
+      "imageSeed": 189
+    },
+    {
+      "id": "km-night-2",
+      "name": "Tres",
+      "area": "Khan Market",
+      "category": "nightlife",
+      "tagline": "Courtyard cocktails, European kitchen open late.",
+      "perHead": 2400,
+      "openWindow": "12:00 pm - 12:30 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "lively",
+        "upscale"
+      ],
+      "availability": "available",
+      "imageSeed": 190
+    },
+    {
+      "id": "km-night-3",
+      "name": "Amour Bistro",
+      "area": "Khan Market",
+      "category": "nightlife",
+      "tagline": "Fairy-lit rooftop, long cocktail list.",
+      "perHead": 1900,
+      "openWindow": "12:00 pm - 1:00 am",
+      "dietaryTags": [
+        "vegetarian"
+      ],
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "romantic",
+        "view"
+      ],
+      "availability": "available",
+      "imageSeed": 191
+    },
+    {
+      "id": "km-disc-1",
+      "name": "Bahrisons Booksellers",
+      "area": "Khan Market",
+      "category": "discover",
+      "tagline": "The market's original bookshop, still tightly packed.",
+      "perHead": 0,
+      "openWindow": "10:00 am - 8:30 pm",
+      "dietaryTags": [],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quiet",
+        "browsing"
+      ],
+      "availability": "available",
+      "imageSeed": 192
+    },
+    {
+      "id": "km-disc-2",
+      "name": "Full Circle & Cafe Turtle",
+      "area": "Khan Market",
+      "category": "discover",
+      "tagline": "Books downstairs, a rooftop cafe above them.",
+      "perHead": 600,
+      "openWindow": "10:00 am - 9:00 pm",
+      "dietaryTags": [
+        "vegetarian",
+        "vegan"
+      ],
+      "indoorOutdoor": "mixed",
+      "vibeTags": [
+        "quiet",
+        "relaxed"
+      ],
+      "availability": "available",
+      "imageSeed": 193
+    },
+    {
+      "id": "km-disc-3",
+      "name": "Good Earth",
+      "area": "Khan Market",
+      "category": "discover",
+      "tagline": "Three floors of design, tableware and textiles.",
+      "perHead": 0,
+      "openWindow": "11:00 am - 8:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "browsing",
+        "upscale"
+      ],
+      "availability": "available",
+      "imageSeed": 194
+    },
+    {
+      "id": "km-sight-1",
+      "name": "Lodhi Garden",
+      "area": "Khan Market",
+      "category": "sights",
+      "tagline": "Tombs, joggers and old trees, five minutes on foot.",
+      "perHead": 0,
+      "openWindow": "6:00 am - 8:00 pm",
+      "dietaryTags": [],
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "green",
+        "calm",
+        "walkable"
+      ],
+      "availability": "available",
+      "imageSeed": 195
+    },
+    {
+      "id": "km-sight-2",
+      "name": "India Gate Lawns",
+      "area": "Khan Market",
+      "category": "sights",
+      "tagline": "The lawns light up after dark; ice cream carts stay late.",
+      "perHead": 0,
+      "openWindow": "24 hours",
+      "accessibilityTags": [
+        "stepFreeEntry"
+      ],
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "open",
+        "classic"
+      ],
+      "availability": "available",
+      "limitations": [
+        "Vehicle access is restricted on weekend evenings."
+      ],
+      "imageSeed": 196
+    },
+    {
+      "id": "km-sight-3",
+      "name": "National Gallery of Modern Art",
+      "area": "Khan Market",
+      "category": "sights",
+      "tagline": "Jaipur House, four floors of twentieth-century Indian art.",
+      "perHead": 150,
+      "openWindow": "11:00 am - 6:30 pm",
+      "accessibilityTags": [
+        "stepFreeEntry",
+        "elevatorAccess"
+      ],
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quiet",
+        "cultural"
+      ],
+      "availability": "available",
+      "limitations": [
+        "Closed Mondays and public holidays."
+      ],
+      "imageSeed": 197
     }
   ]
 }

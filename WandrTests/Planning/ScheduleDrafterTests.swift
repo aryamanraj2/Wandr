@@ -90,14 +90,8 @@ struct ScheduleDrafterTests {
 
         for block in draft.blocks {
             #expect(
-                draft.assumptions.contains(.defaultStartMinute(block.startMinute)),
-                "Start \(block.startMinute) for \(block.slotID) is not disclosed"
-            )
-            #expect(
-                draft.assumptions.contains(
-                    .defaultDuration(minutes: block.durationMinutes, slotID: block.slotID)
-                ),
-                "Duration for \(block.slotID) is not disclosed"
+                draft.discloses(block),
+                "Start \(block.startMinute) / duration \(block.durationMinutes) for \(block.slotID) is not disclosed"
             )
         }
     }
@@ -178,7 +172,7 @@ struct ScheduleDrafterTests {
         let starts = draft.blocks.map(\.startMinute)
         #expect(Set(starts).count == starts.count, "Two stops must not start at the same minute")
         for block in draft.blocks {
-            #expect(draft.assumptions.contains(.defaultStartMinute(block.startMinute)))
+            #expect(draft.discloses(block))
         }
     }
 
@@ -238,5 +232,33 @@ struct ScheduleDrafterTests {
         #expect(start == draft.blocks.map(\.startMinute).min())
         #expect(end == draft.blocks.map(\.endMinute).max())
         #expect(end > start)
+    }
+}
+
+// MARK: - Disclosure helper
+
+private extension ScheduleDraft {
+
+    /// Whether both of `block`'s numbers are accounted for by some assumption.
+    ///
+    /// The drafter discloses a stop two different ways depending on where its
+    /// numbers came from: `.defaultStartMinute` + `.defaultDuration` for a template
+    /// default, or a single `.windowConstrained` when the host's own time window
+    /// decided them. Both are disclosures — the rule these tests defend is "no
+    /// silent numbers", not "one particular assumption case".
+    func discloses(_ block: ScheduleDraftBlock) -> Bool {
+        let windowConstrained = assumptions.contains(
+            .windowConstrained(
+                startMinute: block.startMinute,
+                durationMinutes: block.durationMinutes,
+                slotID: block.slotID
+            )
+        )
+        guard !windowConstrained else { return true }
+
+        return assumptions.contains(.defaultStartMinute(block.startMinute))
+            && assumptions.contains(
+                .defaultDuration(minutes: block.durationMinutes, slotID: block.slotID)
+            )
     }
 }

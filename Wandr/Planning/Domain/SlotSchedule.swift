@@ -72,6 +72,21 @@ nonisolated struct SlotSchedule: Sendable, Equatable {
         Band(category: .nightlife, title: "Late",           startMinute: 22 * 60,      endMinute: 25 * 60)       // 10:00 pm – 1:00 am
     ]
 
+    /// Where a duration-capped outing starts when the host named no start time.
+    ///
+    /// The Dinner band. Wandr plans nights out — every band title downstream of here
+    /// says so, and the clock parser already reads a bare "8" as 8 pm — so a group
+    /// with three free hours and no stated start is planning an evening, not a
+    /// lunchtime. Anchoring at the first band instead would spend the whole cap on
+    /// the afternoon and reproduce the bug this cap exists to fix.
+    static let defaultEveningStartMinute = 20 * 60
+
+    /// The span the evening bands cover (8 pm – 1 am). A cap longer than this cannot
+    /// be an evening, so it anchors at the top of the day instead.
+    private static var eveningSpanMinutes: Int {
+        (bands.last?.endMinute ?? 0) - defaultEveningStartMinute
+    }
+
     // MARK: - Computation
 
     /// The slots that fit `window`, each intersected with it.
@@ -79,18 +94,58 @@ nonisolated struct SlotSchedule: Sendable, Equatable {
     /// A slot is kept iff `[earliestStart ?? bandStart, latestEnd ?? bandEnd]`
     /// overlaps its band by at least `minimumStopMinutes`. An `.unknown` window
     /// keeps every slot at its full band.
+    ///
+    /// A stated `maximumDurationMinutes` closes the window from the right: the
+    /// outing may not run past `start + duration`, where `start` is the host's own
+    /// earliest time when they gave one and `defaultEveningStartMinute` when they
+    /// did not. This is the only thing that makes "we've only got 3 hours" produce
+    /// a materially shorter night — a duration cannot be expressed as a clock bound,
+    /// so before this it expressed nothing at all.
     static func compute(
         for window: OutingTimeWindow,
         minimumStopMinutes: Int = 60
     ) -> SlotSchedule {
+        let anchor = anchorStart(for: window)
+        let cappedEnd = window.maximumDurationMinutes.map { anchor + $0 }
+
+        let latestEnd: Int? = {
+            switch (window.latestEndMinute, cappedEnd) {
+            case (let stated?, let capped?): return min(stated, capped)
+            case (let stated?, nil):         return stated
+            case (nil, let capped?):         return capped
+            case (nil, nil):                 return nil
+            }
+        }()
+
+        // The cap moves the *start* too when the host gave no time of day at all —
+        // otherwise "3 hours" would still open at the afternoon band and the cap
+        // would only trim the tail of a full day.
+        let earliestStart = window.earliestStartMinute
+            ?? (window.hasDurationCap ? anchor : nil)
+
         let feasible: [FeasibleSlot] = bands.compactMap { band in
-            let start = max(band.startMinute, window.earliestStartMinute ?? band.startMinute)
-            let end = min(band.endMinute, window.latestEndMinute ?? band.endMinute)
+            let start = max(band.startMinute, earliestStart ?? band.startMinute)
+            let end = min(band.endMinute, latestEnd ?? band.endMinute)
             guard end - start >= minimumStopMinutes else { return nil }
             return FeasibleSlot(category: band.category, title: band.title, startMinute: start, endMinute: end)
         }
 
         return SlotSchedule(slots: feasible, isWindowConstrained: !window.isUnknown)
+    }
+
+    /// The minute a duration cap is measured from.
+    ///
+    /// The host's own start when they gave one. Otherwise the evening anchor, unless
+    /// the cap is longer than an evening — a group with eight free hours is planning
+    /// a day, and starting them at 8 pm would throw most of their time past midnight.
+    private static func anchorStart(for window: OutingTimeWindow) -> Int {
+        if let stated = window.earliestStartMinute { return stated }
+        guard let duration = window.maximumDurationMinutes else {
+            return bands.first?.startMinute ?? 0
+        }
+        return duration <= eveningSpanMinutes
+            ? defaultEveningStartMinute
+            : (bands.first?.startMinute ?? 0)
     }
 
     /// The feasible slot for a category, if it survived the window.

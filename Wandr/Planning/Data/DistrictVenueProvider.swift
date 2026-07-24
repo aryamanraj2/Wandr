@@ -174,7 +174,18 @@ nonisolated struct DistrictVenueProvider: VenueResearching, Sendable {
     /// validator is the one component allowed to rule a venue out, and it says so
     /// with a named violation rather than a silent omission.
     func research(for brief: OutingBrief) async throws -> VenueResearchResult {
-        let matched = venues(in: brief.area.value)
+
+        // A named area this dataset has never heard of is reported, not absorbed.
+        // Widening to the whole city here is what produced the worst failure this
+        // provider had: a host who asked for one neighbourhood got a slate drawn
+        // from every *other* neighbourhood, ranked by price, with nothing anywhere
+        // in the app saying the area had been dropped.
+        let coverage = Self.coverage(of: brief.area.value, in: coveredAreaKeys)
+        guard coverage != .notCovered else {
+            throw PlanningFailure(.areaNotCovered(covered: coveredAreaNames))
+        }
+
+        let matched = venues(for: coverage)
         let ranked = matched.sorted { rank($0, for: brief) < rank($1, for: brief) }
 
         var events: [PlanningEvent] = [
@@ -212,37 +223,133 @@ nonisolated struct DistrictVenueProvider: VenueResearching, Sendable {
 
     // MARK: Area matching
 
-    /// Venues in the named area, or everything when the area is the catch-all
-    /// default or a place this dataset has never heard of.
-    ///
-    /// Falling back to the whole dataset for an unrecognised area is deliberate:
-    /// an unknown neighbourhood should widen the search, not silently return
-    /// nothing and masquerade as "we found no venues".
-    func venues(in area: String) -> [GroundedVenue] {
-        let normalized = Self.canonicalArea(area)
-
-        guard normalized != Self.everywhere else { return allVenues }
-
-        let matches = allVenues.filter { Self.canonicalArea($0.area) == normalized }
-        return matches.isEmpty ? allVenues : matches
+    /// What an area string means to *this* dataset.
+    nonisolated enum AreaCoverage: Sendable, Equatable {
+        /// No area was named, or the one named covers the whole city.
+        case everywhere
+        /// A neighbourhood the dataset holds, as its canonical key.
+        case covered(String)
+        /// A real place the dataset has nothing for.
+        case notCovered
     }
 
-    private static let everywhere = "delhi ncr"
+    /// The canonical key of every area the dataset actually holds.
+    var coveredAreaKeys: Set<String> {
+        Set(allVenues.map { Self.normalize($0.area) })
+    }
 
-    /// Folds the handful of spellings the demo script actually uses onto one key.
-    private static func canonicalArea(_ raw: String) -> String {
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        switch trimmed {
-        case "cp", "connaught place", "cannaught place": return "connaught place"
-        case "hauz khas", "hauz khaz", "hkv": return "hauz khas"
-        case "lodhi", "lodi", "lodhi colony", "lodhi road": return "lodhi"
-        case "cyberhub", "cyber hub", "gurgaon", "gurugram": return "cyberhub"
-        case "saket": return "saket"
-        case "aerocity", "aero city": return "aerocity"
-        case "nizamuddin", "hazrat nizamuddin", "nizam": return "nizamuddin"
-        default: return trimmed
+    /// Those areas as the host would read them, alphabetically. Dataset-owned text,
+    /// so it is safe to put in a failure message.
+    var coveredAreaNames: [String] {
+        Set(allVenues.map(\.area)).sorted()
+    }
+
+    /// Venues in the named area, or everything when the area covers the whole city.
+    ///
+    /// Empty for an area the dataset does not hold. `research(for:)` turns that into
+    /// a named failure — callers that use this directly get the honest empty answer
+    /// rather than a silent city-wide substitution.
+    func venues(in area: String) -> [GroundedVenue] {
+        venues(for: Self.coverage(of: area, in: coveredAreaKeys))
+    }
+
+    private func venues(for coverage: AreaCoverage) -> [GroundedVenue] {
+        switch coverage {
+        case .everywhere:
+            return allVenues
+        case .covered(let key):
+            return allVenues.filter { Self.normalize($0.area) == key }
+        case .notCovered:
+            return []
         }
     }
+
+    /// Resolves a host-written area onto the dataset.
+    ///
+    /// Matching is by *token run*, not whole-string equality. The extractor rarely
+    /// returns a bare "CP" — it returns what the host said, so "Connaught Place, New
+    /// Delhi" and "the CP area" have to land on the same key. Whole-string equality
+    /// missed every one of those and fell through to the city-wide branch.
+    static func coverage(of raw: String, in covered: Set<String>) -> AreaCoverage {
+        let normalized = normalize(raw)
+        guard !normalized.isEmpty else { return .everywhere }
+
+        let tokens = normalized.split(separator: " ").map(String.init)
+
+        // Specific neighbourhoods win over city-wide words, so "Khan Market, New
+        // Delhi" is Khan Market rather than all of Delhi.
+        for (key, aliases) in aliasesByLength {
+            for alias in aliases where matches(alias, tokens: tokens) {
+                return covered.contains(key) ? .covered(key) : .notCovered
+            }
+        }
+
+        if cityWide.contains(where: { matches($0, tokens: tokens) }) {
+            return .everywhere
+        }
+
+        return .notCovered
+    }
+
+    /// Whether `alias` appears as a contiguous run of whole tokens.
+    ///
+    /// Whole tokens, never substrings — "cp" must not match inside "campus". A short
+    /// alias is additionally rejected when a number sits in front of it, because that
+    /// is the one way these collide with something else the host might mean: "km" is
+    /// Khan Market on its own and kilometres in "5 km from CP".
+    private static func matches(_ alias: String, tokens: [String]) -> Bool {
+        let aliasTokens = alias.split(separator: " ").map(String.init)
+        guard !aliasTokens.isEmpty, aliasTokens.count <= tokens.count else { return false }
+
+        for start in 0...(tokens.count - aliasTokens.count)
+        where Array(tokens[start..<(start + aliasTokens.count)]) == aliasTokens {
+            let usedAsAUnit = alias.count <= 2
+                && start > 0
+                && tokens[start - 1].allSatisfy(\.isNumber)
+            if !usedAsAUnit { return true }
+        }
+        return false
+    }
+
+    /// Lowercased, unaccented, punctuation-free, single-spaced.
+    private static func normalize(_ raw: String) -> String {
+        raw.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil)
+            .map { $0.isLetter || $0.isNumber ? $0 : " " }
+            .reduce(into: "") { result, character in
+                if character == " ", result.last == " " || result.isEmpty { return }
+                result.append(character)
+            }
+            .trimmingCharacters(in: .whitespaces)
+    }
+
+    /// Words that name the whole coverage area rather than a neighbourhood in it.
+    private static let cityWide: [String] = [
+        "delhi ncr", "delhi", "new delhi", "ncr", "national capital region",
+        "anywhere", "any area", "no preference", "flexible"
+    ]
+
+    /// Spellings that fold onto one dataset area. The key is the normalized form of
+    /// the `area` string in the JSON, so adding a neighbourhood to the dataset only
+    /// needs an entry here if the host might spell it differently.
+    private static let aliases: [String: [String]] = [
+        "connaught place": ["connaught place", "cannaught place", "canaught place",
+                            "connaught", "rajiv chowk", "cp"],
+        "hauz khas":       ["hauz khas village", "hauz khas", "hauz khaz", "hauzkhas", "hkv"],
+        "khan market":     ["khan market", "khan mkt", "khan", "km"],
+        "lodhi":           ["lodhi art district", "lodhi colony", "lodhi road",
+                            "lodhi", "lodi colony", "lodi"],
+        "cyberhub":        ["dlf cyber hub", "cyber hub", "cyberhub", "cyber city",
+                            "cybercity", "gurugram", "gurgaon"],
+        "saket":           ["select citywalk", "select city walk", "saket"],
+        "aerocity":        ["aerocity", "aero city", "worldmark"],
+        "nizamuddin":      ["hazrat nizamuddin", "basti nizamuddin", "nizamuddin", "nizam"]
+    ]
+
+    /// Aliases longest-first inside each area, so "hauz khas village" is tried before
+    /// "hauz khas" and a longer, more specific spelling always wins.
+    private static let aliasesByLength: [(String, [String])] = aliases
+        .map { ($0.key, $0.value.sorted { $0.count > $1.count }) }
+        .sorted { $0.0 < $1.0 }
 
     // MARK: Ranking
 

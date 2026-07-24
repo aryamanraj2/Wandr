@@ -48,6 +48,11 @@ nonisolated struct PlanningFailure: Error, Sendable, Equatable, Hashable {
         case contextTooLarge
         /// Structured output could not be decoded into the typed brief.
         case structuredOutputDecodingFailed
+        /// The host named a neighbourhood no evidence source covers yet.
+        ///
+        /// `covered` is dataset-owned text, never the host's own words — see this
+        /// file's privacy note.
+        case areaNotCovered(covered: [String])
         /// Not enough grounded candidates to fill the required slots.
         case insufficientEvidence(details: [InsufficientEvidenceDetail])
         /// The curation violated one or more deterministic rules.
@@ -99,6 +104,12 @@ nonisolated struct PlanningFailure: Error, Sendable, Equatable, Hashable {
         case .structuredOutputDecodingFailed:
             return "Wandr couldn't make sense of that request. Try rewording it."
 
+        case .areaNotCovered(let covered):
+            guard !covered.isEmpty else {
+                return "Wandr doesn't have places for that area yet. Try a different neighbourhood."
+            }
+            return "Wandr doesn't cover that area yet. Right now it knows \(Self.list(covered))."
+
         case .insufficientEvidence(let details):
             guard let worst = details.min(by: { $0.found < $1.found }) else {
                 return "We couldn't find enough real places for this plan yet."
@@ -126,6 +137,7 @@ nonisolated struct PlanningFailure: Error, Sendable, Equatable, Hashable {
         case .guardrailRefusal:              return .editRequest
         case .contextTooLarge:               return .editRequest
         case .structuredOutputDecodingFailed: return .retrySameRequest
+        case .areaNotCovered:                return .editRequest
         case .insufficientEvidence:          return .editRequest
         case .validationFailed:              return .retrySameRequest
         case .cancelled:                     return .startOver
@@ -134,6 +146,13 @@ nonisolated struct PlanningFailure: Error, Sendable, Equatable, Hashable {
 
     /// Whether the run can be restarted at all.
     var isRecoverable: Bool { retryAction != .none }
+
+    /// "A, B and C" — a readable list rather than a comma-joined dump.
+    private static func list(_ items: [String]) -> String {
+        guard let last = items.last else { return "" }
+        guard items.count > 1 else { return last }
+        return items.dropLast().joined(separator: ", ") + " and " + last
+    }
 }
 
 // MARK: - Convenience

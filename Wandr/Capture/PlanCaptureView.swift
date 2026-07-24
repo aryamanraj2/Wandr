@@ -17,6 +17,12 @@ struct PlanCaptureView: View {
     /// Handed the finished brief. The caller moves on to curation.
     var onCommit: (String) -> Void
 
+    /// Backs out without planning anything. Optional so previews and any caller that
+    /// owns its own dismissal can leave it off — but `RootView` always supplies it,
+    /// because this screen is a full-screen state rather than a sheet and there would
+    /// otherwise be no way off it.
+    var onCancel: (() -> Void)?
+
     @State private var dictation = PlanDictation()
     @State private var mode: OrbMode = .orb
     @FocusState private var composing: Bool
@@ -244,6 +250,30 @@ struct PlanCaptureView: View {
             }
             .buttonStyle(WandrPressStyle())
             .accessibilityLabel(mode == .composer ? "Speak instead" : "Type instead")
+
+            // Balances "Plan it" on the right. Without it this screen is a one-way
+            // door: it fills the window, so there is no navigation chrome to escape by.
+            if let onCancel {
+                HStack {
+                    Button {
+                        composing = false
+                        Task {
+                            await dictation.stop()
+                            onCancel()
+                        }
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Wandr.secondaryText)
+                            .frame(width: 44, height: 44)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(WandrPressStyle())
+                    .accessibilityLabel("Cancel")
+
+                    Spacer()
+                }
+            }
 
             if hasPlan {
                 HStack {

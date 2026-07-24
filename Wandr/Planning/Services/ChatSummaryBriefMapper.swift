@@ -146,17 +146,26 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
     /// Parses a day label plus a loose time phrase into an `OutingTimeWindow`.
     ///
     /// Understands ranges ("8–9pm", "8 to 9"), lower bounds ("after 8", "from 8pm"),
-    /// and upper bounds ("finish by 9", "till 9", "before 9pm"). Meridiem is inferred:
-    /// a stated am/pm on any token applies to the others, and an unqualified evening
-    /// hour defaults to pm.
+    /// upper bounds ("finish by 9", "till 9", "before 9pm"), and durations ("3 hours",
+    /// "a couple of hours", "90 mins"). Meridiem is inferred: a stated am/pm on any
+    /// token applies to the others, and an unqualified evening hour defaults to pm.
+    ///
+    /// - Important: durations are consumed *first* and cut out of the phrase before
+    ///   any clock token is read. "3 hours" shares its digits with "3 o'clock", and
+    ///   leaving them in is what used to turn "we've only got 3 hours" into a 3 pm
+    ///   start with no end — a window that constrained nothing and planned a full day.
     static func timeWindow(day: String?, time: String?) -> OutingTimeWindow {
         let dayLabel = day?.trimmed.nonEmpty
-        guard let phrase = time?.trimmed.nonEmpty?.lowercased() else {
+        guard let raw = time?.trimmed.nonEmpty?.lowercased() else {
             return OutingTimeWindow(dayLabel: dayLabel)
         }
 
+        let (duration, phrase) = extractDuration(from: raw)
+
         let times = clockTokens(in: phrase)
-        guard !times.isEmpty else { return OutingTimeWindow(dayLabel: dayLabel) }
+        guard !times.isEmpty else {
+            return OutingTimeWindow(maximumDurationMinutes: duration, dayLabel: dayLabel)
+        }
 
         let hasLowerKeyword = ["after", "from", "not before", "starting", "start"].contains { phrase.contains($0) }
         let hasUpperKeyword = ["by", "before", "till", "until", "finish", "end", "wrap", "done"].contains { phrase.contains($0) }
@@ -178,7 +187,125 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
             earliest = times.first
         }
 
-        return OutingTimeWindow(earliestStartMinute: earliest, latestEndMinute: latest, dayLabel: dayLabel)
+        return OutingTimeWindow(
+            earliestStartMinute: earliest,
+            latestEndMinute: latest,
+            maximumDurationMinutes: duration,
+            dayLabel: dayLabel
+        )
+    }
+
+    // MARK: - Duration
+
+    /// The longest outing the phrase allows, plus the phrase with that text removed.
+    ///
+    /// Returns `(nil, phrase)` unchanged when no duration is stated, so a pure clock
+    /// phrase takes exactly the path it always did.
+    static func extractDuration(from phrase: String) -> (minutes: Int?, remainder: String) {
+        var remainder = phrase
+        var minutes: Int?
+
+        /// Cuts the first match out of `remainder` so its digits cannot be re-read
+        /// as a clock time, and records the duration if this is the first one found.
+        func take(_ range: Range<String.Index>, _ value: Int) {
+            if minutes == nil { minutes = value }
+            remainder.replaceSubrange(range, with: " ")
+        }
+
+        // Worded amounts first: they carry no digits, so a later numeric scan would
+        // miss them entirely ("a couple of hours" has nothing for `clockTokens`).
+        for (words, value) in wordedDurations {
+            if let range = remainder.range(of: words) { take(range, value) }
+        }
+
+        // Then "<number> <unit>", left to right. The unit decides the scale, so
+        // "90 mins" and "1.5 hours" both land on the same axis. Every match is cut,
+        // not just the first — a second duration's digits would otherwise be read
+        // as a clock time by the scan that follows.
+        while let match = numericDuration(in: remainder) {
+            take(match.range, match.minutes)
+        }
+
+        guard let found = minutes else { return (nil, phrase) }
+        // A duration longer than a full day is a misread, not a plan.
+        return (min(max(found, minimumDurationMinutes), maximumDurationMinutes), remainder)
+    }
+
+    /// Shortest duration worth honouring — below one stop, a cap says nothing useful.
+    private static let minimumDurationMinutes = 30
+    private static let maximumDurationMinutes = 18 * 60
+
+    /// Phrasings with no digits to scan. Longest first, so "half an hour" is not
+    /// matched as the "an hour" inside it.
+    private static let wordedDurations: [(String, Int)] = [
+        ("hour and a half", 90),
+        ("couple of hours", 120),
+        ("couple hours", 120),
+        ("few hours", 180),
+        ("half an hour", 30),
+        ("half hour", 30),
+        ("an hour", 60),
+        ("one hour", 60),
+        ("two hours", 120),
+        ("three hours", 180),
+        ("four hours", 240),
+        ("five hours", 300),
+        ("six hours", 360)
+    ]
+
+    /// The first "<number> <unit>" in `text`, as minutes plus the range it occupied.
+    /// `nil` when the text holds no numeric duration.
+    ///
+    /// The caller cuts the returned range out before asking again, which is what
+    /// makes repeated calls terminate.
+    private static func numericDuration(
+        in text: String
+    ) -> (minutes: Int, range: Range<String.Index>)? {
+
+        var index = text.startIndex
+        while index < text.endIndex {
+            guard text[index].isNumber else {
+                index = text.index(after: index)
+                continue
+            }
+
+            let numberStart = index
+            var numberText = ""
+            while index < text.endIndex, text[index].isNumber || text[index] == "." {
+                numberText.append(text[index])
+                index = text.index(after: index)
+            }
+
+            // Optional space, then the unit word.
+            var unitStart = index
+            while unitStart < text.endIndex, text[unitStart] == " " {
+                unitStart = text.index(after: unitStart)
+            }
+            let tail = text[unitStart...]
+
+            guard let value = Double(numberText) else { continue }
+
+            // "hrs"/"hours"/"h" before "m", so "1h" is not read as a minute unit.
+            for (unit, isHours) in [("hour", true), ("hrs", true), ("hr", true),
+                                    ("minute", false), ("mins", false), ("min", false),
+                                    ("h", true), ("m", false)] {
+                guard tail.hasPrefix(unit) else { continue }
+
+                var after = text.index(unitStart, offsetBy: unit.count)
+                // A bare unit letter must not be the head of a longer word: "3 monday"
+                // is a day, not three minutes.
+                if unit.count == 1, after < text.endIndex, text[after].isLetter { break }
+                // Swallow the rest of the word ("hour" → "hours") so no stray letters
+                // survive into the clock scan.
+                while after < text.endIndex, text[after].isLetter {
+                    after = text.index(after: after)
+                }
+
+                let minutes = Int((isHours ? value * 60 : value).rounded())
+                return (minutes, numberStart..<after)
+            }
+        }
+        return nil
     }
 
     /// Every "h", "h:mm", "hpm", "h:mm am" token in the phrase, resolved to minutes

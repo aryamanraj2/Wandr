@@ -30,6 +30,20 @@ struct RootView: View {
                 ShortcutSetupView(inbox: inbox)
             case .awaitingSummary:
                 AwaitSiriSummaryView(inbox: inbox)
+            case .capturing:
+                // The speak-or-type doorway. `PlanCaptureView` hands back raw words;
+                // the inbox runs them through on-device extraction and rejoins the
+                // Siri path at Host Review.
+                PlanCaptureView(
+                    onCommit: { text in
+                        Task { await inbox.captureFreeText(text) }
+                    },
+                    onCancel: { inbox.cancelCapture() }
+                )
+                .transition(.opacity)
+            case .extracting:
+                ExtractingSummaryView()
+                    .transition(.opacity)
             case .hostReview(let payload, let rawText):
                 HostReviewView(inbox: inbox, payload: payload, rawText: rawText)
             case .recovery(let reason):
@@ -61,10 +75,39 @@ struct RootView: View {
         switch inbox.state {
         case .onboarding:      return 0
         case .awaitingSummary: return 1
+        case .capturing:       return 5
+        case .extracting:      return 6
         case .hostReview:      return 2
         case .recovery:        return 3
         case .confirmed:       return 4
         }
+    }
+}
+
+// MARK: - Extraction
+
+/// The short wait while the on-device model turns what the host said into the same
+/// structured summary the Shortcut would have produced.
+///
+/// Deliberately names the step rather than showing a bare spinner: this is the one
+/// moment the host has handed over their own words and cannot yet see what Wandr
+/// made of them.
+private struct ExtractingSummaryView: View {
+    var body: some View {
+        VStack(spacing: 18) {
+            ProgressView()
+                .controlSize(.large)
+            VStack(spacing: 4) {
+                Text("Reading that back")
+                    .font(.headline)
+                    .foregroundStyle(Wandr.primaryText)
+                Text("Pulling out the details you gave…")
+                    .font(.subheadline)
+                    .foregroundStyle(Wandr.primaryText.opacity(0.6))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Wandr.pageBackground)
     }
 }
 
@@ -209,6 +252,15 @@ private struct RootView_PreviewHost: View {
                 ShortcutSetupView(inbox: inbox)
             case .awaitingSummary:
                 AwaitSiriSummaryView(inbox: inbox)
+            case .capturing:
+                PlanCaptureView(
+                    onCommit: { text in
+                        Task { await inbox.captureFreeText(text) }
+                    },
+                    onCancel: { inbox.cancelCapture() }
+                )
+            case .extracting:
+                ExtractingSummaryView()
             case .hostReview(let payload, let rawText):
                 HostReviewView(inbox: inbox, payload: payload, rawText: rawText)
             case .recovery(let reason):

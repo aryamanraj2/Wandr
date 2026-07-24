@@ -41,6 +41,82 @@ struct SlotScheduleTests {
         #expect(schedule.slot(for: .food)?.endMinute == 22 * 60)
     }
 
+    // MARK: - Duration caps
+    //
+    // The reported bug: a host who said "3 hours" got a whole day out. A duration
+    // had nowhere to live on `OutingTimeWindow`, so the clock parser read the bare
+    // "3" as 3 pm and produced a *start* with no end — which keeps all four bands
+    // and is strictly worse than saying nothing at all.
+
+    @Test("Three hours with no stated start plans an evening, not a whole day")
+    func threeHoursIsNotAWholeDay() throws {
+        let schedule = SlotSchedule.compute(for: OutingTimeWindow(maximumDurationMinutes: 180))
+
+        #expect(schedule.isWindowConstrained)
+        #expect(schedule.feasibleCategories == [.food, .nightlife])
+        #expect(!schedule.feasibleCategories.contains(.sights))
+
+        let dinner = try #require(schedule.slot(for: .food))
+        #expect(dinner.startMinute == SlotSchedule.defaultEveningStartMinute)
+
+        let last = try #require(schedule.slots.last)
+        #expect(last.endMinute - dinner.startMinute == 180, "The plan must fit inside the cap")
+    }
+
+    @Test("A duration cap is measured from the host's own start when they gave one")
+    func durationRunsFromTheStatedStart() throws {
+        // "from 6, only three hours" — 6–9 pm.
+        let schedule = SlotSchedule.compute(
+            for: OutingTimeWindow(earliestStartMinute: 18 * 60, maximumDurationMinutes: 180)
+        )
+
+        let first = try #require(schedule.slots.first)
+        let last = try #require(schedule.slots.last)
+        #expect(first.startMinute == 18 * 60)
+        #expect(last.endMinute == 21 * 60)
+        #expect(!schedule.feasibleCategories.contains(.nightlife), "10 pm is past the cap")
+    }
+
+    @Test("The tighter of a stated finish and a duration cap wins")
+    func tighterBoundWins() throws {
+        // "from 8, back by 9, we've got three hours" — the 9 pm finish is the real limit.
+        let schedule = SlotSchedule.compute(
+            for: OutingTimeWindow(
+                earliestStartMinute: 20 * 60,
+                latestEndMinute: 21 * 60,
+                maximumDurationMinutes: 180
+            )
+        )
+
+        #expect(schedule.feasibleCategories == [.food])
+        #expect(schedule.slot(for: .food)?.endMinute == 21 * 60)
+    }
+
+    @Test("One hour leaves room for exactly one stop")
+    func oneHourIsOneStop() {
+        let schedule = SlotSchedule.compute(for: OutingTimeWindow(maximumDurationMinutes: 60))
+
+        #expect(schedule.feasibleCategories == [.food])
+    }
+
+    /// A cap longer than an evening is a day out, so it anchors at the top of the
+    /// day. Anchoring it at 8 pm would push most of the host's time past midnight.
+    @Test("A cap longer than an evening starts in the afternoon")
+    func longCapStartsEarly() throws {
+        let schedule = SlotSchedule.compute(for: OutingTimeWindow(maximumDurationMinutes: 8 * 60))
+
+        let first = try #require(schedule.slots.first)
+        #expect(first.category == .sights)
+        #expect(first.startMinute == 12 * 60 + 30)
+        #expect(!schedule.feasibleCategories.contains(.nightlife))
+    }
+
+    @Test("A duration alone still counts as a constrained window")
+    func durationCountsAsConstrained() {
+        #expect(!OutingTimeWindow(maximumDurationMinutes: 180).isUnknown)
+        #expect(SlotSchedule.compute(for: OutingTimeWindow(maximumDurationMinutes: 180)).isWindowConstrained)
+    }
+
     // MARK: - The rule generalises
 
     @Test("Finish by 9 drops nightlife and truncates dinner")
