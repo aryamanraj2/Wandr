@@ -23,8 +23,8 @@ struct FreeTextSummaryExtractorTests {
     private func empty() -> Extracted {
         Extracted(
             outingType: nil, dateOrDay: nil, time: nil, area: nil, groupSize: nil,
-            budgetPerHead: nil, dietary: nil, accessibility: nil, vibe: nil,
-            indoorOutdoor: nil, otherNotes: nil
+            budgetPerHead: nil, plannedStops: nil, dietary: nil, accessibility: nil,
+            vibe: nil, indoorOutdoor: nil, otherNotes: nil
         )
     }
 
@@ -48,6 +48,100 @@ struct FreeTextSummaryExtractorTests {
         extracted.outingType = "  Birthday  "
 
         #expect(FreeTextSummaryExtractor.payload(from: extracted).outingType == .birthday)
+    }
+
+    // MARK: - Echoed values
+    //
+    // The reported bug. A host who said only "outing at 12:30, lunch" got back an
+    // outing type of after-office, an accessibility requirement of "step-free entry",
+    // and a vibe of "quiet" — none of which they had said, and all three of which
+    // were verbatim copies of the sample values in Wandr's own `@Guide` descriptions.
+    // The examples are gone now; these are the backstop that makes the echo
+    // unreachable even if a future guide reintroduces one.
+
+    @Test("An outing type the host's words do not support is dropped")
+    func unsupportedOutingTypeIsDropped() {
+        var extracted = empty()
+        extracted.outingType = "after-office"
+
+        let payload = FreeTextSummaryExtractor.payload(
+            from: extracted,
+            source: "outing tomorrow around 12:30, we want lunch"
+        )
+        #expect(payload.outingType == nil, "Nothing in that sentence is about work")
+    }
+
+    @Test("An outing type the host did support survives")
+    func supportedOutingTypeSurvives() {
+        var extracted = empty()
+        extracted.outingType = "after-office"
+
+        let payload = FreeTextSummaryExtractor.payload(
+            from: extracted,
+            source: "drinks after office on Friday"
+        )
+        #expect(payload.outingType == .afterOffice)
+    }
+
+    @Test("get-together claims nothing specific, so it is never second-guessed")
+    func genericOutingTypeIsKept() {
+        var extracted = empty()
+        extracted.outingType = "get-together"
+
+        #expect(
+            FreeTextSummaryExtractor.payload(from: extracted, source: "let's go out").outingType
+                == .getTogether
+        )
+    }
+
+    @Test("A constraint the host never mentioned is dropped rather than shown to them")
+    func inventedConstraintsAreDropped() {
+        var extracted = empty()
+        extracted.accessibility = "step-free entry"
+        extracted.vibe = "quiet"
+
+        let payload = FreeTextSummaryExtractor.payload(
+            from: extracted,
+            source: "outing tomorrow around 12:30, we want lunch"
+        )
+
+        #expect(payload.accessibility == nil)
+        #expect(payload.vibe == nil)
+    }
+
+    @Test("A constraint the host did raise survives, including a reworded one")
+    func realConstraintsSurvive() {
+        var extracted = empty()
+        extracted.accessibility = "wheelchair access"
+        extracted.vibe = "somewhere quiet"
+
+        let payload = FreeTextSummaryExtractor.payload(
+            from: extracted,
+            source: "somewhere quiet please, and one of us uses a wheelchair"
+        )
+
+        #expect(payload.accessibility == "wheelchair access", "A reading is not an invention")
+        #expect(payload.vibe == "somewhere quiet")
+    }
+
+    @Test("With no source text to check against, values pass through untouched")
+    func noSourceMeansNoFiltering() {
+        var extracted = empty()
+        extracted.vibe = "quiet"
+
+        #expect(FreeTextSummaryExtractor.payload(from: extracted).vibe == "quiet")
+    }
+
+    // MARK: - What the host wants to do
+
+    @Test("The kind of stop the host asked for reaches the payload")
+    func plannedStopsSurvive() {
+        var extracted = empty()
+        extracted.plannedStops = "lunch and a walk after"
+
+        let payload = FreeTextSummaryExtractor.payload(from: extracted, source: "lunch and a walk after")
+        #expect(payload.plannedStops == "lunch and a walk after")
+        #expect(payload.settledFieldNames.contains("plannedStops"))
     }
 
     @Test("An invented outing type becomes nil, not a crash")

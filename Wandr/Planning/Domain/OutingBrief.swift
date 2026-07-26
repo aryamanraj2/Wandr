@@ -206,6 +206,11 @@ nonisolated struct OutingBriefDraft: Sendable, Equatable {
     var dietary: DietaryNeeds
     var accessibility: AccessibilityNeeds
     var setting: SettingPreference
+    /// The stops the host asked for by name — "lunch", "drinks", "a walk".
+    ///
+    /// Empty means they didn't say, which is not the same as wanting nothing: an empty
+    /// request keeps every stop the window allows. A non-empty one *is* the plan.
+    var requestedStops: Set<SlotBand>
     /// Remaining neutral constraints. Data, never executable instructions.
     var notes: [String]
 
@@ -219,6 +224,7 @@ nonisolated struct OutingBriefDraft: Sendable, Equatable {
         dietary: DietaryNeeds = .unknown,
         accessibility: AccessibilityNeeds = .unknown,
         setting: SettingPreference = .noPreference,
+        requestedStops: Set<SlotBand> = [],
         notes: [String] = []
     ) {
         self.occasion = occasion
@@ -230,6 +236,7 @@ nonisolated struct OutingBriefDraft: Sendable, Equatable {
         self.dietary = dietary
         self.accessibility = accessibility
         self.setting = setting
+        self.requestedStops = requestedStops
         self.notes = notes
     }
 }
@@ -258,6 +265,11 @@ nonisolated struct OutingBrief: Sendable, Equatable {
     let dietary: DietaryNeeds
     let accessibility: AccessibilityNeeds
     let setting: SettingPreference
+
+    /// The stops the host named. When non-empty this *is* the shape of the plan —
+    /// see `SlotSchedule.compute(for:requesting:)`.
+    let requestedStops: Set<SlotBand>
+
     let notes: [String]
 
     init(
@@ -270,6 +282,7 @@ nonisolated struct OutingBrief: Sendable, Equatable {
         dietary: DietaryNeeds = .unknown,
         accessibility: AccessibilityNeeds = .unknown,
         setting: SettingPreference = .noPreference,
+        requestedStops: Set<SlotBand> = [],
         notes: [String] = []
     ) {
         self.occasion = occasion
@@ -281,6 +294,7 @@ nonisolated struct OutingBrief: Sendable, Equatable {
         self.dietary = dietary
         self.accessibility = accessibility
         self.setting = setting
+        self.requestedStops = requestedStops
         self.notes = notes
     }
 

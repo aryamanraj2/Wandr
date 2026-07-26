@@ -148,6 +148,162 @@ struct ChatSummaryBriefMapperTests {
         #expect(tiny.maximumDurationMinutes == 30)
     }
 
+    // MARK: - What the host asked to do
+    //
+    // The word "lunch" decides whether the plan contains a restaurant. It is read
+    // from every field it might have landed in, because the extractor puts it
+    // wherever it likes and losing it costs the host the one stop they asked for.
+
+    @Test("A meal word anywhere in the summary asks for food")
+    func mealWordsRequestFood() {
+        for field in ["lunch", "we want dinner", "somewhere to eat", "grab a bite"] {
+            var payload = ChatSummaryPayload()
+            payload.plannedStops = field
+
+            let categories = Set(ChatSummaryBriefMapper.requestedStops(from: payload).map(\.category))
+            #expect(categories.contains(.food), "\(field) should ask for food")
+        }
+    }
+
+    /// The half of the request a `Set<SlotCategory>` could not carry. Both of these
+    /// are `food`, and a host who says one of them does not want the other.
+    @Test("Naming the meal pins the time of day", arguments: [
+        ("lunch", Set<SlotBand>([.lunch])),
+        ("brunch on sunday", Set<SlotBand>([.lunch])),
+        ("dinner somewhere nice", Set<SlotBand>([.dinner])),
+        ("lunch and then dinner", Set<SlotBand>([.lunch, .dinner]))
+    ])
+    func mealWordsPinTheBand(phrase: String, expected: Set<SlotBand>) {
+        var payload = ChatSummaryPayload()
+        payload.plannedStops = phrase
+
+        #expect(ChatSummaryBriefMapper.requestedStops(from: payload) == expected)
+    }
+
+    /// A word that names the kind of stop but not the hour asks for every band the
+    /// category owns, and lets the window decide which one it gets.
+    @Test("A meal word with no hour in it leaves the choice to the window")
+    func unspecificFoodAsksForBoth() {
+        var payload = ChatSummaryPayload()
+        payload.plannedStops = "somewhere to eat"
+
+        #expect(ChatSummaryBriefMapper.requestedStops(from: payload) == [.lunch, .dinner])
+    }
+
+    @Test("The request is read from other fields too, not only plannedStops")
+    func requestIsReadFromAnyField() {
+        var inNotes = ChatSummaryPayload()
+        inNotes.otherNotes = "just lunch, nothing fancy"
+        #expect(ChatSummaryBriefMapper.requestedStops(from: inNotes) == [.lunch])
+
+        var inTime = ChatSummaryPayload()
+        inTime.time = "lunch time, around 12:30"
+        #expect(ChatSummaryBriefMapper.requestedStops(from: inTime) == [.lunch])
+    }
+
+    @Test("Several kinds of stop are all recognised")
+    func multipleCategoriesAreRecognised() {
+        var payload = ChatSummaryPayload()
+        payload.plannedStops = "lunch, then a walk, then drinks"
+
+        #expect(ChatSummaryBriefMapper.requestedStops(from: payload) == [.lunch, .afternoon, .late])
+    }
+
+    @Test("Matching is whole-word, so ordinary prose does not conscript a category")
+    func matchingIsWholeWord() {
+        var payload = ChatSummaryPayload()
+        payload.otherNotes = "somewhere walkable with a barbecue"
+
+        let categories = Set(ChatSummaryBriefMapper.requestedStops(from: payload).map(\.category))
+        #expect(!categories.contains(.sights), "'walkable' is not 'walk'")
+        #expect(!categories.contains(.nightlife), "'barbecue' is not 'bar'")
+    }
+
+    @Test("A summary that names no kind of stop asks for nothing in particular")
+    func noRequestIsEmpty() {
+        var payload = ChatSummaryPayload()
+        payload.area = "Khan Market"
+        payload.groupSize = 4
+
+        #expect(ChatSummaryBriefMapper.requestedStops(from: payload).isEmpty)
+    }
+
+    @Test("The request reaches the draft")
+    func requestReachesTheDraft() {
+        var payload = ChatSummaryPayload()
+        payload.plannedStops = "lunch"
+
+        #expect(ChatSummaryBriefMapper().draft(from: payload).requestedStops == [.lunch])
+    }
+
+    /// The reported scenario, end to end through the deterministic half of the
+    /// pipeline: "an outing, 12:30 to 2, lunch, in CP".
+    ///
+    /// What the host got instead was a monument. Three separate defects lined up —
+    /// `food` had no midday band, the summary had nowhere to record "lunch", and
+    /// nothing carried the request through to the schedule. This asserts the whole
+    /// chain, because each piece passing on its own is what let the gap survive.
+    @Test("A lunchtime plan produces a lunch slot, not a monument")
+    func lunchtimePlanProducesLunch() throws {
+        var payload = ChatSummaryPayload()
+        payload.time = "from 12:30 to 2:00 pm"
+        payload.area = "CP"
+        payload.groupSize = 3
+        payload.plannedStops = "lunch"
+
+        let draft = ChatSummaryBriefMapper().draft(from: payload)
+        #expect(draft.requestedStops == [.lunch])
+
+        guard case .normalized(let brief) = try BriefNormalizer().normalize(draft) else {
+            Issue.record("Expected a normalized brief")
+            return
+        }
+        #expect(brief.requestedStops == [.lunch])
+
+        let schedule = SlotSchedule.compute(
+            for: brief.timeWindow.value,
+            requesting: brief.requestedStops
+        )
+
+        #expect(schedule.feasibleCategories == [.food], "The one stop that fits must be the meal")
+        let lunch = try #require(schedule.slot(for: .food))
+        #expect(lunch.title == "Lunch")
+        #expect(lunch.windowLabel == "12:30 pm – 2:00 pm")
+    }
+
+    /// The second report, and the harder half of it: the host said "lunch" and gave
+    /// no time at all — just a group of two and a budget. They got a nightlife deck
+    /// for 10 pm to 1 am.
+    ///
+    /// Two things had to be wrong at once. The request only *re-ranked* bands, and
+    /// only for windows bounded at both ends, so an open window kept the whole table;
+    /// and even once `food` won, a bare category resolved to its latest band, which
+    /// is dinner. Nothing here constrains the clock, so both defects are live.
+    @Test("Saying lunch and nothing about the time still means lunch, and only lunch")
+    func lunchWithNoStatedTimeIsStillLunch() throws {
+        var payload = ChatSummaryPayload()
+        payload.plannedStops = "lunch"
+        payload.groupSize = 2
+        payload.budgetPerHead = "₹3000"
+
+        let draft = ChatSummaryBriefMapper().draft(from: payload)
+        guard case .normalized(let brief) = try BriefNormalizer().normalize(draft) else {
+            Issue.record("Expected a normalized brief")
+            return
+        }
+        #expect(brief.timeWindow.value.isUnknown, "The host set no time — that is the point")
+
+        let schedule = SlotSchedule.compute(
+            for: brief.timeWindow.value,
+            requesting: brief.requestedStops
+        )
+
+        #expect(schedule.feasibleCategories == [.food], "Nothing they didn't ask for may survive")
+        let meal = try #require(schedule.slot(for: .food))
+        #expect(meal.band == .lunch, "They said lunch, not dinner")
+        #expect(meal.title == "Lunch")
+    }
+
     // MARK: - Whole payload
 
     @Test("A full payload maps every field into the draft")

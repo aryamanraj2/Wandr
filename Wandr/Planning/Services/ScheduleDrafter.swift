@@ -67,7 +67,10 @@ nonisolated struct ScheduleDrafter: ScheduleDrafting, Sendable {
         // The host's time window decides start and length when it was stated. An
         // unstated window falls through to the template — the same numbers the
         // design already used — so nothing regresses for an open-ended plan.
-        let schedule = SlotSchedule.compute(for: plan.brief.timeWindow.value)
+        let schedule = SlotSchedule.compute(
+            for: plan.brief.timeWindow.value,
+            requesting: plan.brief.requestedStops
+        )
 
         func baseStart(for category: SlotCategory) -> Int {
             schedule.slot(for: category)?.startMinute ?? template.startMinute(for: category)

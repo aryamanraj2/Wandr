@@ -57,10 +57,18 @@ nonisolated struct FreeTextSummaryExtractor: Sendable {
 
     @Generable
     nonisolated struct ExtractedSummary {
-        @Guide(description: "The kind of outing. Use exactly one of: after-office, birthday, get-together, full-day, custom. Omit if the host did not say.")
+        // Every description below is deliberately free of quoted sample *values*.
+        //
+        // They used to carry them — "for example 'step-free entry'", "for example
+        // 'quiet'" — and a small on-device model reads an example sitting next to an
+        // empty optional field as a default to fill. Hosts got back an accessibility
+        // requirement and a mood they had never mentioned, both of them verbatim
+        // copies of Wandr's own prompt. Describe the field; never show a value that
+        // would be valid to return.
+        @Guide(description: "The kind of outing, only if the host names one. Choose after-office when they mention work or the office, birthday when they mention a birthday, full-day when they say the whole day, get-together for a plain social meet-up. Omit when they just say they want to go out.")
         var outingType: String?
 
-        @Guide(description: "The day or date, in the host's own words, for example 'Friday' or 'this weekend'. Omit if not stated.")
+        @Guide(description: "The day or date, copied in the host's own words. Omit if not stated.")
         var dateOrDay: String?
 
         // Durations are called out explicitly because the host states them far more
@@ -70,28 +78,34 @@ nonisolated struct FreeTextSummaryExtractor: Sendable {
         @Guide(description: "The time. Include a start such as 'from 8', a hard limit such as 'has to finish by 9', and how long they have such as 'only 3 hours'. Copy their wording. Omit if not stated.")
         var time: String?
 
-        @Guide(description: "The neighbourhood or area on its own, for example 'Khan Market' or 'Cyber Hub'. Do not add a city or country the host did not say. Omit if not stated.")
+        @Guide(description: "The neighbourhood the host named, on its own. Do not add a city or country they did not say. Omit if not stated.")
         var area: String?
 
         @Guide(description: "How many people are going, as a whole number. Omit if not stated.")
         var groupSize: Int?
 
-        @Guide(description: "Budget per person, for example '1500' or 'around 2000 each'. Omit if not stated.")
+        @Guide(description: "Budget per person as the number of rupees they said. Omit if not stated.")
         var budgetPerHead: String?
 
-        @Guide(description: "Any dietary requirement, for example 'two of us are vegetarian'. Omit if not stated.")
+        // The kind-of-stop field. Without it the schema had no home for the single
+        // most consequential word a host says — "lunch" — so the model dropped it and
+        // the plan came back with a monument instead of a restaurant.
+        @Guide(description: "What the host wants to do — the kinds of stop they asked for, copied in their own words. Omit if they did not say what they want to do.")
+        var plannedStops: String?
+
+        @Guide(description: "Any dietary requirement the host stated. Omit if they mentioned none.")
         var dietary: String?
 
-        @Guide(description: "Any accessibility requirement, for example 'step-free entry'. Omit if not stated.")
+        @Guide(description: "An accessibility requirement, but only if the host raised one themselves. Most people do not. Omit unless they did.")
         var accessibility: String?
 
-        @Guide(description: "The mood they want, for example 'quiet', 'loud and fun'. Omit if not stated.")
+        @Guide(description: "The mood the host asked for, in their own words. Omit unless they described one.")
         var vibe: String?
 
-        @Guide(description: "Indoor or outdoor preference, including any weather fallback. Omit if not stated.")
+        @Guide(description: "Whether the host asked to be indoors or outdoors, including any weather fallback. Omit unless they said.")
         var indoorOutdoor: String?
 
-        @Guide(description: "Anything else that matters and does not fit the other fields. Omit if there is nothing.")
+        @Guide(description: "Anything else the host stated that does not fit the other fields. Omit if there is nothing.")
         var otherNotes: String?
     }
 
@@ -141,7 +155,9 @@ nonisolated struct FreeTextSummaryExtractor: Sendable {
                 try await self.generate(from: trimmed)
             }
 
-            let payload = Self.payload(from: extracted)
+            // The host's own text is passed in so an invented constraint can be
+            // recognised as one. It is used for comparison only and never stored.
+            let payload = Self.payload(from: extracted, source: trimmed)
             let elapsed = Int(startedAt.duration(to: .now) / .milliseconds(1))
 
             guard !payload.isEmpty else {
@@ -237,26 +253,97 @@ nonisolated struct FreeTextSummaryExtractor: Sendable {
 
     /// Maps the model's answer onto the schema the rest of the app uses, validating
     /// every value rather than trusting it.
-    static func payload(from extracted: ExtractedSummary) -> ChatSummaryPayload {
+    ///
+    /// - Parameter source: what the host actually wrote. Passing it lets the mapping
+    ///   reject a value the host never mentioned. Omitting it skips that check, which
+    ///   is only correct in tests that are checking the mapping itself.
+    static func payload(from extracted: ExtractedSummary, source: String = "") -> ChatSummaryPayload {
         ChatSummaryPayload(
             // An unrecognised string becomes `nil`, never a crash and never a
             // fabricated case. Deliberately not a `@Generable` enum: a non-frozen one
             // traps on a case the model invents.
-            outingType: extracted.outingType
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
-                .flatMap(OutingType.init(rawValue:)),
+            outingType: outingType(from: extracted.outingType, source: source),
             dateOrDay: cleaned(extracted.dateOrDay),
             time: cleaned(extracted.time),
             area: cleaned(extracted.area),
             // `BriefNormalizer` clamps this properly; this only rejects the absurd.
             groupSize: extracted.groupSize.flatMap { $0 > 0 && $0 <= 1_000 ? $0 : nil },
             budgetPerHead: cleaned(extracted.budgetPerHead),
-            dietary: cleaned(extracted.dietary),
-            accessibility: cleaned(extracted.accessibility),
-            vibe: cleaned(extracted.vibe),
-            indoorOutdoor: cleaned(extracted.indoorOutdoor),
+            dietary: unechoed(extracted.dietary, source: source),
+            accessibility: unechoed(extracted.accessibility, source: source),
+            vibe: unechoed(extracted.vibe, source: source),
+            indoorOutdoor: unechoed(extracted.indoorOutdoor, source: source),
+            plannedStops: cleaned(extracted.plannedStops),
             otherNotes: cleaned(extracted.otherNotes)
         )
+    }
+
+    // MARK: - Anti-echo
+    //
+    // Removing the sample values from the guides is the real fix. This is the
+    // backstop, because a prompt change cannot be *proved* to have worked and a
+    // silently invented constraint is one of the few things that can make a plan
+    // actively wrong — an accessibility requirement nobody has narrows the evidence,
+    // and an invented mood steers every rationale the curator writes.
+
+    /// A value the host never said, when it is one Wandr's own prompt could have
+    /// suggested, is dropped.
+    ///
+    /// Only the fields where the host reliably uses the same word they mean are
+    /// checked this way. `otherNotes` and the date are left alone: paraphrase there
+    /// is the point, and a false drop would cost more than a false keep.
+    static func unechoed(_ raw: String?, source: String) -> String? {
+        guard let value = cleaned(raw) else { return nil }
+        guard !source.isEmpty else { return value }
+
+        let haystack = source.lowercased()
+        let words = value.lowercased()
+            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .map(String.init)
+            .filter { $0.count > 2 && !Self.stopWords.contains($0) }
+
+        // Nothing distinctive to check against — keep it rather than guess.
+        guard !words.isEmpty else { return value }
+
+        // One shared content word is enough. The host says "wheelchair" and the model
+        // answers "wheelchair access"; that is a reading, not an invention.
+        return words.contains(where: { haystack.contains($0) }) ? value : nil
+    }
+
+    private static let stopWords: Set<String> = [
+        "the", "and", "for", "with", "any", "some", "their", "they", "them",
+        "not", "none", "have", "has", "want", "wants", "needs", "need"
+    ]
+
+    /// The outing type, kept only when the host's own words support it.
+    ///
+    /// This is the field that came back "after-office" for a host who said nothing
+    /// about work — the vocabulary has to be listed in the guide, so the first item
+    /// in it is always a candidate for being echoed. A keyword check is cheap and
+    /// makes the echo unreachable.
+    static func outingType(from raw: String?, source: String) -> OutingType? {
+        guard let value = raw?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+              let type = OutingType(rawValue: value)
+        else { return nil }
+
+        guard !source.isEmpty else { return type }
+        let haystack = source.lowercased()
+
+        switch type {
+        case .afterOffice:
+            return ["office", "work", "shift", "after-office", "eod"]
+                .contains(where: haystack.contains) ? type : nil
+        case .birthday:
+            return ["birthday", "bday", "b-day", "turning"]
+                .contains(where: haystack.contains) ? type : nil
+        case .fullDay:
+            return ["full day", "whole day", "all day", "entire day"]
+                .contains(where: haystack.contains) ? type : nil
+        case .getTogether, .custom:
+            // Neither claims anything specific about the occasion, so neither can be
+            // wrong in the way the others can.
+            return type
+        }
     }
 
     private static func cleaned(_ value: String?) -> String? {
@@ -301,6 +388,7 @@ extension ChatSummaryPayload {
         if accessibility != nil { names.append("accessibility") }
         if vibe != nil { names.append("vibe") }
         if indoorOutdoor != nil { names.append("indoorOutdoor") }
+        if plannedStops != nil { names.append("plannedStops") }
         if otherNotes != nil { names.append("otherNotes") }
         return names
     }

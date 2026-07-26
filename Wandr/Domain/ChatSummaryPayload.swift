@@ -50,6 +50,13 @@ struct ChatSummaryPayload: Codable, Sendable, Equatable {
     var accessibility: String?
     var vibe: String?
     var indoorOutdoor: String?
+    /// What the group wants to *do* — "lunch", "drinks after", "a walk somewhere".
+    ///
+    /// Added because "lunch" previously had nowhere to go. The schema had a slot for
+    /// when, where, how many and what mood, but none for the kind of stop, so the
+    /// extractor dropped the one word that decides whether the plan contains a
+    /// restaurant at all.
+    var plannedStops: String?
     var otherNotes: String?
 
     /// `true` when the model returned a well-formed object but settled no fields at all.
@@ -65,6 +72,7 @@ struct ChatSummaryPayload: Codable, Sendable, Equatable {
             && accessibility.isNilOrBlank
             && vibe.isNilOrBlank
             && indoorOutdoor.isNilOrBlank
+            && plannedStops.isNilOrBlank
             && otherNotes.isNilOrBlank
     }
 
@@ -76,6 +84,7 @@ struct ChatSummaryPayload: Codable, Sendable, Equatable {
             if let trimmed, !trimmed.isEmpty { rows.append((label, trimmed)) }
         }
         if let outingType { rows.append(("Outing", outingType.display)) }
+        add("Plan", plannedStops)
         add("Date / day", dateOrDay)
         add("Time", time)
         add("Area", area)

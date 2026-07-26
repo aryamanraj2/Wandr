@@ -106,15 +106,144 @@ struct SlotScheduleTests {
         let schedule = SlotSchedule.compute(for: OutingTimeWindow(maximumDurationMinutes: 8 * 60))
 
         let first = try #require(schedule.slots.first)
-        #expect(first.category == .sights)
-        #expect(first.startMinute == 12 * 60 + 30)
+        // Lunch, not sightseeing: a day starting at half twelve starts with a meal.
+        // The dinner band is past the cap, so `food` falls back to its lunch band —
+        // which is the whole point of a category owning more than one band.
+        #expect(first.category == .food)
+        #expect(first.title == "Lunch")
+        #expect(first.startMinute == SlotSchedule.dayStartMinute)
         #expect(!schedule.feasibleCategories.contains(.nightlife))
+        // Stops are laid end to end, never stacked on the same hour.
+        #expect(zip(schedule.slots, schedule.slots.dropFirst()).allSatisfy { $0.endMinute <= $1.startMinute })
     }
 
     @Test("A duration alone still counts as a constrained window")
     func durationCountsAsConstrained() {
         #expect(!OutingTimeWindow(maximumDurationMinutes: 180).isUnknown)
         #expect(SlotSchedule.compute(for: OutingTimeWindow(maximumDurationMinutes: 180)).isWindowConstrained)
+    }
+
+    // MARK: - Lunch
+    //
+    // The reported bug: "outing, 12:30 to 2, lunch" came back with a monument. The
+    // `food` category existed only from 8 pm, so a midday window touched exactly one
+    // band — `sights` — and the model was never shown a restaurant to choose. It had
+    // not misunderstood "lunch"; it had never been offered lunch.
+
+    @Test("A midday window can contain a meal")
+    func middayWindowReachesFood() throws {
+        let schedule = SlotSchedule.compute(
+            for: OutingTimeWindow(earliestStartMinute: 12 * 60 + 30, latestEndMinute: 14 * 60)
+        )
+
+        #expect(schedule.feasibleCategories.contains(.food), "Lunch must be reachable at lunchtime")
+        #expect(schedule.slot(for: .food)?.title == "Lunch")
+    }
+
+    @Test("Asking for lunch in a short window gets the meal, not whatever starts first")
+    func requestedCategoryWinsATightWindow() throws {
+        let window = OutingTimeWindow(earliestStartMinute: 12 * 60 + 30, latestEndMinute: 14 * 60)
+        let schedule = SlotSchedule.compute(for: window, requesting: [.lunch])
+
+        #expect(schedule.feasibleCategories == [.food])
+
+        let lunch = try #require(schedule.slot(for: .food))
+        #expect(lunch.title == "Lunch")
+        #expect(lunch.startMinute == 12 * 60 + 30)
+        #expect(lunch.endMinute == 14 * 60)
+    }
+
+    @Test("Asking for sights in the same window gets sights instead")
+    func requestSteersTheSameWindowElsewhere() {
+        let window = OutingTimeWindow(earliestStartMinute: 12 * 60 + 30, latestEndMinute: 14 * 60)
+        let schedule = SlotSchedule.compute(for: window, requesting: [.afternoon])
+
+        #expect(schedule.feasibleCategories == [.sights])
+    }
+
+    /// "Somewhere to eat" names no hour, so it asks for both meal bands and the
+    /// window picks. An open evening is dinner.
+    @Test("An evening window still means dinner, not lunch")
+    func eveningStillMeansDinner() throws {
+        let schedule = SlotSchedule.compute(for: eightToNine, requesting: [.lunch, .dinner])
+
+        let dinner = try #require(schedule.slot(for: .food))
+        #expect(dinner.title == "Dinner")
+        #expect(dinner.startMinute == 20 * 60)
+    }
+
+    // MARK: - A named request is the plan
+    //
+    // The second report: "still i just said lunch" — and the plan came back with a
+    // nightlife deck for 10 pm to 1 am. The host had named no time, and the request
+    // was only ever a tiebreak inside a capacity budget that ran for windows bounded
+    // at both ends. An open window skipped it entirely, so the word did nothing.
+
+    @Test("An open-ended plan contains only what the host asked for")
+    func requestFiltersAnOpenWindow() throws {
+        let schedule = SlotSchedule.compute(for: .unknown, requesting: [.lunch])
+
+        #expect(schedule.feasibleCategories == [.food])
+        #expect(!schedule.feasibleCategories.contains(.nightlife), "Nobody asked for a 10 pm bar")
+
+        let lunch = try #require(schedule.slots.first)
+        #expect(lunch.band == .lunch, "A bare `food` would have resolved to dinner")
+        #expect(lunch.title == "Lunch")
+    }
+
+    @Test("Two named stops give exactly two stops, in time order")
+    func requestOfTwoGivesTwo() {
+        let schedule = SlotSchedule.compute(for: .unknown, requesting: [.dinner, .late])
+
+        #expect(schedule.feasibleCategories == [.food, .nightlife])
+        #expect(schedule.slots.map(\.title) == ["Dinner", "Late"])
+    }
+
+    /// The host contradicted themselves: lunch, but free only from 8 pm. An
+    /// unsatisfiable request is dropped rather than used to empty the plan.
+    @Test("A request the window cannot hold falls back rather than planning nothing")
+    func impossibleRequestFallsBack() throws {
+        let schedule = SlotSchedule.compute(for: eightToNine, requesting: [.lunch])
+
+        #expect(!schedule.slots.isEmpty, "An impossible request must not erase the night")
+        let stop = try #require(schedule.slots.first)
+        #expect(stop.band == .dinner)
+    }
+
+    @Test("An empty request still keeps everything the window allows")
+    func noRequestKeepsEverything() {
+        let schedule = SlotSchedule.compute(for: .unknown, requesting: [])
+
+        #expect(schedule.feasibleCategories == [.sights, .discover, .food, .nightlife])
+    }
+
+    /// Bands used to be intersected with the window one at a time, so three of them
+    /// could each claim the same ninety minutes and the schedule would promise three
+    /// stops that all started at once.
+    @Test("Stops never overlap each other", arguments: [
+        OutingTimeWindow(earliestStartMinute: 12 * 60, latestEndMinute: 22 * 60),
+        OutingTimeWindow(earliestStartMinute: 12 * 60 + 30, latestEndMinute: 14 * 60),
+        OutingTimeWindow(maximumDurationMinutes: 240),
+        OutingTimeWindow(latestEndMinute: 21 * 60),
+        .unknown
+    ])
+    func stopsAreLaidEndToEnd(window: OutingTimeWindow) {
+        let slots = SlotSchedule.compute(for: window).slots
+
+        for (earlier, later) in zip(slots, slots.dropFirst()) {
+            #expect(earlier.endMinute <= later.startMinute,
+                    "\(earlier.title) runs into \(later.title)")
+        }
+        #expect(slots.allSatisfy { $0.endMinute - $0.startMinute >= 60 })
+    }
+
+    @Test("A window is never promised more stops than it can hold")
+    func stopCountFitsTheWindow() {
+        // Ninety minutes is one stop, whatever else overlaps it.
+        let schedule = SlotSchedule.compute(
+            for: OutingTimeWindow(earliestStartMinute: 12 * 60 + 30, latestEndMinute: 14 * 60)
+        )
+        #expect(schedule.slots.count == 1)
     }
 
     // MARK: - The rule generalises

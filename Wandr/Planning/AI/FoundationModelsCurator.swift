@@ -139,7 +139,10 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
 
         return try await log.measure("curate", "run") {
             // Only the slots the time window actually allows, in time order.
-            let schedule = SlotSchedule.compute(for: brief.timeWindow.value)
+            let schedule = SlotSchedule.compute(
+                for: brief.timeWindow.value,
+                requesting: brief.requestedStops
+            )
 
             // Drop venues the evidence *proves* incompatible; keep the unverified ones
             // (the validator warns on those).
@@ -148,10 +151,17 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
             // `areas` is the tell for a mis-resolved neighbourhood: a host who named
             // one place and gets `areas=7` is being planned across the whole city.
             // It is a count of dataset-owned strings, so it stays safe to log public.
+            //
+            // `requested` is the tell for the other half: a host who typed "lunch" and
+            // sees `requested=-` is looking at a word that never survived extraction,
+            // which is a different bug from one the schedule got wrong. Both are Wandr's
+            // own enum names, never the host's words.
             let window = brief.timeWindow.value
+            let requested = brief.requestedStops.map(\.rawValue).sorted()
             log.event(
                 """
-                PLAN slots=\(schedule.slots.map(\.category.rawValue).joined(separator: ",")) \
+                PLAN slots=\(schedule.slots.map(\.band.rawValue).joined(separator: ",")) \
+                requested=\(requested.isEmpty ? "-" : requested.joined(separator: ",")) \
                 windowConstrained=\(schedule.isWindowConstrained) \
                 windowStart=\(window.earliestStartMinute.map(String.init) ?? "-") \
                 windowEnd=\(window.latestEndMinute.map(String.init) ?? "-") \

@@ -33,9 +33,73 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
             dietary: Self.dietary(from: payload.dietary),
             accessibility: Self.accessibility(from: payload.accessibility),
             setting: Self.setting(from: payload.indoorOutdoor),
+            requestedStops: Self.requestedStops(from: payload),
             notes: payload.otherNotes?.trimmed.nonEmpty.map { [$0] } ?? []
         )
     }
+
+    // MARK: - Requested stops
+
+    /// The stops the host named, read from everything they wrote.
+    ///
+    /// Deliberately scans several fields rather than only `plannedStops`: the word
+    /// that matters ("lunch", "drinks") lands wherever the extractor decided to put
+    /// it, and missing it costs the host the one stop they actually asked for. Area
+    /// is excluded — half the neighbourhoods in Delhi have "Market" in the name.
+    ///
+    /// - Important: the result *filters* the plan downstream, so a word here removes
+    ///   stops as well as choosing them. That is the intent — a host who says "lunch"
+    ///   should not be handed a 10 pm bar — but it is why every keyword below is a
+    ///   noun that names a stop, matched whole-word, and never a mood or an adjective.
+    static func requestedStops(from payload: ChatSummaryPayload) -> Set<SlotBand> {
+        let haystack = [
+            payload.plannedStops,
+            payload.otherNotes,
+            payload.time,
+            payload.vibe,
+            payload.outingType?.rawValue
+        ]
+            .compactMap { $0?.lowercased() }
+            .joined(separator: " ")
+
+        guard !haystack.isEmpty else { return [] }
+
+        var found: Set<SlotBand> = []
+        // Words that fix the time of day as well as the kind of stop.
+        for (band, words) in bandKeywords where words.contains(where: { haystack.matchesWord($0) }) {
+            found.insert(band)
+        }
+        // Words that name only the kind. "Somewhere to eat" is lunch or dinner —
+        // whichever the window can hold — so both bands are offered and the schedule
+        // picks. Naming the meal outright is what pins it to one.
+        for (category, words) in categoryKeywords where words.contains(where: { haystack.matchesWord($0) }) {
+            found.formUnion(SlotBand.all(in: category))
+        }
+        return found
+    }
+
+    /// Words that name a stop *and* when it happens. Whole-word matched.
+    private static let bandKeywords: [SlotBand: [String]] = [
+        .lunch: ["lunch", "brunch", "breakfast"],
+        .dinner: ["dinner", "supper"]
+    ]
+
+    /// Words that name a kind of stop but not a time of day. Whole-word matched, so
+    /// "bar" does not fire on "barbecue" and "walk" does not fire on "walkable".
+    private static let categoryKeywords: [SlotCategory: [String]] = [
+        .food: ["eat", "eating", "food", "meal", "meals", "restaurant", "restaurants",
+                "cafe", "café", "coffee", "bite", "biryani", "pizza", "thali",
+                "dessert", "snacks"],
+        .nightlife: ["drink", "drinks", "bar", "bars", "pub", "pubs", "club", "clubbing",
+                     "party", "cocktail", "cocktails", "beer", "wine", "nightcap",
+                     "nightlife", "dancing"],
+        .sights: ["sightseeing", "sights", "monument", "monuments", "park", "walk",
+                  "garden", "gardens", "museum", "gallery", "temple", "fort", "tomb",
+                  "view", "views", "stroll", "heritage"],
+        .discover: ["shopping", "shop", "shops", "bookstore", "bookshop", "books",
+                    "browse", "browsing", "activity", "arcade", "workshop", "gaming",
+                    "bowling", "karaoke"]
+    ]
 
     // MARK: - Budget
 
