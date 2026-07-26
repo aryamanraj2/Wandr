@@ -43,8 +43,8 @@ nonisolated struct BriefNormalizer: BriefNormalizing, Sendable {
             .map { .host(GroupSize(clamping: $0)) }
             ?? .safeDefault(OutingBrief.defaultGroupSize)
 
-        let budget: Sourced<BudgetPerHead> = draft.budgetPerHeadRupees
-            .map { .host(BudgetPerHead.clamping(rupees: $0)) }
+        let budget: Sourced<Budget> = draft.budget
+            .map { .host($0) }
             ?? .safeDefault(.unspecified)
 
         let timeWindow: Sourced<OutingTimeWindow> = draft.timeWindow.isUnknown
@@ -56,7 +56,7 @@ nonisolated struct BriefNormalizer: BriefNormalizing, Sendable {
             timeWindow: timeWindow,
             area: area,
             groupSize: groupSize,
-            budgetPerHead: budget,
+            budget: budget,
             vibeTags: draft.vibeTags,
             // Hard constraints pass through untouched. Normalization never invents
             // one the draft didn't carry, and never waters down one it did.

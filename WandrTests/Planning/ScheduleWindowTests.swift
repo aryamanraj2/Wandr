@@ -16,7 +16,7 @@ struct ScheduleWindowTests {
 
     private let validator = FeasibilityValidator()
     private let drafter = ScheduleDrafter()
-    private let dinnerSlot = Fixtures.slot("dinner", category: .food, title: "Dinner", ["food-1", "food-2", "food-3"])
+    private let dinnerSlot = Fixtures.slot(.dinner, title: "Dinner", ["food-1", "food-2", "food-3"])
 
     private func brief(window: OutingTimeWindow?) -> OutingBrief {
         OutingBrief(
@@ -80,10 +80,7 @@ struct ScheduleWindowTests {
             Fixtures.venue("food-y", category: .food, perHead: 800),
             Fixtures.venue("food-z", category: .food, perHead: 900)
         ]
-        let slot = CurationSlot(
-            slotID: SlotID("dinner"),
-            category: .food,
-            title: "Dinner",
+        let slot = CurationSlot(band: .dinner, title: "Dinner",
             candidates: [CuratedCandidate(venueID: VenueID("food-x"), rank: 1, rationale: "Great for a big group.")]
         )
         let plan = WandrPlan(
@@ -110,10 +107,7 @@ struct ScheduleWindowTests {
 
     @Test("A pick whose venue isn't in evidence is dropped, never invented")
     func unknownVenueIsDropped() {
-        let slot = CurationSlot(
-            slotID: SlotID("dinner"),
-            category: .food,
-            title: "Dinner",
+        let slot = CurationSlot(band: .dinner, title: "Dinner",
             candidates: [CuratedCandidate(venueID: VenueID("ghost"), rank: 1)]
         )
         let plan = WandrPlan(

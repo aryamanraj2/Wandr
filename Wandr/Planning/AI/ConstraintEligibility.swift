@@ -21,7 +21,17 @@ import Foundation
 nonisolated enum ConstraintEligibility {
 
     /// Whether `venue` may be offered for `brief`, given only what the evidence proves.
-    static func isEligible(_ venue: GroundedVenue, for brief: OutingBrief) -> Bool {
+    ///
+    /// - Parameter ignoringSetting: drops the indoor/outdoor test. Set by
+    ///   `EvidenceResolver` when the setting is the constraint it has chosen to give
+    ///   up so the plan can exist at all. Dietary and accessibility have no such
+    ///   parameter and never will — a plan that seats someone where they cannot eat
+    ///   or cannot get in is not a degraded plan, it is a harmful one.
+    static func isEligible(
+        _ venue: GroundedVenue,
+        for brief: OutingBrief,
+        ignoringSetting: Bool = false
+    ) -> Bool {
         if brief.dietary.isHardConstraint,
            let missing = venue.dietaryTags.unsatisfied(by: brief.dietary.requirements),
            !missing.isEmpty {
@@ -34,7 +44,8 @@ nonisolated enum ConstraintEligibility {
             return false
         }
 
-        if brief.setting.isHardConstraint, venue.setting.satisfies(brief.setting) == false {
+        if !ignoringSetting, brief.setting.isHardConstraint,
+           venue.setting.satisfies(brief.setting) == false {
             return false
         }
 

@@ -171,7 +171,7 @@ struct HostReviewView: View {
             time: "8pm, finish by 11",
             area: "Hauz Khas",
             groupSize: 6,
-            budgetPerHead: "₹1200",
+            budget: "₹1200 each",
             dietary: "2 vegetarian",
             vibe: "Chill, live music",
             indoorOutdoor: "Indoor if it rains"

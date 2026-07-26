@@ -23,6 +23,12 @@ enum ChatExtractionPrompt {
     }
 
     /// Keep this byte-identical to `chat-extraction-prompt.txt`.
+    ///
+    /// Describe each key; never show a sample *value*. A quoted example sitting
+    /// beside an optional key reads to a small model as a default to emit — hosts
+    /// got back an accessibility requirement and a budget that were verbatim
+    /// copies of Wandr's own prompt. The same rule governs the `@Guide`
+    /// descriptions in `FreeTextSummaryExtractor`.
     private static let embedded = """
     You are reading a WhatsApp or iMessage group conversation about planning a social outing.
 
@@ -35,12 +41,13 @@ enum ChatExtractionPrompt {
     {
       "outingType": one of "after-office", "birthday", "get-together", "full-day", "custom",
       "dateOrDay": string,
-      "time": string, including any hard time constraints (for example "finish by 9"),
+      "time": string, including any start, finish, or how long they have,
       "area": string,
       "groupSize": integer,
-      "budgetPerHead": string, for example "₹1200",
+      "budget": string, copying their wording exactly including whether it is each or for the group,
+      "plannedStops": string, the kinds of stop they asked for, in their words,
       "dietary": string,
-      "accessibility": string,
+      "accessibility": string, only if a participant raised one themselves,
       "vibe": string,
       "indoorOutdoor": string, including any weather fallback the group mentioned,
       "otherNotes": string

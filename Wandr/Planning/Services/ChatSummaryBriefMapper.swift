@@ -28,7 +28,7 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
             timeWindow: Self.timeWindow(day: payload.dateOrDay, time: payload.time),
             area: payload.area?.trimmed.nonEmpty,
             groupSize: payload.groupSize,
-            budgetPerHeadRupees: Self.rupees(from: payload.budgetPerHead),
+            budget: Self.budget(from: payload.budget),
             vibeTags: Self.vibeTags(from: payload.vibe),
             dietary: Self.dietary(from: payload.dietary),
             accessibility: Self.accessibility(from: payload.accessibility),
@@ -40,7 +40,32 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
 
     // MARK: - Requested stops
 
-    /// The stops the host named, read from everything they wrote.
+    /// The stops the host asked for.
+    ///
+    /// Two sources, in order of how well they generalise:
+    ///
+    /// 1. **The model's own classification** (`payload.stops`), validated against
+    ///    `SlotBand` here so an invented token is dropped rather than trusted. This
+    ///    is the path that handles "something to eat before the movie" — a phrase no
+    ///    keyword list will ever contain.
+    /// 2. **A keyword scan**, when the model returned nothing usable. It is the
+    ///    fallback rather than the primary, and it is also what keeps this whole path
+    ///    testable with no model, no device, and no Apple Intelligence.
+    static func requestedStops(from payload: ChatSummaryPayload) -> Set<SlotBand> {
+        let classified = Set((payload.stops ?? []).compactMap(band(named:)))
+        return classified.isEmpty ? keywordStops(from: payload) : classified
+    }
+
+    /// One model-emitted token resolved to a band, or `nil` if it is not one of ours.
+    ///
+    /// Case- and whitespace-tolerant, because a model told to answer "somethingNew"
+    /// will sometimes answer "Something New" and that is not a different request.
+    static func band(named raw: String) -> SlotBand? {
+        let squashed = raw.lowercased().filter(\.isLetter)
+        return SlotBand.allCases.first { $0.rawValue.lowercased() == squashed }
+    }
+
+    /// The pre-model path: read the stop out of whatever the host wrote.
     ///
     /// Deliberately scans several fields rather than only `plannedStops`: the word
     /// that matters ("lunch", "drinks") lands wherever the extractor decided to put
@@ -51,7 +76,7 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
     ///   stops as well as choosing them. That is the intent — a host who says "lunch"
     ///   should not be handed a 10 pm bar — but it is why every keyword below is a
     ///   noun that names a stop, matched whole-word, and never a mood or an adjective.
-    static func requestedStops(from payload: ChatSummaryPayload) -> Set<SlotBand> {
+    static func keywordStops(from payload: ChatSummaryPayload) -> Set<SlotBand> {
         let haystack = [
             payload.plannedStops,
             payload.otherNotes,
@@ -102,6 +127,32 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
     ]
 
     // MARK: - Budget
+
+    /// The ceiling the host named, in the basis they named it in.
+    ///
+    /// The basis is read from their own words and never assumed. An unqualified
+    /// "2000" is the group's *total*, because that is the weaker of the two
+    /// readings and the only one they actually said — reading it as ₹2000 each
+    /// invents a budget four times larger for a group of four, and then compares
+    /// it against a per-head venue price. That mismatch is what told two people
+    /// with ₹2000 between them that an ordinary dinner was over their limit.
+    static func budget(from raw: String?) -> Budget? {
+        guard let raw, let rupees = rupees(from: raw) else { return nil }
+        return .clamping(rupees: rupees, perHead: statesPerHead(raw))
+    }
+
+    /// Whether the phrase says the number is *each*.
+    ///
+    /// Whole-word matched where the token is a word, so "app" does not read as "pp".
+    static func statesPerHead(_ raw: String) -> Bool {
+        let text = raw.lowercased()
+        if ["per head", "a head", "per person", "a person", "each", "/head", "/person",
+             "per pax", "a pax", "apiece"].contains(where: text.contains) {
+            return true
+        }
+        // "pp" and "pax" only as standalone words — "2k pp", not "shopping".
+        return ["pp", "pax", "ph"].contains { text.matchesWord($0) }
+    }
 
     /// First monetary figure in the string. Tolerates "₹", commas, "per head", and a
     /// trailing "k" (1.5k → 1500). Absent or unparseable → `nil` (normalizer defaults it).
@@ -428,7 +479,7 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
 
 // MARK: - Small string helpers
 
-private extension String {
+nonisolated private extension String {
     var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
     var nonEmpty: String? { isEmpty ? nil : self }
 

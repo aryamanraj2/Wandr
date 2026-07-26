@@ -95,8 +95,8 @@ struct FeasibilityValidatorTests {
     @Test("A venue ID absent from the evidence snapshot fails")
     func nonexistentVenueIDFails() {
         let slots = [
-            Fixtures.slot("dinner", category: .food, ["food-1", "food-2", "not-a-real-venue"]),
-            Fixtures.slot("late", category: .nightlife, ["night-1", "night-2", "night-3"])
+            Fixtures.slot(.dinner, ["food-1", "food-2", "not-a-real-venue"]),
+            Fixtures.slot(.late, ["night-1", "night-2", "night-3"])
         ]
 
         let found = violations(brief: Fixtures.afterWorkBrief, slots: slots)
@@ -107,8 +107,8 @@ struct FeasibilityValidatorTests {
     @Test("A model-invented venue never reaches a plan, even when everything else is valid")
     func inventedVenueBlocksThePlan() {
         let slots = [
-            Fixtures.slot("dinner", category: .food, ["food-1", "food-2", "Some Lovely Rooftop"]),
-            Fixtures.slot("late", category: .nightlife, ["night-1", "night-2", "night-3"])
+            Fixtures.slot(.dinner, ["food-1", "food-2", "Some Lovely Rooftop"]),
+            Fixtures.slot(.late, ["night-1", "night-2", "night-3"])
         ]
 
         #expect(validationFailure(brief: Fixtures.afterWorkBrief, slots: slots) != nil)
@@ -119,8 +119,8 @@ struct FeasibilityValidatorTests {
     @Test("A duplicate venue inside one deck fails")
     func duplicateWithinSlotFails() {
         let slots = [
-            Fixtures.slot("dinner", category: .food, ["food-1", "food-2", "food-1"]),
-            Fixtures.slot("late", category: .nightlife, ["night-1", "night-2", "night-3"])
+            Fixtures.slot(.dinner, ["food-1", "food-2", "food-1"]),
+            Fixtures.slot(.late, ["night-1", "night-2", "night-3"])
         ]
 
         let found = violations(brief: Fixtures.afterWorkBrief, slots: slots)
@@ -131,8 +131,8 @@ struct FeasibilityValidatorTests {
     @Test("The same venue filling two slots fails")
     func duplicateAcrossSlotsFails() {
         let slots = [
-            Fixtures.slot("dinner", category: .food, ["food-1", "food-2", "food-3"]),
-            Fixtures.slot("late", category: .nightlife, ["food-1", "night-2", "night-3"])
+            Fixtures.slot(.dinner, ["food-1", "food-2", "food-3"]),
+            Fixtures.slot(.late, ["food-1", "night-2", "night-3"])
         ]
 
         let found = violations(brief: Fixtures.afterWorkBrief, slots: slots)
@@ -145,8 +145,8 @@ struct FeasibilityValidatorTests {
     @Test("Venue reuse across slots passes when the rules permit it")
     func duplicateAcrossSlotsAllowedByRule() {
         let slots = [
-            Fixtures.slot("dinner", category: .food, ["food-1", "food-2", "food-3"]),
-            Fixtures.slot("late", category: .nightlife, ["food-1", "night-2", "night-3"])
+            Fixtures.slot(.dinner, ["food-1", "food-2", "food-3"]),
+            Fixtures.slot(.late, ["food-1", "night-2", "night-3"])
         ]
 
         let permissive = FeasibilityRules(minimumCandidatesPerSlot: 3, allowsVenueReuseAcrossSlots: true)
@@ -157,25 +157,25 @@ struct FeasibilityValidatorTests {
     // MARK: - Rule 4: budget
 
     @Test("A known per-head price over the confirmed ceiling fails")
-    func overBudgetChoiceFails() {
+    func overBudgetChoiceWarnsRatherThanFailing() throws {
         let evidence = Fixtures.evidence + [
             Fixtures.venue("food-lux", category: .food, perHead: 4_000)
         ]
         let slots = [
-            Fixtures.slot("dinner", category: .food, ["food-1", "food-2", "food-lux"]),
-            Fixtures.slot("late", category: .nightlife, ["night-1", "night-2", "night-3"])
+            Fixtures.slot(.dinner, ["food-1", "food-2", "food-lux"]),
+            Fixtures.slot(.late, ["night-1", "night-2", "night-3"])
         ]
 
-        let found = violations(brief: Fixtures.afterWorkBrief, evidence: evidence, slots: slots)
+        // The whole run used to die here. `EvidenceResolver` only lets an
+        // over-ceiling venue reach a deck when the alternative was an empty one, so
+        // failing on it meant failing exactly the hosts whose budget was tightest.
+        #expect(validationFailure(brief: Fixtures.afterWorkBrief, evidence: evidence, slots: slots) == nil)
 
-        #expect(found.contains(
-            .overBudget(
-                slotID: SlotID("dinner"),
-                venueID: VenueID("food-lux"),
-                perHeadRupees: 4_000,
-                limitRupees: 1_500
-            )
-        ))
+        let plan = try validatedPlan(brief: Fixtures.afterWorkBrief, evidence: evidence, slots: slots)
+        let warned = plan.warnings(about: VenueID("food-lux"))
+        #expect(warned.contains {
+            $0.kind == .overBudget(VenueID("food-lux"), perHeadRupees: 4_000, ceilingPerHead: 1_500)
+        }, "The host is told the price, on the card, instead of losing the plan")
     }
 
     @Test("A price exactly at the ceiling passes")
@@ -184,8 +184,8 @@ struct FeasibilityValidatorTests {
             Fixtures.venue("food-edge", category: .food, perHead: 1_500)
         ]
         let slots = [
-            Fixtures.slot("dinner", category: .food, ["food-1", "food-2", "food-edge"]),
-            Fixtures.slot("late", category: .nightlife, ["night-1", "night-2", "night-3"])
+            Fixtures.slot(.dinner, ["food-1", "food-2", "food-edge"]),
+            Fixtures.slot(.late, ["night-1", "night-2", "night-3"])
         ]
 
         #expect(validationFailure(brief: Fixtures.afterWorkBrief, evidence: evidence, slots: slots) == nil)
@@ -197,8 +197,8 @@ struct FeasibilityValidatorTests {
             Fixtures.venue("food-unpriced", category: .food, perHead: nil)
         ]
         let slots = [
-            Fixtures.slot("dinner", category: .food, ["food-1", "food-2", "food-unpriced"]),
-            Fixtures.slot("late", category: .nightlife, ["night-1", "night-2", "night-3"])
+            Fixtures.slot(.dinner, ["food-1", "food-2", "food-unpriced"]),
+            Fixtures.slot(.late, ["night-1", "night-2", "night-3"])
         ]
 
         let plan = try validatedPlan(brief: Fixtures.afterWorkBrief, evidence: evidence, slots: slots)
@@ -224,7 +224,7 @@ struct FeasibilityValidatorTests {
             // Surveyed, and vegetarian is genuinely absent.
             Fixtures.venue("food-meat", category: .food, dietary: .known([.halal]))
         ]
-        let slots = [Fixtures.slot("dinner", category: .food, ["food-1", "food-2", "food-meat"])]
+        let slots = [Fixtures.slot(.dinner, ["food-1", "food-2", "food-meat"])]
 
         let found = violations(brief: Fixtures.birthdayBrief, evidence: evidence, slots: slots)
 
@@ -245,7 +245,7 @@ struct FeasibilityValidatorTests {
             // Never surveyed — unverified, not contradicted.
             Fixtures.venue("food-unknown", category: .food, dietary: .unknown)
         ]
-        let slots = [Fixtures.slot("dinner", category: .food, ["food-1", "food-2", "food-unknown"])]
+        let slots = [Fixtures.slot(.dinner, ["food-1", "food-2", "food-unknown"])]
 
         let plan = try validatedPlan(brief: Fixtures.birthdayBrief, evidence: evidence, slots: slots)
 
@@ -264,7 +264,7 @@ struct FeasibilityValidatorTests {
             Fixtures.venue("sight-2", category: .sights, accessibility: .known([.stepFreeEntry])),
             Fixtures.venue("sight-steps", category: .sights, accessibility: .known([.accessibleRestroom]))
         ]
-        let slots = [Fixtures.slot("afternoon", category: .sights, ["sight-1", "sight-2", "sight-steps"])]
+        let slots = [Fixtures.slot(.afternoon, ["sight-1", "sight-2", "sight-steps"])]
 
         let found = violations(brief: Fixtures.accessibleBrief, evidence: evidence, slots: slots)
 
@@ -284,7 +284,7 @@ struct FeasibilityValidatorTests {
             Fixtures.venue("sight-2", category: .sights, setting: .mixed),
             Fixtures.venue("sight-indoor", category: .sights, setting: .indoor)
         ]
-        let slots = [Fixtures.slot("afternoon", category: .sights, ["sight-1", "sight-2", "sight-indoor"])]
+        let slots = [Fixtures.slot(.afternoon, ["sight-1", "sight-2", "sight-indoor"])]
 
         let found = violations(brief: Fixtures.outdoorBrief, evidence: evidence, slots: slots)
 
@@ -305,7 +305,7 @@ struct FeasibilityValidatorTests {
             Fixtures.venue("sight-2", category: .sights, setting: .indoor),
             Fixtures.venue("sight-3", category: .sights, setting: .unknown)
         ]
-        let slots = [Fixtures.slot("afternoon", category: .sights, ["sight-1", "sight-2", "sight-3"])]
+        let slots = [Fixtures.slot(.afternoon, ["sight-1", "sight-2", "sight-3"])]
 
         // `.mixed` and `.noPreference` are soft by contract.
         #expect(SettingPreference.mixed.isHardConstraint == false)
@@ -315,38 +315,39 @@ struct FeasibilityValidatorTests {
 
     // MARK: - Rule 6: deck depth
 
-    @Test("A thin deck backed by a thin snapshot reports insufficient evidence")
-    func thinEvidenceReportsInsufficientEvidence() throws {
-        // Only two food venues exist at all — research came up short.
+    @Test("A thin snapshot yields a thin deck, never a failure")
+    func thinEvidenceStillProducesAPlan() throws {
+        // Only two food venues exist at all — research came up short. That is now a
+        // two-card deck rather than a failure; `insufficientEvidence` has moved to
+        // `TravelPlanningService` and fires only when there is *nothing* to show,
+        // which is the one situation where "widen the area" is true advice.
         let evidence = [
             Fixtures.venue("food-1", category: .food),
             Fixtures.venue("food-2", category: .food)
         ]
-        let slots = [Fixtures.slot("dinner", category: .food, ["food-1", "food-2"])]
+        let slots = [Fixtures.slot(.dinner, ["food-1", "food-2"])]
 
-        let failure = try #require(validationFailure(brief: Fixtures.afterWorkBrief, evidence: evidence, slots: slots))
+        #expect(validationFailure(brief: Fixtures.afterWorkBrief, evidence: evidence, slots: slots) == nil)
 
-        guard case .insufficientEvidence(let details) = failure.category else {
-            Issue.record("expected insufficientEvidence, got \(failure.category)")
-            return
-        }
-        #expect(details == [
-            PlanningFailure.InsufficientEvidenceDetail(category: .food, required: 3, found: 2)
-        ])
-        // It is never padded with invented venues.
-        #expect(failure.retryAction == .editRequest)
+        let plan = try validatedPlan(brief: Fixtures.afterWorkBrief, evidence: evidence, slots: slots)
+        #expect(plan.slots.first?.candidates.count == 2)
+        // It is still never padded with invented venues.
+        #expect(plan.evidenceIDs.allSatisfy { ["food-1", "food-2"].contains($0.rawValue) })
     }
 
-    @Test("A thin deck despite a rich snapshot is a curation failure, not missing evidence")
-    func thinCurationReportsInsufficientCandidates() {
+    @Test("A thin deck is shown with a note, not turned into a failure")
+    func thinDeckWarnsRatherThanFailing() throws {
         // Four food venues exist; the curator only picked two.
-        let slots = [Fixtures.slot("dinner", category: .food, ["food-1", "food-2"])]
+        let slots = [Fixtures.slot(.dinner, ["food-1", "food-2"])]
 
-        let found = violations(brief: Fixtures.afterWorkBrief, slots: slots)
+        #expect(validationFailure(brief: Fixtures.afterWorkBrief, slots: slots) == nil)
 
-        #expect(found == [
-            .insufficientCandidates(slotID: SlotID("dinner"), required: 3, found: 2)
-        ])
+        let plan = try validatedPlan(brief: Fixtures.afterWorkBrief, slots: slots)
+        #expect(plan.slots.first?.candidates.count == 2, "Both real options survive")
+        #expect(
+            plan.warnings(for: SlotID("dinner")).contains { $0.kind == .thinDeck(required: 3, found: 2) },
+            "Two restaurants beat no plan — but the host is told there are only two"
+        )
     }
 
     @Test("An empty curation fails rather than producing an empty plan")
@@ -389,7 +390,7 @@ struct FeasibilityValidatorTests {
                 limitations: ["Kitchen closes early on weekdays."]
             )
         ]
-        let slots = [Fixtures.slot("dinner", category: .food, ["food-1", "food-2", "food-3"])]
+        let slots = [Fixtures.slot(.dinner, ["food-1", "food-2", "food-3"])]
 
         let plan = try validatedPlan(brief: Fixtures.afterWorkBrief, evidence: evidence, slots: slots)
 
@@ -417,7 +418,7 @@ struct FeasibilityValidatorTests {
             Fixtures.venue("food-2", category: .food),
             Fixtures.venue("food-3", category: .food, availability: .unavailable(reason: "Closed for renovation"))
         ]
-        let slots = [Fixtures.slot("dinner", category: .food, ["food-1", "food-2", "food-3"])]
+        let slots = [Fixtures.slot(.dinner, ["food-1", "food-2", "food-3"])]
 
         let plan = try validatedPlan(brief: Fixtures.afterWorkBrief, evidence: evidence, slots: slots)
 
@@ -434,8 +435,8 @@ struct FeasibilityValidatorTests {
     @Test("Validating the same input twice produces the same violations, in the same order")
     func violationOrderIsStable() {
         let slots = [
-            Fixtures.slot("dinner", category: .food, ["food-1", "ghost-a", "ghost-b"]),
-            Fixtures.slot("late", category: .nightlife, ["ghost-c", "night-2", "food-1"])
+            Fixtures.slot(.dinner, ["food-1", "ghost-a", "ghost-b"]),
+            Fixtures.slot(.late, ["ghost-c", "night-2", "food-1"])
         ]
 
         let first = violations(brief: Fixtures.afterWorkBrief, slots: slots)
@@ -447,29 +448,27 @@ struct FeasibilityValidatorTests {
 
     // MARK: - Fixture scenarios (plan.md §13.1)
 
-    @Test("Impossible budget yields a clear limitation rather than a pretty itinerary")
-    func impossibleBudgetIsRejected() throws {
-        // Nothing in the snapshot comes in under ₹200 a head.
+    @Test("An impossible budget produces a plan with every price flagged, not a dead end")
+    func impossibleBudgetIsDisclosedNotRejected() throws {
+        // Nothing in the snapshot comes in under ₹200 a head. This used to be six
+        // violations and an ended run; a host with a tight budget got no plan at all,
+        // which is the one group least able to do anything about it.
         let slots = [
-            Fixtures.slot("dinner", category: .food, ["food-1", "food-2", "food-3"]),
-            Fixtures.slot("late", category: .nightlife, ["night-1", "night-2", "night-3"])
+            Fixtures.slot(.dinner, ["food-1", "food-2", "food-3"]),
+            Fixtures.slot(.late, ["night-1", "night-2", "night-3"])
         ]
 
-        let failure = try #require(validationFailure(brief: Fixtures.impossibleBudgetBrief, slots: slots))
+        #expect(validationFailure(brief: Fixtures.impossibleBudgetBrief, slots: slots) == nil)
 
-        guard case .validationFailed(let violations) = failure.category else {
-            Issue.record("expected validationFailed, got \(failure.category)")
-            return
-        }
+        let plan = try validatedPlan(brief: Fixtures.impossibleBudgetBrief, slots: slots)
+        #expect(plan.slots.count == 2, "Both stops survive")
 
-        // Every pick is over budget, and each one is named.
-        #expect(violations.count == 6)
-        #expect(violations.allSatisfy { violation in
-            if case .overBudget = violation { return true }
+        let flagged = plan.warnings.filter {
+            if case .overBudget = $0.kind { return true }
             return false
-        })
-        #expect(failure.userMessage.contains("₹200"))
-        #expect(failure.isRecoverable)
+        }
+        #expect(flagged.count == 6, "Every pick still gets its price named — on its own card")
+        #expect(flagged.allSatisfy { $0.message.contains("a head") })
     }
 
     @Test("The sparse request's safe defaults are all marked as such")
@@ -479,9 +478,9 @@ struct FeasibilityValidatorTests {
         #expect(brief.occasion.source == .safeDefault)
         #expect(brief.area.source == .safeDefault)
         #expect(brief.groupSize.source == .safeDefault)
-        #expect(brief.budgetPerHead.source == .safeDefault)
+        #expect(brief.budget.source == .safeDefault)
 
-        #expect(Set(brief.safeDefaults) == Set([.area, .timeWindow, .groupSize, .budgetPerHead]))
+        #expect(Set(brief.safeDefaults) == Set([.area, .timeWindow, .groupSize, .budget]))
 
         // The host said nothing about these, and the brief does not pretend otherwise.
         #expect(brief.dietary == .unknown)
@@ -497,8 +496,8 @@ struct FeasibilityValidatorTests {
         #expect(brief.area.source == .host)
         #expect(brief.groupSize.value == GroupSize(clamping: 6))
         #expect(brief.groupSize.source == .host)
-        #expect(brief.budgetPerHead.value == .upTo(rupees: 1_500))
-        #expect(brief.budgetPerHead.source == .host)
+        #expect(brief.budget.value == .perHead(rupees: 1_500))
+        #expect(brief.budget.source == .host)
         #expect(brief.safeDefaults.isEmpty)
     }
 
@@ -517,8 +516,14 @@ struct FeasibilityValidatorTests {
     func boundedValuesClamp() {
         #expect(GroupSize(clamping: 40_000).people == GroupSize.supportedRange.upperBound)
         #expect(GroupSize(clamping: 0).people == GroupSize.supportedRange.lowerBound)
-        #expect(BudgetPerHead.clamping(rupees: -50) == .upTo(rupees: 0))
-        #expect(BudgetPerHead.clamping(rupees: 9_999_999) == .upTo(rupees: BudgetPerHead.supportedRange.upperBound))
-        #expect(BudgetPerHead.unspecified.limitRupees == nil)
+        #expect(Budget.clamping(rupees: -50, perHead: true) == .perHead(rupees: 0))
+        #expect(
+            Budget.clamping(rupees: 9_999_999, perHead: false)
+                == .total(rupees: Budget.supportedRange.upperBound)
+        )
+        #expect(Budget.unspecified.ceilingPerHead(for: GroupSize(clamping: 4)) == nil)
+        // A group total is divided before it can be compared with a per-head price.
+        #expect(Budget.total(rupees: 2_000).ceilingPerHead(for: GroupSize(clamping: 2)) == 1_000)
+        #expect(Budget.perHead(rupees: 2_000).ceilingPerHead(for: GroupSize(clamping: 2)) == 2_000)
     }
 }

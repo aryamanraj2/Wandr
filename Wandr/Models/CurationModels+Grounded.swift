@@ -67,9 +67,11 @@ enum GroundedPlanMapper {
         /// Shown atop "Pick your stops" when the group's time window shaped the plan.
         /// `nil` for an open-ended plan (no banner).
         let banner: String?
-        /// Per-category window [start...end] in minutes-from-midnight, so the schedule
-        /// screen places the squad's winners inside the group's real window.
-        let slotWindows: [StopCategory: ClosedRange<Int>]
+        /// Per-*slot* window [start...end] in minutes-from-midnight, keyed by
+        /// `Deck.slotID`, so the schedule screen places the squad's winners inside
+        /// the group's real window. Keyed by slot rather than category because a
+        /// plan can hold both lunch and dinner, and those are not the same hour.
+        let slotWindows: [String: ClosedRange<Int>]
     }
 
     static func map(plan: WandrPlan, evidence: [GroundedVenue]) -> Output {
@@ -93,17 +95,18 @@ enum GroundedPlanMapper {
 
             decks.append(
                 Deck(
+                    slotID: slot.slotID.rawValue,
                     category: StopCategory(slot.category),
                     slotName: slot.title,
-                    window: schedule.slot(for: slot.category)?.windowLabel ?? "",
+                    window: schedule.slot(band: slot.band)?.windowLabel ?? "",
                     candidates: candidates
                 )
             )
         }
 
-        var slotWindows: [StopCategory: ClosedRange<Int>] = [:]
+        var slotWindows: [String: ClosedRange<Int>] = [:]
         for feasible in schedule.slots {
-            slotWindows[StopCategory(feasible.category)] = feasible.startMinute...feasible.endMinute
+            slotWindows[feasible.band.rawValue] = feasible.startMinute...feasible.endMinute
         }
 
         return Output(decks: decks, banner: banner(for: schedule), slotWindows: slotWindows)

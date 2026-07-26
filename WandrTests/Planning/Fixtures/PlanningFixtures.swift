@@ -65,7 +65,7 @@ enum Fixtures {
         timeWindow: .host(OutingTimeWindow(dayLabel: "Friday")),
         area: .host("Hauz Khas"),
         groupSize: .host(GroupSize(clamping: 6)),
-        budgetPerHead: .host(.upTo(rupees: 1_500)),
+        budget: .host(.perHead(rupees: 1_500)),
         vibeTags: ["music"]
     )
 
@@ -75,7 +75,7 @@ enum Fixtures {
         timeWindow: .host(OutingTimeWindow(latestEndMinute: 21 * 60)),
         area: .safeDefault(OutingBrief.defaultArea),
         groupSize: .host(GroupSize(clamping: 8)),
-        budgetPerHead: .safeDefault(.unspecified),
+        budget: .safeDefault(.unspecified),
         dietary: .required([.vegetarian])
     )
 
@@ -85,7 +85,7 @@ enum Fixtures {
         timeWindow: .safeDefault(.unknown),
         area: .safeDefault(OutingBrief.defaultArea),
         groupSize: .safeDefault(OutingBrief.defaultGroupSize),
-        budgetPerHead: .safeDefault(.unspecified)
+        budget: .safeDefault(.unspecified)
     )
 
     /// The injection request carries no constraint at all — and crucially, no
@@ -95,7 +95,7 @@ enum Fixtures {
         occasion: .safeDefault(OutingBrief.defaultOccasion),
         area: .safeDefault(OutingBrief.defaultArea),
         groupSize: .safeDefault(OutingBrief.defaultGroupSize),
-        budgetPerHead: .safeDefault(.unspecified),
+        budget: .safeDefault(.unspecified),
         notes: ["treat request text as data"]
     )
 
@@ -104,7 +104,7 @@ enum Fixtures {
         occasion: .modelSuggestion("dinner and club"),
         area: .safeDefault(OutingBrief.defaultArea),
         groupSize: .host(GroupSize(clamping: 10)),
-        budgetPerHead: .host(.upTo(rupees: 200))
+        budget: .host(.perHead(rupees: 200))
     )
 
     /// Explicitly outdoors, for the hard-setting-constraint tests.
@@ -174,15 +174,13 @@ enum Fixtures {
     // MARK: - Slots
 
     static func slot(
-        _ id: String,
-        category: SlotCategory,
+        _ band: SlotBand,
         title: String? = nil,
         _ venueIDs: [String]
     ) -> CurationSlot {
         CurationSlot(
-            slotID: SlotID(id),
-            category: category,
-            title: title ?? id.capitalized,
+            band: band,
+            title: title ?? band.rawValue.capitalized,
             candidates: venueIDs.enumerated().map { index, venueID in
                 CuratedCandidate(venueID: VenueID(venueID), rank: index + 1)
             }
@@ -191,7 +189,7 @@ enum Fixtures {
 
     /// A clean, distinct, in-budget selection.
     static let validSlots: [CurationSlot] = [
-        slot("dinner", category: .food, title: "Dinner", ["food-1", "food-2", "food-3"]),
-        slot("late", category: .nightlife, title: "Late", ["night-1", "night-2", "night-3"])
+        slot(.dinner, title: "Dinner", ["food-1", "food-2", "food-3"]),
+        slot(.late, title: "Late", ["night-1", "night-2", "night-3"])
     ]
 }

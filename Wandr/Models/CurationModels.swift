@@ -103,6 +103,14 @@ struct Candidate: Identifiable, Hashable {
 /// Narrowing many options down to one is the squad's job, not the host's.
 struct Deck: Identifiable {
     let id: UUID = UUID()
+
+    /// Stable identity for this stop, carried through from the plan's `SlotID`.
+    ///
+    /// Distinct from `category`, which is *not* unique across a plan: a host who
+    /// asks for lunch and dinner gets two `.food` decks. Keying anything by
+    /// category silently merged them — the squad poll built one ballot for both,
+    /// so voting on lunch also voted on dinner.
+    let slotID: String
     let category: StopCategory
     /// e.g. "Dinner", "Late evening" — the human name for this slot.
     let slotName: String
@@ -224,7 +232,7 @@ enum DemoPlan {
     }
 
     static let decks: [Deck] = [
-        Deck(category: .food, slotName: "Dinner", window: "8:00 – 10:00 pm", candidates: [
+        Deck(slotID: "dinner", category: .food, slotName: "Dinner", window: "8:00 – 10:00 pm", candidates: [
             Candidate(name: "Diggin", area: "Anand Lok",
                       tagline: "Courtyard café under a rain tree. Continental, unhurried.",
                       category: .food, perHead: 1_100, listPrice: 1_400,
@@ -297,7 +305,7 @@ enum DemoPlan {
                       insiderTip: "The platter has to be ordered before 10 — after that it comes off the menu entirely.")
         ]),
 
-        Deck(category: .sights, slotName: "Afternoon", window: "2:30 – 5:00 pm", candidates: [
+        Deck(slotID: "afternoon", category: .sights, slotName: "Afternoon", window: "2:30 – 5:00 pm", candidates: [
             Candidate(name: "Sunder Nursery", area: "Nizamuddin",
                       tagline: "90 acres of Mughal garden. Golden hour is the whole point.",
                       category: .sights, perHead: 200, listPrice: nil,
@@ -356,7 +364,7 @@ enum DemoPlan {
                       insiderTip: "Weekday mornings are near-empty. By late afternoon the lower steps are a queue of people waiting to photograph them.")
         ]),
 
-        Deck(category: .nightlife, slotName: "Late", window: "10:00 pm – late", candidates: [
+        Deck(slotID: "late", category: .nightlife, slotName: "Late", window: "10:00 pm – late", candidates: [
             Candidate(name: "Piano Man", area: "Safdarjung Enclave",
                       tagline: "Live jazz, low ceiling, no talking through the set.",
                       category: .nightlife, perHead: 1_400, listPrice: 1_800,
@@ -401,7 +409,7 @@ enum DemoPlan {
                       insiderTip: "Forty-one minutes out means one cab each way. Only worth it if the squad is starting the night in Gurugram.")
         ]),
 
-        Deck(category: .discover, slotName: "Something new", window: "flexible", candidates: [
+        Deck(slotID: "somethingNew", category: .discover, slotName: "Something new", window: "flexible", candidates: [
             Candidate(name: "Smaaash Go-Karting", area: "Cyber Hub",
                       tagline: "Indoor karting, 12 laps. Someone will get competitive.",
                       category: .discover, perHead: 900, listPrice: 1_200,

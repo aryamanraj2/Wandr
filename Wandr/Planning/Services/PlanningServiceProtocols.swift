@@ -77,6 +77,7 @@ nonisolated protocol ItineraryValidating: Sendable {
         brief: OutingBrief,
         evidence: [GroundedVenue],
         slots: [CurationSlot],
+        relaxations: [PlanRelaxation],
         runID: PlanningRunID,
         now: Date
     ) throws -> WandrPlan

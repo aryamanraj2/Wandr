@@ -23,7 +23,7 @@ struct FreeTextSummaryExtractorTests {
     private func empty() -> Extracted {
         Extracted(
             outingType: nil, dateOrDay: nil, time: nil, area: nil, groupSize: nil,
-            budgetPerHead: nil, plannedStops: nil, dietary: nil, accessibility: nil,
+            budget: nil, plannedStops: nil, stops: nil, dietary: nil, accessibility: nil,
             vibe: nil, indoorOutdoor: nil, otherNotes: nil
         )
     }
@@ -210,11 +210,11 @@ struct FreeTextSummaryExtractorTests {
         var extracted = empty()
         extracted.area = "Cyber Hub"
         extracted.groupSize = 6
-        extracted.budgetPerHead = "1500"
+        extracted.budget = "1500"
 
         let payload = FreeTextSummaryExtractor.payload(from: extracted)
 
-        #expect(Set(payload.settledFieldNames) == ["area", "groupSize", "budgetPerHead"])
+        #expect(Set(payload.settledFieldNames) == ["area", "groupSize", "budget"])
     }
 
     @Test("An empty answer settles nothing")
@@ -233,7 +233,7 @@ struct FreeTextSummaryExtractorTests {
         extracted.outingType = "get-together"
         extracted.area = "Khan Market"
         extracted.groupSize = 8
-        extracted.budgetPerHead = "around 1500"
+        extracted.budget = "around 1500"
         extracted.vibe = "somewhere lively"
         extracted.dateOrDay = "Saturday"
 

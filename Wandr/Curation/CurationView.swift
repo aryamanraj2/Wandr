@@ -33,7 +33,9 @@ struct CurationView: View {
 
     /// Per-category window [start...end] in minutes, so the squad's winners land
     /// inside the group's real window on the schedule. Empty ⇒ category defaults.
-    private let slotWindows: [StopCategory: ClosedRange<Int>]
+    /// Keyed by `Deck.slotID`, not category: a plan can hold both lunch and dinner,
+    /// and looking their window up by `.food` would give both the same hour.
+    private let slotWindows: [String: ClosedRange<Int>]
 
     /// Preview / design-pass entry point: the hardcoded demo decks, no window.
     init(groupSize: Int? = nil) {
@@ -49,7 +51,7 @@ struct CurationView: View {
         decks: [Deck],
         groupSize: Int?,
         banner: String?,
-        slotWindows: [StopCategory: ClosedRange<Int>]
+        slotWindows: [String: ClosedRange<Int>]
     ) {
         _decks = State(initialValue: decks)
         self.groupSize = groupSize
@@ -233,12 +235,12 @@ struct CurationView: View {
         from winners: [(slotID: String, candidate: Candidate)]
     ) -> [ScheduleBlock] {
         let day = DemoPlan.days[0]
-        return winners.map { _, candidate in
+        return winners.map { slotID, candidate in
             // A window-shaped plan places the block inside the group's real window
             // and clamps its length to fit; an open plan uses the category default.
             let start: Int
             let duration: Int
-            if let window = slotWindows[candidate.category] {
+            if let window = slotWindows[slotID] {
                 start = window.lowerBound
                 duration = min(90, max(30, window.upperBound - window.lowerBound))
             } else {

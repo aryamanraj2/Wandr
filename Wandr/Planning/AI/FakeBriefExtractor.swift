@@ -49,7 +49,7 @@ nonisolated struct FakeBriefExtractor: BriefExtracting, Sendable {
         timeWindow: OutingTimeWindow(dayLabel: "Friday"),
         area: "Hauz Khas",
         groupSize: 6,
-        budgetPerHeadRupees: 1_500,
+        budget: .perHead(rupees: 1_500),
         vibeTags: ["music"]
     )
 
@@ -75,7 +75,7 @@ nonisolated struct FakeBriefExtractor: BriefExtracting, Sendable {
     static let impossibleBudgetDraft = OutingBriefDraft(
         occasion: "dinner and club",
         groupSize: 10,
-        budgetPerHeadRupees: 200
+        budget: .perHead(rupees: 200)
     )
 
     // MARK: - Dispatch

@@ -11,31 +11,25 @@
 //  Foundation only — no FoundationModels — so the whole deck contract is unit
 //  testable without a device, a model, or Apple Intelligence being switched on.
 //
-//  ## The two ways a deck kills a run
+//  ## The one way a deck can still kill a run
 //
-//  `FeasibilityValidator` fails the **entire run**, not the slot, when either of
-//  these is true of any deck it is handed:
+//  Depth and budget no longer end anything — a thin deck is a thin deck, and a price
+//  over the host's ceiling is a note on the card. What `FeasibilityValidator` still
+//  fails the **entire run** over is venue *reuse*: the same place in two stops.
 //
-//    1. **Rule 6, depth** — fewer than `minimumCandidatesPerSlot` candidates while
-//       the category had enough venues to do better.
-//    2. **Rule 4, budget** — any candidate whose *known* per-head price is above the
-//       host's ceiling.
-//
-//  A language model honours neither reliably, and `.prefix(n)` honours the second
-//  by luck. So neither is left to chance here: this type fills depth from the
-//  provider's own ranking, and treats over-budget venues as a last resort.
+//  That rule became reachable the moment a plan could hold two stops of one category
+//  ("lunch and dinner"), because both decks draw from an identical pool. Preventing
+//  it is this type's job — `excluding:` drops what an earlier stop took, and `limit:`
+//  stops the first deck swallowing the whole pool so the second still has something.
+//  The validator only *detects* the collision; by then the host has lost their plan.
 //
 //  ## Why over-budget venues are not simply filtered out
 //
-//  Because "we couldn't find anything in your budget" is a *better* answer than
-//  "that plan didn't hold up", and only the validator can say it. If a category has
-//  enough in-budget venues, an over-budget one has no business in the deck. If it
-//  has none, the deck is built from over-budget venues *on purpose* so the validator
-//  can name the ceiling the host set and tell them to widen it.
-//
-//  That is the same shape as the surveyed-and-contradicted rule in
-//  `ConstraintEligibility`: prefer what provably fits, but never manufacture a
-//  silence where a specific, actionable message belongs.
+//  Ordering, not exclusion: `budgetPreferred` puts affordable venues first and keeps
+//  the rest as a tail. `EvidenceResolver` has already decided whether the ceiling had
+//  to be given up at all, and discloses it when so; this type just makes sure the
+//  cheap ones are seen first. An unknown price counts as affordable — the validator
+//  warns about the missing price rather than assuming the worst.
 //
 
 import Foundation
@@ -98,12 +92,12 @@ nonisolated struct SlotDeckBuilder: Sendable {
     /// validator warns about it rather than failing, so it must not be demoted
     /// below a venue that is *known* to break the ceiling.
     func budgetPreferred(_ venues: [GroundedVenue], for brief: OutingBrief) -> [GroundedVenue] {
-        guard let limit = brief.budgetPerHead.value.limitRupees else { return venues }
+        guard let ceiling = brief.budget.value.ceilingPerHead(for: brief.groupSize.value) else { return venues }
 
         var affordable: [GroundedVenue] = []
         var overBudget: [GroundedVenue] = []
         for venue in venues {
-            if let perHead = venue.cost.knownPerHeadRupees, perHead > limit {
+            if let perHead = venue.cost.knownPerHeadRupees, perHead > ceiling {
                 overBudget.append(venue)
             } else {
                 affordable.append(venue)
@@ -128,13 +122,28 @@ nonisolated struct SlotDeckBuilder: Sendable {
     ///   - rationales: optional prose per index, keyed the same way. A missing or
     ///     blank entry simply yields no rationale.
     ///   - venues: the slot's eligible evidence, already in provider rank order.
+    ///   - excluding: venues already spent on an earlier stop.
+    ///
+    ///     This is what keeps lunch and dinner from being the same restaurant. Two
+    ///     stops of one category draw from an identical pool, so without it the same
+    ///     place lands in both decks — and `FeasibilityValidator`'s no-reuse rule then
+    ///     fails the *whole run* with "The same place was picked for two different
+    ///     stops". That rule detects the collision; only this prevents it.
+    ///   - limit: a tighter ceiling than `maxCandidatesPerSlot` for this deck alone.
+    ///
+    ///     Set when a later stop shares this one's category and needs venues left for
+    ///     it. Without it the first deck takes the whole pool and the second is
+    ///     skipped for having nothing — so "lunch and dinner" quietly became lunch.
     func build(
         preferredIndices: [Int],
         rationales: [Int: String] = [:],
         venues: [GroundedVenue],
-        brief: OutingBrief
+        brief: OutingBrief,
+        excluding spent: Set<VenueID> = [],
+        limit: Int? = nil
     ) -> Deck {
-        let ordered = budgetPreferred(venues, for: brief)
+        let ceiling = min(limit ?? maxCandidatesPerSlot, maxCandidatesPerSlot)
+        let ordered = budgetPreferred(venues.filter { !spent.contains($0.venueID) }, for: brief)
 
         // The curator was shown `venues`, so its indices address that array — but the
         // deck is drawn from `ordered`. Resolving through the venue ID rather than the
@@ -148,7 +157,7 @@ nonisolated struct SlotDeckBuilder: Sendable {
         var overBudget = 0
 
         for index in preferredIndices {
-            guard candidates.count < maxCandidatesPerSlot else { break }
+            guard candidates.count < ceiling else { break }
 
             guard venues.indices.contains(index) else {
                 outOfRange += 1
@@ -157,15 +166,20 @@ nonisolated struct SlotDeckBuilder: Sendable {
 
             let venue = venues[index]
 
+            // Checked before the budget test so the counts stay honest: a pick that
+            // an earlier stop already took is a duplicate, not an expensive one, and
+            // a rising `rejectedOverBudget` is supposed to mean the model has stopped
+            // reading prices.
+            guard !spent.contains(venue.venueID), !taken.contains(venue.venueID) else {
+                duplicate += 1
+                continue
+            }
+
             // Silently dropping a pick the budget rules out is correct here: the
             // curator only ever ranks, and a deck it over-filled is still a deck the
             // validator would have destroyed the whole run over.
             guard allowed.contains(venue.venueID) else {
                 overBudget += 1
-                continue
-            }
-            guard !taken.contains(venue.venueID) else {
-                duplicate += 1
                 continue
             }
 
@@ -186,7 +200,7 @@ nonisolated struct SlotDeckBuilder: Sendable {
         // complete slate instead of a visibly stunted one.
         if candidates.count < minimumCandidatesPerSlot {
             for venue in ordered {
-                guard candidates.count < maxCandidatesPerSlot else { break }
+                guard candidates.count < ceiling else { break }
                 guard !taken.contains(venue.venueID) else { continue }
                 taken.insert(venue.venueID)
                 candidates.append(
@@ -211,8 +225,13 @@ nonisolated struct SlotDeckBuilder: Sendable {
 
     /// The deck a curator with no opinion would produce: the provider's ranking,
     /// budget-preferred, capped. Used when there is nothing to curate.
-    func deterministicDeck(venues: [GroundedVenue], brief: OutingBrief) -> Deck {
-        build(preferredIndices: [], venues: venues, brief: brief)
+    func deterministicDeck(
+        venues: [GroundedVenue],
+        brief: OutingBrief,
+        excluding spent: Set<VenueID> = [],
+        limit: Int? = nil
+    ) -> Deck {
+        build(preferredIndices: [], venues: venues, brief: brief, excluding: spent, limit: limit)
     }
 
     // MARK: - Helpers

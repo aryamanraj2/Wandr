@@ -61,17 +61,31 @@ nonisolated struct FakeItineraryCurator: ItineraryCurating, Sendable {
         if let failure { throw failure }
         if misbehavior == .returnNothing { return [] }
 
-        // Venues the evidence *proves* incompatible with a hard constraint are
-        // dropped. Venues that were merely never surveyed are kept — the validator
-        // turns those into warnings, and dropping them here would hide the gap.
-        let eligible = evidence.filter { isEligible($0, for: brief) }
+        // Deliberately *not* filtered here. `EvidenceResolver` runs before any
+        // curator and has already applied the hard constraints and given up whatever
+        // soft ones it had to; filtering again would make this fake stricter than
+        // production, which is the exact failure this file exists to prevent — a
+        // test passing against a rule the real curator doesn't apply.
+        let eligible = evidence
 
         var slots: [CurationSlot] = []
 
         let builder = SlotDeckBuilder(maxCandidatesPerSlot: maxCandidatesPerSlot)
 
-        for category in SlotCategory.allCases {
-            let inCategory = eligible.filter { $0.category == category }
+        // The same schedule production uses, so the fake produces the same *shape* of
+        // plan — including two stops of one category when the host asked for both.
+        let schedule = SlotSchedule.compute(
+            for: brief.timeWindow.value,
+            requesting: brief.requestedStops
+        )
+
+        // Mirrors production: two stops of one category must not share a venue.
+        var spent: Set<VenueID> = []
+
+        for feasible in schedule.slots {
+            let inCategory = eligible.filter {
+                $0.category == feasible.category && !spent.contains($0.venueID)
+            }
             guard !inCategory.isEmpty else { continue }
 
             // Through `SlotDeckBuilder`, so the fake is held to the same deck rules
@@ -79,7 +93,16 @@ nonisolated struct FakeItineraryCurator: ItineraryCurating, Sendable {
             // over-budget venues whenever the dataset happened to list an expensive
             // one early, which failed the whole run — a real bug the real curator
             // shared, and one no test could catch while the two disagreed.
-            var picks = builder.deterministicDeck(venues: inCategory, brief: brief)
+            // Same reservation rule as production.
+            let laterSharing = schedule.slots
+                .drop { $0.band != feasible.band }
+                .dropFirst()
+                .count { $0.category == feasible.category }
+
+            var picks = builder.deterministicDeck(
+                venues: inCategory, brief: brief, excluding: spent,
+                limit: max(1, inCategory.count - laterSharing)
+            )
                 .candidates
                 .compactMap { candidate in inCategory.first { $0.venueID == candidate.venueID } }
 
@@ -88,6 +111,7 @@ nonisolated struct FakeItineraryCurator: ItineraryCurating, Sendable {
             }
 
             var venueIDs = picks.map(\.venueID)
+            if misbehavior != .duplicateAcrossSlots { spent.formUnion(venueIDs) }
 
             switch misbehavior {
             case .inventVenue:
@@ -105,9 +129,8 @@ nonisolated struct FakeItineraryCurator: ItineraryCurating, Sendable {
 
             slots.append(
                 CurationSlot(
-                    slotID: SlotID(category.rawValue),
-                    category: category,
-                    title: Self.title(for: category),
+                    band: feasible.band,
+                    title: feasible.title,
                     candidates: venueIDs.enumerated().map { index, venueID in
                         CuratedCandidate(
                             venueID: venueID,

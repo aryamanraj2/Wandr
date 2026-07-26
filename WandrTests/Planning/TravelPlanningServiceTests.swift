@@ -227,9 +227,30 @@ struct TravelPlanningServiceTests {
         }
     }
 
-    @Test("A thin category fails with insufficientEvidence")
-    func thinAreaProducesInsufficientEvidence() async throws {
+    /// Research found nothing at all — the only state from which no plan can exist.
+    private struct EmptyResearcher: VenueResearching {
+        func research(for brief: OutingBrief) async throws -> VenueResearchResult {
+            VenueResearchResult(venues: [])
+        }
+    }
+
+    @Test("A thin category still plans, with whatever it found")
+    func thinAreaStillPlans() async throws {
         let service = try service(researcher: ThinResearcher())
+        let run = try await service.plan(Fixtures.input(Fixtures.Request.afterWork))
+
+        // A neighbourhood with two restaurants is a small neighbourhood, not a
+        // broken request. Showing both beats sending the host back to the start.
+        #expect(run.state == .ready)
+        let plan = try #require(run.plan)
+        #expect(!plan.slots.isEmpty)
+    }
+
+    /// The one surviving `insufficientEvidence` path: the ladder ran out and there
+    /// is genuinely nothing to show. Only here is "widen the area" true advice.
+    @Test("Nothing at all in the snapshot is the one honest evidence failure")
+    func emptyEvidenceFailsHonestly() async throws {
+        let service = try service(researcher: EmptyResearcher())
         let run = try await service.plan(Fixtures.input(Fixtures.Request.afterWork))
 
         #expect(run.state == .failed)
@@ -239,21 +260,8 @@ struct TravelPlanningServiceTests {
             Issue.record("Expected .insufficientEvidence, got \(failure.category)")
             return
         }
-        #expect(!details.isEmpty)
-        #expect(details.allSatisfy { $0.found < $0.required })
+        #expect(details.allSatisfy { $0.found == 0 })
         #expect(failure.retryAction == .editRequest)
-    }
-
-    @Test("The thin-category failure names the category that came up short")
-    func insufficientEvidenceNamesTheCategory() async throws {
-        let service = try service(researcher: ThinResearcher())
-        let run = try await service.plan(Fixtures.input(Fixtures.Request.afterWork))
-
-        guard case .insufficientEvidence(let details) = run.failure?.category else {
-            Issue.record("Expected .insufficientEvidence")
-            return
-        }
-        #expect(details.contains { $0.category == .food })
     }
 
     // MARK: - 5. Validation failure
@@ -322,38 +330,44 @@ struct TravelPlanningServiceTests {
 
     /// §13.4's split: with a *deep* real evidence snapshot, a thin deck is the
     /// curator's fault, not research's — and must report as such.
-    @Test("A deliberately under-picking curator reports insufficientCandidates, not insufficientEvidence")
-    func underPickingBlamesCurationNotEvidence() async throws {
+    @Test("An under-picking curator produces a thin plan, not a failed run")
+    func underPickingStillPlans() async throws {
         let service = try service(curator: FakeItineraryCurator(misbehavior: .underPick))
         let run = try await service.plan(Fixtures.input(Fixtures.Request.afterWork))
 
-        #expect(run.state == .failed)
-        guard case .validationFailed(let violations) = run.failure?.category else {
-            Issue.record("Expected .validationFailed, got \(String(describing: run.failure?.category))")
-            return
-        }
-        #expect(violations.contains { violation in
-            if case .insufficientCandidates = violation { return true }
+        // This used to be `.failed` with `insufficientCandidates`. A model that
+        // under-picks is a model doing a worse job, not a reason to give the host
+        // nothing — the shortfall is now a warning they can see.
+        #expect(run.state == .ready)
+        let plan = try #require(run.plan)
+        #expect(!plan.slots.isEmpty)
+        #expect(plan.warnings.contains {
+            if case .thinDeck = $0.kind { return true }
             return false
         })
     }
 
-    @Test("An over-budget pick fails validation with the named ceiling")
-    func overBudgetFailsValidation() async throws {
-        // The impossible-budget request: ₹200 a head against a real dataset.
+    /// The reported screenshot, end to end. A budget nothing in the dataset can meet
+    /// used to end the run with "over your ₹200 limit" and a Try again button that
+    /// could only ever produce the same dead end.
+    @Test("An unmeetable budget still produces a plan, with the compromise disclosed")
+    func unmeetableBudgetRelaxesRatherThanFailing() async throws {
         let service = try service()
         let run = try await service.plan(Fixtures.input(Fixtures.Request.impossibleBudget))
 
-        #expect(run.state == .failed)
-        guard case .validationFailed(let violations) = run.failure?.category else {
-            Issue.record("Expected .validationFailed, got \(String(describing: run.failure?.category))")
-            return
-        }
-        #expect(violations.contains { violation in
-            if case .overBudget = violation { return true }
+        #expect(run.state == .ready, "A tight budget must never be a dead end")
+
+        let plan = try #require(run.plan)
+        #expect(!plan.slots.isEmpty)
+
+        let given = try #require(plan.relaxations.first { $0.constraint == .budget })
+        #expect(given.disclosure.contains("₹200"), "The host is told which ceiling was given up")
+
+        // And every card that broke it says so on its own face.
+        #expect(plan.warnings.contains {
+            if case .overBudget = $0.kind { return true }
             return false
         })
-        #expect(run.failure?.retryAction == .retrySameRequest)
     }
 
     // MARK: - 6. Cancellation before research
@@ -528,16 +542,6 @@ struct TravelPlanningServiceTests {
     func fixtureInjectionIsReady() async throws {
         let run = try await service().plan(Fixtures.input(Fixtures.Request.injection))
         #expect(run.state == .ready)
-    }
-
-    @Test("Impossible budget fails validation")
-    func fixtureImpossibleBudgetFails() async throws {
-        let run = try await service().plan(Fixtures.input(Fixtures.Request.impossibleBudget))
-        #expect(run.state == .failed)
-        guard case .validationFailed = run.failure?.category else {
-            Issue.record("Expected .validationFailed, got \(String(describing: run.failure?.category))")
-            return
-        }
     }
 
     @Test("Blank never leaves idle")

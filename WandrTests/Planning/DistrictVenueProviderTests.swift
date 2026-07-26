@@ -286,7 +286,8 @@ struct DistrictVenueProviderTests {
 
         #expect(result.venues.count == provider.allVenues.count, "Budget must not drop venues")
 
-        let limit = try #require(Fixtures.impossibleBudgetBrief.budgetPerHead.value.limitRupees)
+        let brief = Fixtures.impossibleBudgetBrief
+        let limit = try #require(brief.budget.value.ceilingPerHead(for: brief.groupSize.value))
         let overBudgetFlags = result.venues.map { venue -> Bool in
             guard let perHead = venue.cost.knownPerHeadRupees else { return false }
             return perHead > limit

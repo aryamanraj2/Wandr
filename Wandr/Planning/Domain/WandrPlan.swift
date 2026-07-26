@@ -66,15 +66,24 @@ nonisolated struct CuratedCandidate: Sendable, Equatable, Identifiable {
 nonisolated struct CurationSlot: Sendable, Equatable, Identifiable {
     var id: SlotID { slotID }
 
+    /// Derived from the band, so two stops of the same category are two slots.
+    ///
+    /// This used to be the *category's* raw value, which meant lunch and dinner
+    /// were one `SlotID` — the single line that made "lunch and dinner, nothing in
+    /// between" impossible to express. It also silently collided in the squad poll,
+    /// where two food decks would have voted into the same ballot.
     let slotID: SlotID
-    let category: SlotCategory
+    /// Which row of the band table this stop is.
+    let band: SlotBand
     /// The human name for this slot, e.g. "Dinner".
     let title: String
     let candidates: [CuratedCandidate]
 
-    init(slotID: SlotID, category: SlotCategory, title: String, candidates: [CuratedCandidate]) {
-        self.slotID = slotID
-        self.category = category
+    var category: SlotCategory { band.category }
+
+    init(band: SlotBand, title: String, candidates: [CuratedCandidate]) {
+        self.slotID = SlotID(band.rawValue)
+        self.band = band
         self.title = title
         self.candidates = candidates
     }
@@ -107,6 +116,15 @@ nonisolated struct PlanWarning: Sendable, Equatable, Hashable {
         case unknownHours(VenueID)
         /// A provider-stated caveat, carried through verbatim.
         case providerLimitation(VenueID, detail: String)
+        /// This place costs more per head than the host's ceiling works out to.
+        ///
+        /// A warning rather than a violation. `EvidenceResolver` only lets one of
+        /// these reach a deck when the alternative was an empty deck, so failing the
+        /// run on it meant failing every host whose budget was tight — which is
+        /// exactly the group most in need of being shown their options.
+        case overBudget(VenueID, perHeadRupees: Int, ceilingPerHead: Int)
+        /// The deck has fewer options than Wandr aims for. Not slot-fatal.
+        case thinDeck(required: Int, found: Int)
     }
 
     let kind: Kind
@@ -118,8 +136,9 @@ nonisolated struct PlanWarning: Sendable, Equatable, Hashable {
         self.slotID = slotID
     }
 
-    /// The venue this warning is about.
-    var venueID: VenueID {
+    /// The venue this warning is about, when it is about one. `nil` for warnings
+    /// that describe the deck rather than a place in it.
+    var venueID: VenueID? {
         switch kind {
         case .unknownCost(let id),
              .unverifiedDietary(let id, _),
@@ -128,8 +147,11 @@ nonisolated struct PlanWarning: Sendable, Equatable, Hashable {
              .unknownAvailability(let id),
              .venueUnavailable(let id, _),
              .unknownHours(let id),
-             .providerLimitation(let id, _):
+             .providerLimitation(let id, _),
+             .overBudget(let id, _, _):
             return id
+        case .thinDeck:
+            return nil
         }
     }
 
@@ -154,6 +176,12 @@ nonisolated struct PlanWarning: Sendable, Equatable, Hashable {
             return "We don't have opening hours for this one."
         case .providerLimitation(_, let detail):
             return detail
+        case .overBudget(_, let perHead, let ceiling):
+            return "₹\(perHead) a head — over the ₹\(ceiling) this works out to."
+        case .thinDeck(_, let found):
+            return found == 1
+                ? "Only one option here that fits."
+                : "Only \(found) options here that fit."
         }
     }
 }
@@ -184,6 +212,9 @@ nonisolated struct WandrPlan: Sendable, Equatable, Identifiable {
     let slots: [CurationSlot]
     /// Every warning validation produced. These are mandatory on the plan.
     let warnings: [PlanWarning]
+    /// Constraints Wandr had to give up to produce a plan at all, each with the
+    /// sentence the host is owed. Empty when the request was satisfied exactly.
+    let relaxations: [PlanRelaxation]
     /// Every venue ID this plan is grounded in, sorted for determinism.
     let evidenceIDs: [VenueID]
     let evidenceSources: [EvidenceSource]
@@ -196,6 +227,7 @@ nonisolated struct WandrPlan: Sendable, Equatable, Identifiable {
         brief: OutingBrief,
         slots: [CurationSlot],
         warnings: [PlanWarning],
+        relaxations: [PlanRelaxation] = [],
         evidenceIDs: [VenueID],
         evidenceSources: [EvidenceSource],
         revision: PlanRevisionMetadata = .first,
@@ -206,6 +238,7 @@ nonisolated struct WandrPlan: Sendable, Equatable, Identifiable {
         self.brief = brief
         self.slots = slots
         self.warnings = warnings
+        self.relaxations = relaxations
         self.evidenceIDs = evidenceIDs
         self.evidenceSources = evidenceSources
         self.revision = revision

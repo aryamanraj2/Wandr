@@ -217,6 +217,49 @@ struct SlotScheduleTests {
         #expect(schedule.feasibleCategories == [.sights, .discover, .food, .nightlife])
     }
 
+    // MARK: - Two stops of one category
+    //
+    // "if a user mentions a lunch and a dinner no in between fine — just show them
+    // lunch and a dinner". Impossible until slots stopped being keyed by category:
+    // both are `.food`, so one overwrote the other in the curator, the squad poll,
+    // and the schedule alike.
+
+    @Test("Lunch and dinner are two stops, with nothing in between")
+    func lunchAndDinnerAreTwoStops() throws {
+        let schedule = SlotSchedule.compute(for: .unknown, requesting: [.lunch, .dinner])
+
+        #expect(schedule.slots.map(\.band) == [.lunch, .dinner])
+        #expect(schedule.slots.map(\.title) == ["Lunch", "Dinner"])
+        #expect(schedule.feasibleCategories == [.food, .food])
+        #expect(!schedule.feasibleCategories.contains(.sights), "Nothing in between")
+        #expect(!schedule.feasibleCategories.contains(.nightlife))
+
+        // And they are still laid out in time order, not stacked.
+        let lunch = try #require(schedule.slot(band: .lunch))
+        let dinner = try #require(schedule.slot(band: .dinner))
+        #expect(lunch.endMinute <= dinner.startMinute)
+    }
+
+    /// `slot(for:)` answers "the first food stop", which is the wrong question once a
+    /// plan holds two of them.
+    @Test("A specific stop is reachable by band, not by category")
+    func bandLookupDisambiguates() throws {
+        let schedule = SlotSchedule.compute(for: .unknown, requesting: [.lunch, .dinner])
+
+        #expect(try #require(schedule.slot(band: .lunch)).title == "Lunch")
+        #expect(try #require(schedule.slot(band: .dinner)).title == "Dinner")
+    }
+
+    // MARK: - An unhonoured request is reported
+
+    @Test("A request the window cannot hold is reported, not silently dropped")
+    func unhonouredRequestIsFlagged() {
+        // Lunch, but free only 8–9 pm.
+        #expect(!SlotSchedule.compute(for: eightToNine, requesting: [.lunch]).requestHonoured)
+        #expect(SlotSchedule.compute(for: eightToNine, requesting: [.dinner]).requestHonoured)
+        #expect(SlotSchedule.compute(for: .unknown, requesting: []).requestHonoured)
+    }
+
     /// Bands used to be intersected with the window one at a time, so three of them
     /// could each claim the same ninety minutes and the schedule would promise three
     /// stops that all started at once.

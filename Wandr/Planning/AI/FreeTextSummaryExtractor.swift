@@ -84,14 +84,32 @@ nonisolated struct FreeTextSummaryExtractor: Sendable {
         @Guide(description: "How many people are going, as a whole number. Omit if not stated.")
         var groupSize: Int?
 
-        @Guide(description: "Budget per person as the number of rupees they said. Omit if not stated.")
-        var budgetPerHead: String?
+        // Copy the wording, not just the number. Whether the amount is each or for
+        // the whole group lives only in how they said it, and reading a bare number
+        // as per head invents the more permissive of the two — which is how two
+        // people with a shared budget were told an ordinary dinner was over it.
+        @Guide(description: "The money they said, copied in their own words, including whether it is each or for the group. Omit if not stated.")
+        var budget: String?
 
         // The kind-of-stop field. Without it the schema had no home for the single
         // most consequential word a host says — "lunch" — so the model dropped it and
         // the plan came back with a monument instead of a restaurant.
         @Guide(description: "What the host wants to do — the kinds of stop they asked for, copied in their own words. Omit if they did not say what they want to do.")
         var plannedStops: String?
+
+        // The same information as `plannedStops`, in a vocabulary the app can act on.
+        //
+        // This is the one job a small model is genuinely better at than the keyword
+        // table that used to do it: "something to eat before the movie" is a lunch,
+        // and no list of nouns will ever say so. The model classifies; Swift then
+        // checks every token against `SlotBand` and drops what it doesn't recognise,
+        // which is the same contract the venue picker runs under — the model ranks,
+        // deterministic code enforces.
+        //
+        // `[String]` rather than a `@Generable` enum for the reason documented on
+        // `outingType`: a non-frozen enum traps on a case the model invents.
+        @Guide(description: "The stops the host asked for, in the order they happen. Use only these words: lunch, afternoon, somethingNew, dinner, late. Use lunch for any daytime meal, dinner for an evening meal, late for drinks or a bar, afternoon for sightseeing or a walk, somethingNew for shopping or an activity. Omit if they did not say what they want to do.", .count(0...4))
+        var stops: [String]?
 
         @Guide(description: "Any dietary requirement the host stated. Omit if they mentioned none.")
         var dietary: String?
@@ -268,12 +286,13 @@ nonisolated struct FreeTextSummaryExtractor: Sendable {
             area: cleaned(extracted.area),
             // `BriefNormalizer` clamps this properly; this only rejects the absurd.
             groupSize: extracted.groupSize.flatMap { $0 > 0 && $0 <= 1_000 ? $0 : nil },
-            budgetPerHead: cleaned(extracted.budgetPerHead),
+            budget: cleaned(extracted.budget),
             dietary: unechoed(extracted.dietary, source: source),
             accessibility: unechoed(extracted.accessibility, source: source),
             vibe: unechoed(extracted.vibe, source: source),
             indoorOutdoor: unechoed(extracted.indoorOutdoor, source: source),
             plannedStops: cleaned(extracted.plannedStops),
+            stops: extracted.stops,
             otherNotes: cleaned(extracted.otherNotes)
         )
     }
@@ -372,7 +391,7 @@ nonisolated struct FreeTextSummaryExtractor: Sendable {
 
 // MARK: - Field names
 
-extension ChatSummaryPayload {
+nonisolated extension ChatSummaryPayload {
 
     /// The names of the fields that carry a value. Names only — safe to log, unlike
     /// the values, which are the host's own words.
@@ -383,12 +402,13 @@ extension ChatSummaryPayload {
         if time != nil { names.append("time") }
         if area != nil { names.append("area") }
         if groupSize != nil { names.append("groupSize") }
-        if budgetPerHead != nil { names.append("budgetPerHead") }
+        if budget != nil { names.append("budget") }
         if dietary != nil { names.append("dietary") }
         if accessibility != nil { names.append("accessibility") }
         if vibe != nil { names.append("vibe") }
         if indoorOutdoor != nil { names.append("indoorOutdoor") }
         if plannedStops != nil { names.append("plannedStops") }
+        if let stops, !stops.isEmpty { names.append("stops") }
         if otherNotes != nil { names.append("otherNotes") }
         return names
     }

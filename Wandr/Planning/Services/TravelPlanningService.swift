@@ -48,6 +48,11 @@ actor TravelPlanningService {
     private let scheduler: any ScheduleDrafting
     private let store: any PlanningRunStoring
 
+    /// Decides what the model is allowed to see, and what had to be given up to
+    /// leave it anything. Deterministic, so it is a concrete type rather than a
+    /// seam — there is nothing here a test would want to fake.
+    private let resolver = EvidenceResolver()
+
     /// Injected so tests get a fixed clock.
     private let now: @Sendable () -> Date
 
@@ -179,6 +184,32 @@ actor TravelPlanningService {
                 run.record(event)
             }
 
+            // MARK: Resolution
+            //
+            // Deterministic, and the reason a tight budget or a small neighbourhood
+            // no longer ends the run: constraints are given up one at a time, least
+            // important first, until the plan is possible — and every one given up
+            // is disclosed rather than quietly applied.
+            let resolution = resolver.resolve(brief: brief, evidence: research.venues)
+
+            guard !resolution.eligible.isEmpty else {
+                // The ladder is exhausted and there is still nothing. This is now the
+                // *only* thing "not enough places" can mean, which is what finally
+                // makes the message true.
+                throw PlanningFailure.insufficientEvidence(
+                    shortfalls(brief: brief, evidence: research.venues)
+                )
+            }
+
+            for relaxation in resolution.relaxations {
+                run.record(
+                    "Widened the search",
+                    detail: relaxation.disclosure,
+                    severity: .limitation,
+                    at: now()
+                )
+            }
+
             if let cancelled = honorCancellation(&run) { return cancelled }
 
             // MARK: Curation, then validation of what curation proposed
@@ -188,15 +219,16 @@ actor TravelPlanningService {
             // `.validating` phase means anything. Getting this backwards would
             // validate Step 4's curator against evidence it was never shown.
 
-            let slots = try await curator.curate(brief: brief, evidence: research.venues)
+            let slots = try await curator.curate(brief: brief, evidence: resolution.eligible)
 
             advance(&run, to: .validating)
             run.record("Checking the plan holds up", at: now())
 
             let plan = try validator.validate(
                 brief: brief,
-                evidence: research.venues,
+                evidence: resolution.eligible,
                 slots: slots,
+                relaxations: resolution.relaxations,
                 runID: run.id,
                 now: now()
             )
@@ -217,12 +249,35 @@ actor TravelPlanningService {
             )
 
             // Scheduling runs only once the run has reached `.ready`.
-            schedules[run.id] = try scheduler.draftSchedule(for: plan, evidence: research.venues)
+            schedules[run.id] = try scheduler.draftSchedule(for: plan, evidence: resolution.eligible)
 
             try? await store.store(plan)
 
             return run
         }
+    }
+
+    /// What the host is told when even a fully relaxed search found nothing.
+    ///
+    /// Counted per category the host actually asked for, so "we only found 1 food
+    /// option" names the thing they wanted rather than whichever category happened
+    /// to be thinnest.
+    private func shortfalls(
+        brief: OutingBrief,
+        evidence: [GroundedVenue]
+    ) -> [PlanningFailure.InsufficientEvidenceDetail] {
+        let wanted = Set(brief.requestedStops.map(\.category))
+        let categories = wanted.isEmpty ? Set(SlotCategory.allCases) : wanted
+
+        return categories
+            .sorted { $0.rawValue < $1.rawValue }
+            .map { category in
+                PlanningFailure.InsufficientEvidenceDetail(
+                    category: category,
+                    required: 1,
+                    found: evidence.count { $0.category == category }
+                )
+            }
     }
 
     // MARK: - Cancellation

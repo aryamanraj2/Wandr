@@ -106,26 +106,62 @@ nonisolated struct GroupSize: Sendable, Equatable, Hashable {
     }
 }
 
-/// Per-head budget in rupees.
+/// A budget ceiling in rupees, carrying the basis the host actually stated.
+///
+/// The basis is the whole point of this type. It used to be a bare per-head number,
+/// which meant a host who typed "2000" had that read as ₹2000 *each* — a constraint
+/// they never stated — and then compared against a venue's per-head price. Two
+/// people with ₹2000 between them were told a perfectly ordinary dinner was "over
+/// your ₹2000 limit", and the run dead-ended on it.
 ///
 /// Never a guessed precise price: either the host gave a ceiling, or there isn't one.
-nonisolated enum BudgetPerHead: Sendable, Equatable, Hashable {
-    static let supportedRange = 0...100_000
+nonisolated enum Budget: Sendable, Equatable, Hashable {
+    static let supportedRange = 0...1_000_000
 
     /// No budget ceiling is known. Cost checks are skipped; unknown costs still warn.
     case unspecified
-    /// A confirmed per-head ceiling in rupees.
-    case upTo(rupees: Int)
+    /// The host said this much *each* — "₹2000 a head", "2k pp".
+    case perHead(rupees: Int)
+    /// The host named a number without a basis, so it is the group's total.
+    /// Assuming per head would invent the more permissive of the two readings.
+    case total(rupees: Int)
 
     /// Clamps into the supported range rather than trusting model output.
-    static func clamping(rupees: Int) -> BudgetPerHead {
-        .upTo(rupees: min(max(rupees, supportedRange.lowerBound), supportedRange.upperBound))
+    static func clamping(rupees: Int, perHead: Bool) -> Budget {
+        let bounded = min(max(rupees, supportedRange.lowerBound), supportedRange.upperBound)
+        return perHead ? .perHead(rupees: bounded) : .total(rupees: bounded)
     }
 
-    var limitRupees: Int? {
+    /// The ceiling to compare a venue's price against.
+    ///
+    /// Venue costs in the dataset are always per head, so a group total has to be
+    /// divided before it means anything. This is the one place that division
+    /// happens — comparing a total against a per-head price is the bug this type
+    /// exists to make unrepresentable.
+    func ceilingPerHead(for groupSize: GroupSize) -> Int? {
+        switch self {
+        case .unspecified:          return nil
+        case .perHead(let rupees):  return rupees
+        case .total(let rupees):    return rupees / max(groupSize.people, 1)
+        }
+    }
+
+    /// The number the host said, whatever it meant. For display and logging only —
+    /// never compare this against a venue price.
+    var statedRupees: Int? {
+        switch self {
+        case .unspecified:         return nil
+        case .perHead(let rupees): return rupees
+        case .total(let rupees):   return rupees
+        }
+    }
+
+    /// How to describe the ceiling back to the host, in the terms they used.
+    var basisLabel: String? {
         switch self {
         case .unspecified: return nil
-        case .upTo(let rupees): return rupees
+        case .perHead:     return "per head"
+        case .total:       return "for the group"
         }
     }
 }
@@ -201,7 +237,9 @@ nonisolated struct OutingBriefDraft: Sendable, Equatable {
     var timeWindow: OutingTimeWindow
     var area: String?
     var groupSize: Int?
-    var budgetPerHeadRupees: Int?
+    /// The ceiling the host named, with the basis they named it in.
+    /// `nil` means they said nothing about money.
+    var budget: Budget?
     var vibeTags: [String]
     var dietary: DietaryNeeds
     var accessibility: AccessibilityNeeds
@@ -219,7 +257,7 @@ nonisolated struct OutingBriefDraft: Sendable, Equatable {
         timeWindow: OutingTimeWindow = .unknown,
         area: String? = nil,
         groupSize: Int? = nil,
-        budgetPerHeadRupees: Int? = nil,
+        budget: Budget? = nil,
         vibeTags: [String] = [],
         dietary: DietaryNeeds = .unknown,
         accessibility: AccessibilityNeeds = .unknown,
@@ -231,7 +269,7 @@ nonisolated struct OutingBriefDraft: Sendable, Equatable {
         self.timeWindow = timeWindow
         self.area = area
         self.groupSize = groupSize
-        self.budgetPerHeadRupees = budgetPerHeadRupees
+        self.budget = budget
         self.vibeTags = vibeTags
         self.dietary = dietary
         self.accessibility = accessibility
@@ -257,7 +295,7 @@ nonisolated struct OutingBrief: Sendable, Equatable {
     let timeWindow: Sourced<OutingTimeWindow>
     let area: Sourced<String>
     let groupSize: Sourced<GroupSize>
-    let budgetPerHead: Sourced<BudgetPerHead>
+    let budget: Sourced<Budget>
 
     /// Soft preferences. These never gate evidence.
     let vibeTags: [String]
@@ -277,7 +315,7 @@ nonisolated struct OutingBrief: Sendable, Equatable {
         timeWindow: Sourced<OutingTimeWindow> = .safeDefault(.unknown),
         area: Sourced<String> = .safeDefault(OutingBrief.defaultArea),
         groupSize: Sourced<GroupSize> = .safeDefault(OutingBrief.defaultGroupSize),
-        budgetPerHead: Sourced<BudgetPerHead> = .safeDefault(.unspecified),
+        budget: Sourced<Budget> = .safeDefault(.unspecified),
         vibeTags: [String] = [],
         dietary: DietaryNeeds = .unknown,
         accessibility: AccessibilityNeeds = .unknown,
@@ -289,7 +327,7 @@ nonisolated struct OutingBrief: Sendable, Equatable {
         self.timeWindow = timeWindow
         self.area = area
         self.groupSize = groupSize
-        self.budgetPerHead = budgetPerHead
+        self.budget = budget
         self.vibeTags = vibeTags
         self.dietary = dietary
         self.accessibility = accessibility
@@ -305,7 +343,7 @@ nonisolated struct OutingBrief: Sendable, Equatable {
         if area.isSafeDefault { defaults.append(.area) }
         if timeWindow.isSafeDefault { defaults.append(.timeWindow) }
         if groupSize.isSafeDefault { defaults.append(.groupSize) }
-        if budgetPerHead.isSafeDefault { defaults.append(.budgetPerHead) }
+        if budget.isSafeDefault { defaults.append(.budget) }
         return defaults
     }
 }
@@ -317,7 +355,7 @@ nonisolated enum MissingConstraint: String, Sendable, Equatable, Hashable, CaseI
     case area
     case timeWindow
     case groupSize
-    case budgetPerHead
+    case budget
 }
 
 /// What `BriefNormalizing` returns: a usable brief, or the reason we need the host.

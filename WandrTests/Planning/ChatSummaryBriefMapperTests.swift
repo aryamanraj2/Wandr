@@ -228,6 +228,45 @@ struct ChatSummaryBriefMapperTests {
         #expect(ChatSummaryBriefMapper.requestedStops(from: payload).isEmpty)
     }
 
+    // MARK: - The model's own classification
+    //
+    // The keyword table is the fallback now. It can only ever recognise words
+    // somebody thought to list; "something to eat before the movie" is a lunch and
+    // no list of nouns will ever say so, which is the job the model does better.
+
+    @Test("A model-classified stop list is used in preference to the keywords")
+    func modelClassificationWins() {
+        var payload = ChatSummaryPayload()
+        payload.plannedStops = "something to eat before the movie"
+        payload.stops = ["lunch"]
+
+        #expect(ChatSummaryBriefMapper.requestedStops(from: payload) == [.lunch])
+    }
+
+    @Test("An invented token is dropped rather than trusted")
+    func invalidTokensAreDropped() {
+        var payload = ChatSummaryPayload()
+        payload.stops = ["lunch", "brunchtime", "karaoke", "dinner"]
+
+        #expect(ChatSummaryBriefMapper.requestedStops(from: payload) == [.lunch, .dinner])
+    }
+
+    @Test("Casing and spacing in a model token do not change the request")
+    func tokensAreNormalised() {
+        #expect(ChatSummaryBriefMapper.band(named: "Something New") == .somethingNew)
+        #expect(ChatSummaryBriefMapper.band(named: "  LUNCH ") == .lunch)
+        #expect(ChatSummaryBriefMapper.band(named: "supper") == nil)
+    }
+
+    @Test("With no usable classification, the keyword table still answers")
+    func keywordsAreTheFallback() {
+        var payload = ChatSummaryPayload()
+        payload.plannedStops = "lunch"
+        payload.stops = ["nonsense"]
+
+        #expect(ChatSummaryBriefMapper.requestedStops(from: payload) == [.lunch])
+    }
+
     @Test("The request reaches the draft")
     func requestReachesTheDraft() {
         var payload = ChatSummaryPayload()
@@ -271,6 +310,44 @@ struct ChatSummaryBriefMapperTests {
         #expect(lunch.windowLabel == "12:30 pm – 2:00 pm")
     }
 
+    /// The screenshot: "lunch", two people, ₹2000 — and a dead end reading "One pick
+    /// works out to ₹2400 a head, over your ₹2000 limit."
+    ///
+    /// Two separate defects produced that one sentence. Nothing established whether
+    /// ₹2000 was each or between them, so Wandr assumed the stricter reading and then
+    /// compared it against a per-head price; and being over the ceiling was fatal
+    /// rather than worth a note. Both are pinned here.
+    @Test("Two people with ₹2000 between them get a lunch plan, not a dead end")
+    func tightSharedBudgetStillPlans() throws {
+        var payload = ChatSummaryPayload()
+        payload.plannedStops = "lunch"
+        payload.groupSize = 2
+        payload.budget = "₹2000"
+
+        let draft = ChatSummaryBriefMapper().draft(from: payload)
+        #expect(draft.budget == .total(rupees: 2_000), "Unqualified is the group's total")
+        #expect(draft.requestedStops == [.lunch])
+
+        guard case .normalized(let brief) = try BriefNormalizer().normalize(draft) else {
+            Issue.record("Expected a normalized brief")
+            return
+        }
+        #expect(brief.budget.value.ceilingPerHead(for: brief.groupSize.value) == 1_000)
+
+        // One stop, and it is the meal they named.
+        let schedule = SlotSchedule.compute(
+            for: brief.timeWindow.value,
+            requesting: brief.requestedStops
+        )
+        #expect(schedule.slots.map(\.band) == [.lunch])
+
+        // And whatever the dataset offers, the plan is possible: the resolver gives
+        // up the ceiling rather than the outing, and says so.
+        let resolution = EvidenceResolver().resolve(brief: brief, evidence: Fixtures.evidence)
+        #expect(!resolution.eligible.isEmpty, "A tight budget must never empty the plan")
+        #expect(resolution.eligible.contains { $0.category == .food })
+    }
+
     /// The second report, and the harder half of it: the host said "lunch" and gave
     /// no time at all — just a group of two and a budget. They got a nightlife deck
     /// for 10 pm to 1 am.
@@ -284,7 +361,7 @@ struct ChatSummaryBriefMapperTests {
         var payload = ChatSummaryPayload()
         payload.plannedStops = "lunch"
         payload.groupSize = 2
-        payload.budgetPerHead = "₹3000"
+        payload.budget = "₹3000"
 
         let draft = ChatSummaryBriefMapper().draft(from: payload)
         guard case .normalized(let brief) = try BriefNormalizer().normalize(draft) else {
@@ -314,7 +391,7 @@ struct ChatSummaryBriefMapperTests {
             time: "free only 8-9pm",
             area: "CP",
             groupSize: 8,
-            budgetPerHead: "₹1500",
+            budget: "₹1500",
             dietary: "vegetarian",
             accessibility: nil,
             vibe: "loud and fun",
@@ -326,7 +403,9 @@ struct ChatSummaryBriefMapperTests {
 
         #expect(draft.area == "CP")
         #expect(draft.groupSize == 8)
-        #expect(draft.budgetPerHeadRupees == 1_500)
+        // "₹1500" with no "each" is the group's total — reading it as per head
+        // would invent the more permissive of the two readings.
+        #expect(draft.budget == .total(rupees: 1_500))
         #expect(draft.dietary == .required([.vegetarian]))
         #expect(draft.setting == .indoor)
         #expect(draft.timeWindow.earliestStartMinute == 20 * 60)
@@ -340,7 +419,7 @@ struct ChatSummaryBriefMapperTests {
         let draft = mapper.draft(from: ChatSummaryPayload())
         #expect(draft.area == nil)
         #expect(draft.groupSize == nil)
-        #expect(draft.budgetPerHeadRupees == nil)
+        #expect(draft.budget == nil)
         #expect(draft.dietary == .unknown)
         #expect(draft.timeWindow.isUnknown)
     }

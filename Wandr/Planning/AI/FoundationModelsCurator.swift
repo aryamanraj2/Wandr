@@ -23,17 +23,17 @@
 //
 //  ## The model ranks; this file guarantees the contract
 //
-//  `FeasibilityValidator` requires `minimumCandidatesPerSlot` candidates in every
-//  deck and fails the *whole run* when a deck is thinner than that. A language model
-//  cannot be made to honour that reliably — it will occasionally return two picks,
-//  or an out-of-range index, or the same index twice, and every one of those used to
-//  end the run with "Wandr couldn't make sense of that request".
+//  A language model cannot be made to return exactly N valid, distinct, in-range
+//  picks — it will occasionally return two, or an out-of-range index, or the same
+//  index twice. Every one of those used to end the run with "Wandr couldn't make
+//  sense of that request".
 //
 //  So the model no longer gates the run. Its output is a *preference ordering* over
 //  a list this file already has; whatever it fails to supply is filled from the
 //  provider's own deterministic rank (cheapest-in-budget first, stable tiebreak).
-//  A run can now only fail when the evidence is genuinely too thin — which is an
-//  honest failure the host can act on ("widen the area or budget").
+//  A thin deck is now shown as a thin deck rather than failing anything, and a run
+//  can only fail when there was no evidence at all — an honest outcome the host can
+//  act on ("widen the area").
 //
 //  That means model regressions go quiet instead of loud, so they are counted
 //  instead: `CuratorTelemetry.recordSlotFilled` reports every backfilled card.
@@ -144,9 +144,12 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
                 requesting: brief.requestedStops
             )
 
-            // Drop venues the evidence *proves* incompatible; keep the unverified ones
-            // (the validator warns on those).
-            let eligible = evidence.filter { ConstraintEligibility.isEligible($0, for: brief) }
+            // Already filtered. `EvidenceResolver` applied the hard constraints *and*
+            // decided which soft ones had to be given up, so re-filtering here would
+            // quietly re-impose the very constraint it just relaxed — a venue kept
+            // because the alternative was an empty deck would be dropped again, and
+            // the disclosure the host was shown would be a lie.
+            let eligible = evidence
 
             // `areas` is the tell for a mis-resolved neighbourhood: a host who named
             // one place and gets `areas=7` is being planned across the whole city.
@@ -173,10 +176,18 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
 
             var slots: [CurationSlot] = []
 
+            // Venues an earlier stop already took. A plan can hold two stops of one
+            // category — lunch and dinner — and they draw from the identical pool, so
+            // without this the same restaurant lands in both and the validator's
+            // no-reuse rule ends the run on Wandr's own mistake.
+            var spent: Set<VenueID> = []
+
             for feasibleSlot in schedule.slots {
                 try Task.checkCancellation()
 
-                let inCategory = eligible.filter { $0.category == feasibleSlot.category }
+                let inCategory = eligible.filter {
+                    $0.category == feasibleSlot.category && !spent.contains($0.venueID)
+                }
                 guard !inCategory.isEmpty else {
                     // Not a failure — but it silently removes a deck, so it is the
                     // first thing to look for when a plan comes back short.
@@ -184,7 +195,22 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
                     continue
                 }
 
-                let candidates = await candidates(for: feasibleSlot, from: inCategory, brief: brief)
+                // Leave at least one venue for every later stop sharing this
+                // category, or the lunch deck takes the whole pool and dinner is
+                // dropped for having nothing left.
+                let laterSharing = schedule.slots
+                    .drop { $0.band != feasibleSlot.band }
+                    .dropFirst()
+                    .count { $0.category == feasibleSlot.category }
+
+                let candidates = await candidates(
+                    for: feasibleSlot,
+                    from: inCategory,
+                    brief: brief,
+                    spent: spent,
+                    limit: max(1, inCategory.count - laterSharing)
+                )
+                spent.formUnion(candidates.map(\.venueID))
 
                 // A slot that produced nothing at all is left out — the validator turns
                 // a genuinely thin category into an honest `insufficientEvidence` failure.
@@ -195,8 +221,7 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
 
                 slots.append(
                     CurationSlot(
-                        slotID: SlotID(feasibleSlot.category.rawValue),
-                        category: feasibleSlot.category,
+                        band: feasibleSlot.band,
                         title: feasibleSlot.title,
                         candidates: candidates
                     )
@@ -224,7 +249,9 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
     private func candidates(
         for slot: SlotSchedule.FeasibleSlot,
         from venues: [GroundedVenue],
-        brief: OutingBrief
+        brief: OutingBrief,
+        spent: Set<VenueID>,
+        limit: Int
     ) async -> [CuratedCandidate] {
 
         let category = slot.category.rawValue
@@ -234,7 +261,7 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
         // is both faster and more correct than asking it to rank a list it cannot
         // meaningfully shorten.
         guard venues.count > minimumCandidatesPerSlot else {
-            let deck = deckBuilder.deterministicDeck(venues: venues, brief: brief)
+            let deck = deckBuilder.deterministicDeck(venues: venues, brief: brief, excluding: spent, limit: limit)
             log.event("SLOT-DONE category=\(category) source=deterministic reason=nothingToRank \(deck.summary)")
             return deck.candidates
         }
@@ -257,7 +284,9 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
             preferredIndices: modelPicks.map(\.index),
             rationales: rationales,
             venues: venues,
-            brief: brief
+            brief: brief,
+            excluding: spent,
+            limit: limit
         )
 
         // A backfilled deck is the app working as designed *and* the model failing to
@@ -460,8 +489,12 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
     static func groupLine(brief: OutingBrief, slot: SlotSchedule.FeasibleSlot) -> String {
         var parts: [String] = [brief.occasion.value]
         parts.append("~\(brief.groupSize.value.people) people")
-        if let limit = brief.budgetPerHead.value.limitRupees {
-            parts.append("budget around ₹\(limit) per head")
+        // Say what the host said. This line used to assert "per head" for any number
+        // they gave, which told the model a constraint they had never stated — the
+        // same invention the `@Guide` examples used to cause.
+        if let stated = brief.budget.value.statedRupees,
+           let basis = brief.budget.value.basisLabel {
+            parts.append("budget around ₹\(stated) \(basis)")
         }
         if !brief.vibeTags.isEmpty {
             parts.append("vibe: \(brief.vibeTags.prefix(4).joined(separator: ", "))")

@@ -107,7 +107,7 @@ struct ScheduleDrafterTests {
 
     @Test("The standing assumptions survive even a single-slot plan")
     func standingAssumptionsSurviveThinPlans() throws {
-        let slots = [Fixtures.slot("dinner", category: .food, ["food-1", "food-2", "food-3"])]
+        let slots = [Fixtures.slot(.dinner, ["food-1", "food-2", "food-3"])]
         let plan = try validatedPlan(slots: slots)
         let draft = try drafter.draftSchedule(for: plan, evidence: Fixtures.evidence)
 
@@ -121,9 +121,9 @@ struct ScheduleDrafterTests {
     @Test("Categories land on their disclosed template slots")
     func templateStartsAreApplied() throws {
         let slots = [
-            Fixtures.slot("dinner", category: .food, ["food-1", "food-2", "food-3"]),
-            Fixtures.slot("late", category: .nightlife, ["night-1", "night-2", "night-3"]),
-            Fixtures.slot("day", category: .sights, ["sight-1", "sight-2", "sight-3"])
+            Fixtures.slot(.dinner, ["food-1", "food-2", "food-3"]),
+            Fixtures.slot(.late, ["night-1", "night-2", "night-3"]),
+            Fixtures.slot(.afternoon, ["sight-1", "sight-2", "sight-3"])
         ]
         let plan = try validatedPlan(slots: slots)
         let draft = try drafter.draftSchedule(for: plan, evidence: Fixtures.evidence)
@@ -132,7 +132,7 @@ struct ScheduleDrafterTests {
             try #require(draft.blocks.first { $0.slotID == SlotID(slotID) }).startMinute
         }
 
-        #expect(try start("day") == 12 * 60 + 30)
+        #expect(try start("afternoon") == 12 * 60 + 30)
         #expect(try start("dinner") == 20 * 60)
         #expect(try start("late") == 22 * 60)
     }
@@ -140,9 +140,9 @@ struct ScheduleDrafterTests {
     @Test("Blocks come back in chronological order")
     func blocksAreChronological() throws {
         let slots = [
-            Fixtures.slot("late", category: .nightlife, ["night-1", "night-2", "night-3"]),
-            Fixtures.slot("day", category: .sights, ["sight-1", "sight-2", "sight-3"]),
-            Fixtures.slot("dinner", category: .food, ["food-1", "food-2", "food-3"])
+            Fixtures.slot(.late, ["night-1", "night-2", "night-3"]),
+            Fixtures.slot(.afternoon, ["sight-1", "sight-2", "sight-3"]),
+            Fixtures.slot(.dinner, ["food-1", "food-2", "food-3"])
         ]
         let plan = try validatedPlan(slots: slots)
         let draft = try drafter.draftSchedule(for: plan, evidence: Fixtures.evidence)
@@ -151,11 +151,11 @@ struct ScheduleDrafterTests {
         #expect(starts == starts.sorted(), "Blocks must not depend on curation order")
     }
 
-    @Test("Two slots of one category do not collide, and both starts are disclosed")
+    @Test("Lunch and dinner are two stops that do not collide, and both starts are disclosed")
     func sameCategorySlotsAreSpread() throws {
         let slots = [
-            Fixtures.slot("dinner", category: .food, ["food-1", "food-2", "food-3"]),
-            Fixtures.slot("supper", category: .food, ["food-4", "food-2", "food-3"])
+            Fixtures.slot(.dinner, ["food-1", "food-2", "food-3"]),
+            Fixtures.slot(.lunch, ["food-4", "food-2", "food-3"])
         ]
         // Reuse across slots is what this test is not about, so allow it.
         let plan = try FeasibilityValidator(
@@ -194,7 +194,7 @@ struct ScheduleDrafterTests {
             Fixtures.venue("food-2", category: .food, hours: .unknown),
             Fixtures.venue("food-3", category: .food, availability: .unknown)
         ]
-        let slots = [Fixtures.slot("dinner", category: .food, ["food-1", "food-2", "food-3"])]
+        let slots = [Fixtures.slot(.dinner, ["food-1", "food-2", "food-3"])]
         let plan = try validatedPlan(evidence: evidence, slots: slots)
         let draft = try drafter.draftSchedule(for: plan, evidence: evidence)
 

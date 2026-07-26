@@ -86,6 +86,12 @@ nonisolated struct SlotSchedule: Sendable, Equatable {
     /// "you're only free 8–9 pm" banner — an unconstrained plan shows no banner.
     let isWindowConstrained: Bool
 
+    /// `false` when the host named stops their own window could not hold, so the
+    /// schedule fell back to the default shape. The caller turns this into a
+    /// `PlanRelaxation` — a request quietly dropped is the failure mode this exists
+    /// to make visible.
+    let requestHonoured: Bool
+
     // MARK: - Bands
     //
     // Each slot owns a time-of-day band, taken from the schedule template and the
@@ -185,9 +191,10 @@ nonisolated struct SlotSchedule: Sendable, Equatable {
         )
 
         return SlotSchedule(
-            slots: layOut(chosen, earliestStart: earliestStart, latestEnd: latestEnd,
+            slots: layOut(chosen.bands, earliestStart: earliestStart, latestEnd: latestEnd,
                           minimumStopMinutes: minimumStopMinutes),
-            isWindowConstrained: !window.isUnknown
+            isWindowConstrained: !window.isUnknown,
+            requestHonoured: chosen.honoured
         )
     }
 
@@ -210,7 +217,7 @@ nonisolated struct SlotSchedule: Sendable, Equatable {
         latestEnd: Int?,
         requested: Set<SlotBand>,
         minimumStopMinutes: Int
-    ) -> [Band] {
+    ) -> (bands: [Band], honoured: Bool) {
 
         func room(_ band: Band) -> Int {
             min(band.endMinute, latestEnd ?? band.endMinute)
@@ -223,16 +230,26 @@ nonisolated struct SlotSchedule: Sendable, Equatable {
         // free 8 to 9" — the request is unsatisfiable, so it is dropped rather than
         // used to empty the plan. A contradicted host gets dinner, not nothing.
         let asked = fits.filter { requested.contains($0.id) }
-        let pool = asked.isEmpty ? fits : asked
 
-        let perCategory: [Band] = SlotCategory.allCases.compactMap { category in
-            pool.filter { $0.category == category }.max { $0.startMinute < $1.startMinute }
+        let chosen: [Band]
+        if asked.isEmpty {
+            // Nothing named, or nothing named that fits: one stop per category, the
+            // latest that has room, exactly as an unspecified outing has always worked.
+            chosen = SlotCategory.allCases.compactMap { category in
+                fits.filter { $0.category == category }.max { $0.startMinute < $1.startMinute }
+            }
+        } else {
+            // Every band they named, including two that share a category. "Lunch and
+            // dinner" is two stops; collapsing to one per category is precisely what
+            // made that impossible to ask for.
+            chosen = asked
         }
-        let ordered = perCategory.sorted { $0.startMinute < $1.startMinute }
+        let ordered = chosen.sorted { $0.startMinute < $1.startMinute }
+        let honoured = requested.isEmpty || !asked.isEmpty
 
         // Only a window bounded at both ends has a budget to run out of. An open one
         // keeps everything the request allowed.
-        guard let earliestStart, let latestEnd else { return ordered }
+        guard let earliestStart, let latestEnd else { return (ordered, honoured) }
 
         var capacity = latestEnd - earliestStart
         var kept: [Band] = []
@@ -241,7 +258,9 @@ nonisolated struct SlotSchedule: Sendable, Equatable {
             capacity -= minimumStopMinutes
         }
 
-        return kept
+        // Dropping a named stop for want of time is still a request not honoured,
+        // even though the ones that survived were all asked for.
+        return (kept, honoured && kept.count == ordered.count)
     }
 
     /// Places the chosen bands end to end inside the window.
@@ -293,7 +312,17 @@ nonisolated struct SlotSchedule: Sendable, Equatable {
         return duration <= eveningSpanMinutes ? defaultEveningStartMinute : dayStartMinute
     }
 
-    /// The feasible slot for a category, if it survived the window.
+    /// The feasible slot for a band, if it survived the window.
+    ///
+    /// Prefer this over `slot(for:)` wherever a specific stop is meant — a schedule
+    /// can hold both lunch and dinner, and asking it for "the food slot" then
+    /// silently means whichever comes first.
+    func slot(band: SlotBand) -> FeasibleSlot? {
+        slots.first { $0.band == band }
+    }
+
+    /// The *first* feasible slot of a category. Ambiguous by nature when a plan holds
+    /// two stops of one category; use `slot(band:)` when the specific stop matters.
     func slot(for category: SlotCategory) -> FeasibleSlot? {
         slots.first { $0.category == category }
     }

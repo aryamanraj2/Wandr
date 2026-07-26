@@ -49,7 +49,7 @@ final class PollSession {
         self.polls = slated.map { deck in
             let options = deck.shortlisted.map { candidate -> PollOption in
                 let id = PollOptionID(slugging: candidate.name)
-                lookup[Self.key(slotID: deck.category.rawValue, option: id)] = candidate
+                lookup[Self.key(slotID: deck.slotID, option: id)] = candidate
                 return PollOption(
                     id: id,
                     label: candidate.name,
@@ -57,7 +57,7 @@ final class PollSession {
                 )
             }
             return SquadSlotPoll(
-                slotID: deck.category.rawValue,
+                slotID: deck.slotID,
                 slotName: deck.slotName,
                 options: options,
                 size: n

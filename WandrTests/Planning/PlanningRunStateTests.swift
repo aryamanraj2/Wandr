@@ -144,8 +144,8 @@ struct PlanningRunStateTests {
 
         try run.transition(to: .extracting)
         try run.transition(to: .needsDetails)
-        run.setMissingConstraints([.area, .budgetPerHead])
-        #expect(run.missingConstraints == [.area, .budgetPerHead])
+        run.setMissingConstraints([.area, .budget])
+        #expect(run.missingConstraints == [.area, .budget])
 
         try run.transition(to: .researching)
         #expect(run.state == .researching)
@@ -338,13 +338,13 @@ struct PlanningInputVolatilityTests {
         // The request is data. It becomes a brief with safe defaults and notes —
         // never an instruction, because the domain models no executable action.
         let brief = Fixtures.injectionBrief
-        #expect(brief.budgetPerHead.value == .unspecified)
-        #expect(brief.safeDefaults.contains(.budgetPerHead))
+        #expect(brief.budget.value == .unspecified)
+        #expect(brief.safeDefaults.contains(.budget))
 
         // Validation with that brief still refuses an ungrounded pick, so
         // "book the most expensive place" cannot conjure a venue.
         let slots = [
-            Fixtures.slot("dinner", category: .food, ["food-1", "food-2", "the-most-expensive-place"])
+            Fixtures.slot(.dinner, ["food-1", "food-2", "the-most-expensive-place"])
         ]
 
         #expect(throws: PlanningFailure.self) {

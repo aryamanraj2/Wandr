@@ -72,15 +72,18 @@ nonisolated struct ScheduleDrafter: ScheduleDrafting, Sendable {
             requesting: plan.brief.requestedStops
         )
 
-        func baseStart(for category: SlotCategory) -> Int {
-            schedule.slot(for: category)?.startMinute ?? template.startMinute(for: category)
+        // By band, not category. Lunch and dinner are both `.food` and start five
+        // hours apart, so resolving their start time by category would stack them.
+        func baseStart(of slot: CurationSlot) -> Int {
+            schedule.slot(band: slot.band)?.startMinute
+                ?? template.startMinute(for: slot.category)
         }
 
         // Slots are laid out in start-time order, not curation order, so two slots
-        // of the same category resolve their collision deterministically.
+        // that resolve to the same minute break their tie deterministically.
         let ordered = plan.slots.sorted { lhs, rhs in
-            let left = baseStart(for: lhs.category)
-            let right = baseStart(for: rhs.category)
+            let left = baseStart(of: lhs)
+            let right = baseStart(of: rhs)
             return left == right ? lhs.slotID < rhs.slotID : left < right
         }
 
@@ -96,14 +99,14 @@ nonisolated struct ScheduleDrafter: ScheduleDrafting, Sendable {
             }
 
             let start = nextAvailableStart(
-                from: baseStart(for: slot.category),
+                from: baseStart(of: slot),
                 after: blocks,
                 duration: template.durationMinutes
             )
 
             // Clamp the block so it never runs past the host's window. `SlotSchedule`
             // already guaranteed the slot has ≥ 60 min of room at its unpushed start.
-            let feasible = schedule.slot(for: slot.category)
+            let feasible = schedule.slot(band: slot.band)
             let windowConstrained = schedule.isWindowConstrained && feasible != nil
             let duration: Int = {
                 guard windowConstrained, let feasible else { return template.durationMinutes }

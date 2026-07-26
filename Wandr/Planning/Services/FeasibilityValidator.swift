@@ -51,8 +51,13 @@ nonisolated enum FeasibilityViolation: Sendable, Equatable, Hashable {
     /// The same venue fills more than one slot.
     case duplicateAcrossSlots(venueID: VenueID, slotIDs: [SlotID])
 
-    /// A known per-head price exceeds the confirmed ceiling.
-    case overBudget(slotID: SlotID, venueID: VenueID, perHeadRupees: Int, limitRupees: Int)
+    // `overBudget` and `insufficientCandidates` used to live here. Both are gone,
+    // and deliberately: a violation fails the *whole run*, and neither of those is
+    // the model doing something wrong. A place costing more than the host hoped, or
+    // a category with only two options, is a plan worth showing with a note on it —
+    // `EvidenceResolver` gives the constraint up and discloses it, and a thin deck
+    // is simply thin. What remains below is genuine model misbehaviour, which
+    // should still stop the run loudly.
 
     /// Evidence was surveyed and contradicts a hard dietary requirement.
     case unmetDietaryRequirement(slotID: SlotID, venueID: VenueID, missing: [DietaryRequirement])
@@ -62,9 +67,6 @@ nonisolated enum FeasibilityViolation: Sendable, Equatable, Hashable {
 
     /// Evidence was surveyed and contradicts an explicit indoor/outdoor preference.
     case unmetSettingPreference(slotID: SlotID, venueID: VenueID, preference: SettingPreference, actual: VenueSetting)
-
-    /// The deck is too thin, even though the evidence snapshot could have filled it.
-    case insufficientCandidates(slotID: SlotID, required: Int, found: Int)
 
     /// User-readable. Never mentions the host's own words.
     var message: String {
@@ -81,9 +83,6 @@ nonisolated enum FeasibilityViolation: Sendable, Equatable, Hashable {
         case .duplicateAcrossSlots:
             return "The same place was picked for two different stops. Let's try again."
 
-        case .overBudget(_, _, let perHead, let limit):
-            return "One pick works out to ₹\(perHead) a head, over your ₹\(limit) limit."
-
         case .unmetDietaryRequirement(_, _, let missing):
             let list = missing.map(\.rawValue).joined(separator: ", ")
             return "One pick doesn't cover \(list), which you asked for."
@@ -94,9 +93,6 @@ nonisolated enum FeasibilityViolation: Sendable, Equatable, Hashable {
 
         case .unmetSettingPreference(_, _, let preference, _):
             return "One pick isn't \(preference.rawValue), which you asked for."
-
-        case .insufficientCandidates(_, let required, let found):
-            return "One round only has \(found) option\(found == 1 ? "" : "s") to swipe through — we need \(required)."
         }
     }
 }
@@ -127,6 +123,7 @@ nonisolated struct FeasibilityValidator: ItineraryValidating, Sendable {
         brief: OutingBrief,
         evidence: [GroundedVenue],
         slots: [CurationSlot],
+        relaxations: [PlanRelaxation] = [],
         runID: PlanningRunID,
         now: Date
     ) throws -> WandrPlan {
@@ -165,8 +162,8 @@ nonisolated struct FeasibilityValidator: ItineraryValidating, Sendable {
                 seenInSlot.insert(venueID)
                 slotsByVenue[venueID, default: []].append(slot.slotID)
 
-                // Rule 4 — budget.
-                violations.append(contentsOf: budgetViolations(venue: venue, slot: slot, brief: brief))
+                // Rule 4 — budget is a warning on the card, never a run-ender.
+                warnings.append(contentsOf: budgetWarnings(venue: venue, slot: slot, brief: brief))
                 warnings.append(contentsOf: costWarnings(venue: venue, slot: slot))
 
                 // Rule 5 — hard constraints.
@@ -196,42 +193,23 @@ nonisolated struct FeasibilityValidator: ItineraryValidating, Sendable {
 
         // MARK: Rule 6 — deck depth
         //
-        // A thin deck means one of two very different things. If the snapshot
-        // never had enough venues of that category, research came up short and
-        // the host should widen the search. If it did, the curator under-picked
-        // and the run should be retried. Padding with invented venues is not an
-        // option either way.
-
-        var evidenceShortfalls: [PlanningFailure.InsufficientEvidenceDetail] = []
-        var curationShortfalls: [FeasibilityViolation] = []
+        // A thin deck is a thin deck, not a failure. This used to throw two
+        // different ways — `insufficientEvidence` when the category was short and
+        // `insufficientCandidates` when the curator under-picked — and both ended
+        // the host's run. Two real restaurants beat no plan, and a low budget or a
+        // small neighbourhood should never be able to produce nothing at all.
+        //
+        // The shortfall is still worth knowing about, so it becomes a warning the
+        // host sees and a number the log records. `minimumCandidatesPerSlot` remains
+        // what `SlotDeckBuilder` fills *towards*; it is no longer a contract.
 
         for slot in slots where slot.candidates.count < rules.minimumCandidatesPerSlot {
-            let availableInCategory = evidence.count { $0.category == slot.category }
-
-            if availableInCategory < rules.minimumCandidatesPerSlot {
-                evidenceShortfalls.append(
-                    PlanningFailure.InsufficientEvidenceDetail(
-                        category: slot.category,
-                        required: rules.minimumCandidatesPerSlot,
-                        found: availableInCategory
-                    )
+            warnings.append(
+                PlanWarning(
+                    .thinDeck(required: rules.minimumCandidatesPerSlot, found: slot.candidates.count),
+                    slotID: slot.slotID
                 )
-            } else {
-                curationShortfalls.append(
-                    .insufficientCandidates(
-                        slotID: slot.slotID,
-                        required: rules.minimumCandidatesPerSlot,
-                        found: slot.candidates.count
-                    )
-                )
-            }
-        }
-
-        if !evidenceShortfalls.isEmpty {
-            throw PlanningFailure.insufficientEvidence(evidenceShortfalls)
-        }
-        if !curationShortfalls.isEmpty {
-            throw PlanningFailure.validationFailed(curationShortfalls)
+            )
         }
 
         // MARK: Rule 8 — every warning rides on the plan
@@ -246,6 +224,7 @@ nonisolated struct FeasibilityValidator: ItineraryValidating, Sendable {
             brief: brief,
             slots: slots,
             warnings: warnings,
+            relaxations: relaxations,
             evidenceIDs: groundedIDs,
             evidenceSources: sources,
             generatedAt: now
@@ -254,23 +233,25 @@ nonisolated struct FeasibilityValidator: ItineraryValidating, Sendable {
 
     // MARK: - Rule 4: budget
 
-    private func budgetViolations(
+    /// A card above the host's ceiling is shown with the number on it, not removed
+    /// and not fatal. `EvidenceResolver` only lets one through when the alternative
+    /// was an empty deck, and it discloses that separately — this is the per-card
+    /// half of the same honesty.
+    private func budgetWarnings(
         venue: GroundedVenue,
         slot: CurationSlot,
         brief: OutingBrief
-    ) -> [FeasibilityViolation] {
+    ) -> [PlanWarning] {
         guard
-            let limit = brief.budgetPerHead.value.limitRupees,
+            let ceiling = brief.budget.value.ceilingPerHead(for: brief.groupSize.value),
             let perHead = venue.cost.knownPerHeadRupees,
-            perHead > limit
+            perHead > ceiling
         else { return [] }
 
         return [
-            .overBudget(
-                slotID: slot.slotID,
-                venueID: venue.venueID,
-                perHeadRupees: perHead,
-                limitRupees: limit
+            PlanWarning(
+                .overBudget(venue.venueID, perHeadRupees: perHead, ceilingPerHead: ceiling),
+                slotID: slot.slotID
             )
         ]
     }
@@ -395,16 +376,11 @@ nonisolated private extension FeasibilityViolation {
             return "2|\(slot.rawValue)|\(venue.rawValue)"
         case .duplicateAcrossSlots(let venue, let slots):
             return "3|\(venue.rawValue)|\(slots.map(\.rawValue).joined(separator: ","))"
-        case .overBudget(let slot, let venue, _, _):
-            return "4|\(slot.rawValue)|\(venue.rawValue)"
         case .unmetDietaryRequirement(let slot, let venue, _):
             return "5|\(slot.rawValue)|\(venue.rawValue)"
         case .unmetAccessibilityRequirement(let slot, let venue, _):
             return "6|\(slot.rawValue)|\(venue.rawValue)"
         case .unmetSettingPreference(let slot, let venue, _, _):
-            return "7|\(slot.rawValue)|\(venue.rawValue)"
-        case .insufficientCandidates(let slot, _, _):
-            return "8|\(slot.rawValue)"
-        }
+            return "7|\(slot.rawValue)|\(venue.rawValue)"        }
     }
 }

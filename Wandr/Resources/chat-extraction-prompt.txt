@@ -9,12 +9,13 @@ Return ONLY a single JSON object and nothing else — no explanation, no code fe
 {
   "outingType": one of "after-office", "birthday", "get-together", "full-day", "custom",
   "dateOrDay": string,
-  "time": string, including any hard time constraints (for example "finish by 9"),
+  "time": string, including any start, finish, or how long they have,
   "area": string,
   "groupSize": integer,
-  "budgetPerHead": string, for example "₹1200",
+  "budget": string, copying their wording exactly including whether it is each or for the group,
+  "plannedStops": string, the kinds of stop they asked for, in their words,
   "dietary": string,
-  "accessibility": string,
+  "accessibility": string, only if a participant raised one themselves,
   "vibe": string,
   "indoorOutdoor": string, including any weather fallback the group mentioned,
   "otherNotes": string

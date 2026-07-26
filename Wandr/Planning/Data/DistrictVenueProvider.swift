@@ -359,8 +359,9 @@ nonisolated struct DistrictVenueProvider: VenueResearching, Sendable {
     private func rank(_ venue: GroundedVenue, for brief: OutingBrief) -> RankKey {
         let perHead = venue.cost.knownPerHeadRupees
         let overBudget: Bool = {
-            guard let limit = brief.budgetPerHead.value.limitRupees, let perHead else { return false }
-            return perHead > limit
+            guard let ceiling = brief.budget.value.ceilingPerHead(for: brief.groupSize.value),
+                  let perHead else { return false }
+            return perHead > ceiling
         }()
 
         return RankKey(

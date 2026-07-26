@@ -37,7 +37,7 @@ struct BriefNormalizerTests {
         #expect(actual.timeWindow == expected.timeWindow, sourceLocation: sourceLocation)
         #expect(actual.area == expected.area, sourceLocation: sourceLocation)
         #expect(actual.groupSize == expected.groupSize, sourceLocation: sourceLocation)
-        #expect(actual.budgetPerHead == expected.budgetPerHead, sourceLocation: sourceLocation)
+        #expect(actual.budget == expected.budget, sourceLocation: sourceLocation)
         #expect(actual.vibeTags == expected.vibeTags, sourceLocation: sourceLocation)
         #expect(actual.dietary == expected.dietary, sourceLocation: sourceLocation)
         #expect(actual.accessibility == expected.accessibility, sourceLocation: sourceLocation)
@@ -69,7 +69,7 @@ struct BriefNormalizerTests {
         expectMatches(brief, Fixtures.birthdayBrief)
         #expect(brief.dietary == .required([.vegetarian]), "A hard constraint must survive intact")
         #expect(brief.safeDefaults.contains(.area))
-        #expect(brief.safeDefaults.contains(.budgetPerHead))
+        #expect(brief.safeDefaults.contains(.budget))
     }
 
     @Test("The sparse draft normalizes to every value defaulted and marked")
@@ -90,7 +90,7 @@ struct BriefNormalizerTests {
     func impossibleBudgetNormalizes() throws {
         let brief = try normalized(FakeBriefExtractor.impossibleBudgetDraft)
         expectMatches(brief, Fixtures.impossibleBudgetBrief)
-        #expect(brief.budgetPerHead == .host(.upTo(rupees: 200)))
+        #expect(brief.budget == .host(.perHead(rupees: 200)))
     }
 
     // MARK: - Defaults and marking
@@ -105,7 +105,7 @@ struct BriefNormalizerTests {
         #expect(brief.occasion == .safeDefault(OutingBrief.defaultOccasion))
         #expect(brief.area == .safeDefault(OutingBrief.defaultArea))
         #expect(brief.groupSize == .safeDefault(OutingBrief.defaultGroupSize))
-        #expect(brief.budgetPerHead == .safeDefault(.unspecified))
+        #expect(brief.budget == .safeDefault(.unspecified))
         #expect(brief.timeWindow == .safeDefault(.unknown))
     }
 
@@ -137,16 +137,30 @@ struct BriefNormalizerTests {
 
     @Test("An absurd budget is clamped but stays host-stated")
     func budgetIsClampedNotDefaulted() throws {
-        let brief = try normalized(OutingBriefDraft(budgetPerHeadRupees: 900_000))
-        #expect(brief.budgetPerHead.value == .upTo(rupees: BudgetPerHead.supportedRange.upperBound))
-        #expect(brief.budgetPerHead.source == .host)
+        let absurd = Budget.clamping(rupees: 9_000_000, perHead: true)
+        let brief = try normalized(OutingBriefDraft(budget: absurd))
+        #expect(brief.budget.value == .perHead(rupees: Budget.supportedRange.upperBound))
+        #expect(brief.budget.source == .host)
     }
 
     @Test("A zero budget is a stated ceiling, not an absent one")
     func zeroBudgetIsStated() throws {
-        let brief = try normalized(OutingBriefDraft(budgetPerHeadRupees: 0))
-        #expect(brief.budgetPerHead == .host(.upTo(rupees: 0)))
-        #expect(!brief.safeDefaults.contains(.budgetPerHead))
+        let brief = try normalized(OutingBriefDraft(budget: .total(rupees: 0)))
+        #expect(brief.budget == .host(.total(rupees: 0)))
+        #expect(!brief.safeDefaults.contains(.budget))
+    }
+
+    /// The basis survives normalization untouched. Reading an unqualified number as
+    /// per head is the invention this axis exists to prevent, and the normalizer is
+    /// the last place it could quietly creep back in.
+    @Test("The stated basis is carried through, never reinterpreted")
+    func budgetBasisSurvives() throws {
+        let total = try normalized(OutingBriefDraft(groupSize: 2, budget: .total(rupees: 2_000)))
+        #expect(total.budget.value == .total(rupees: 2_000))
+        #expect(total.budget.value.ceilingPerHead(for: total.groupSize.value) == 1_000)
+
+        let each = try normalized(OutingBriefDraft(groupSize: 2, budget: .perHead(rupees: 2_000)))
+        #expect(each.budget.value.ceilingPerHead(for: each.groupSize.value) == 2_000)
     }
 
     // MARK: - Pass-through
@@ -186,14 +200,14 @@ struct BriefNormalizerTests {
 
     @Test("A constraint the normalizer refuses to default produces needsDetails")
     func needsDetailsIsReachable() throws {
-        let strict = BriefNormalizer(constraintsRequiringHost: [.area, .budgetPerHead])
+        let strict = BriefNormalizer(constraintsRequiringHost: [.area, .budget])
         let outcome = try strict.normalize(OutingBriefDraft(groupSize: 4))
 
         guard case .needsDetails(let partial, let missing) = outcome else {
             Issue.record("Expected .needsDetails, got \(outcome)")
             return
         }
-        #expect(Set(missing) == Set([.area, .budgetPerHead]))
+        #expect(Set(missing) == Set([.area, .budget]))
         // The partial brief is still usable — defaults are applied, just flagged.
         #expect(partial.area == .safeDefault(OutingBrief.defaultArea))
         #expect(partial.groupSize == .host(GroupSize(clamping: 4)))
