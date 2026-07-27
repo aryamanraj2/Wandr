@@ -201,7 +201,17 @@ actor TravelPlanningService {
                 )
             }
 
-            for relaxation in resolution.relaxations {
+            // Two kinds of compromise, and they come from different places. The
+            // resolver gives up constraints that decide which *venues* are eligible;
+            // the schedule gives up stops that will not fit the *hours*. Only the
+            // first was ever disclosed, so "lunch, but we're free 8 to 9" silently
+            // became dinner.
+            var relaxations = resolution.relaxations
+            if !brief.schedule.requestHonoured {
+                relaxations.append(.stopsDidNotFit)
+            }
+
+            for relaxation in relaxations {
                 run.record(
                     "Widened the search",
                     detail: relaxation.disclosure,
@@ -228,7 +238,7 @@ actor TravelPlanningService {
                 brief: brief,
                 evidence: resolution.eligible,
                 slots: slots,
-                relaxations: resolution.relaxations,
+                relaxations: relaxations,
                 runID: run.id,
                 now: now()
             )

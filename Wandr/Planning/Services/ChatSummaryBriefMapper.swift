@@ -34,27 +34,100 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
             accessibility: Self.accessibility(from: payload.accessibility),
             setting: Self.setting(from: payload.indoorOutdoor),
             requestedStops: Self.requestedStops(from: payload),
+            stopsAreExclusive: Self.stopsAreExclusive(from: payload),
             notes: payload.otherNotes?.trimmed.nonEmpty.map { [$0] } ?? []
         )
+    }
+
+    /// Whether the host said these are the *only* stops they want.
+    ///
+    /// The model's own answer when it gave one, or the deterministic scan — the same
+    /// "either source is enough" rule `stops(classified:inText:)` runs under, and for
+    /// the same reason: a flag the model dropped must not silently become `false`.
+    static func stopsAreExclusive(from payload: ChatSummaryPayload) -> Bool {
+        payload.onlyTheseStops == true || statesExclusiveStops(inText: haystack(of: payload))
     }
 
     // MARK: - Requested stops
 
     /// The stops the host asked for.
-    ///
-    /// Two sources, in order of how well they generalise:
-    ///
-    /// 1. **The model's own classification** (`payload.stops`), validated against
-    ///    `SlotBand` here so an invented token is dropped rather than trusted. This
-    ///    is the path that handles "something to eat before the movie" — a phrase no
-    ///    keyword list will ever contain.
-    /// 2. **A keyword scan**, when the model returned nothing usable. It is the
-    ///    fallback rather than the primary, and it is also what keeps this whole path
-    ///    testable with no model, no device, and no Apple Intelligence.
     static func requestedStops(from payload: ChatSummaryPayload) -> Set<SlotBand> {
-        let classified = Set((payload.stops ?? []).compactMap(band(named:)))
-        return classified.isEmpty ? keywordStops(from: payload) : classified
+        stops(classified: payload.stops, inText: haystack(of: payload))
     }
+
+    /// The stops a request names, from the model's classification *and* the words
+    /// themselves.
+    ///
+    /// Three sources, and the order between the first two is the fix for the reported
+    /// bug:
+    ///
+    /// 1. **The model's classification**, validated against `SlotBand` so an invented
+    ///    token is dropped rather than trusted. This is the path that handles
+    ///    "something to eat before the movie" — a phrase no keyword list will contain.
+    /// 2. **Band words the host actually typed**, *unioned* with (1), not used as a
+    ///    fallback for it. A host who writes "dinner" has already told us the stop in
+    ///    Wandr's own vocabulary; treating that as a mere backup meant a run where the
+    ///    model dropped the field lost the word entirely, and the same sentence planned
+    ///    a different night depending on how the generation went. Deterministic
+    ///    evidence should never lose to a probabilistic one that says nothing.
+    /// 3. **Category words** — "eat", "drinks" — but only for a *kind of stop nothing
+    ///    above already covers*. "Dinner then drinks" needs the nightlife half or it
+    ///    plans one stop instead of two; "dinner" with a vibe of "loves coffee" must
+    ///    not gain a second meal from that word. Coverage by category is what
+    ///    separates the two, and it is why these are neither unioned outright nor
+    ///    demoted to a plain fallback.
+    ///
+    /// - Parameters:
+    ///   - classified: the model's own tokens, if it produced any.
+    ///   - text: what the host wrote — their raw words on the capture path, the
+    ///     settled summary fields on the Siri one.
+    static func stops(classified: [String]?, inText text: String) -> Set<SlotBand> {
+        let fromModel = Set((classified ?? []).compactMap(band(named:)))
+        let named = fromModel.union(bandsNamed(inText: text))
+
+        let covered = Set(named.map(\.category))
+        let byKind = categoriesNamed(inText: text).filter { !covered.contains($0.category) }
+
+        return named.union(byKind)
+    }
+
+    /// Whether the host said these are the *only* stops they want.
+    ///
+    /// Proximity, not mere presence: "just" and "only" are among the commonest words
+    /// in a sentence about plans, and `"just 2 of us for dinner"` is not a request for
+    /// a one-stop night. The word has to sit beside a stop word to mean exclusivity.
+    ///
+    /// Two tokens either side, which is tight on purpose. Three caught `"only 1500
+    /// each, dinner somewhere"` — an exclusivity word doing its job on the *budget*,
+    /// three tokens away from a stop it had nothing to do with — and reading that as
+    /// "dinner and nothing else" would have thrown away most of their night. Two still
+    /// covers "just dinner", "just the breakfast plan", "only doing lunch", "we just
+    /// want lunch", and "dinner and nothing else".
+    static func statesExclusiveStops(inText raw: String) -> Bool {
+        let tokens = raw.lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+
+        for (index, token) in tokens.enumerated() where exclusivityWords.contains(token) {
+            let lower = max(0, index - 2)
+            let upper = min(tokens.count - 1, index + 2)
+            for neighbour in lower...upper
+            where neighbour != index && allStopWords.contains(tokens[neighbour]) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private static let exclusivityWords: Set<String> = [
+        "just", "only", "nothing", "solely", "merely", "simply"
+    ]
+
+    /// Every word that names a stop, of either kind. Used only by the exclusivity
+    /// scan, which cares that a stop was mentioned, not which one.
+    private static let allStopWords: Set<String> = Set(
+        bandKeywords.values.flatMap { $0 } + categoryKeywords.values.flatMap { $0 }
+    )
 
     /// One model-emitted token resolved to a band, or `nil` if it is not one of ours.
     ///
@@ -65,47 +138,69 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
         return SlotBand.allCases.first { $0.rawValue.lowercased() == squashed }
     }
 
-    /// The pre-model path: read the stop out of whatever the host wrote.
+    /// The fields a stop word could have landed in, joined for scanning.
     ///
-    /// Deliberately scans several fields rather than only `plannedStops`: the word
-    /// that matters ("lunch", "drinks") lands wherever the extractor decided to put
-    /// it, and missing it costs the host the one stop they actually asked for. Area
-    /// is excluded — half the neighbourhoods in Delhi have "Market" in the name.
+    /// Deliberately several fields rather than only `plannedStops`: the word that
+    /// matters ("lunch", "drinks") lands wherever the extractor decided to put it, and
+    /// missing it costs the host the one stop they actually asked for. Area is
+    /// excluded — half the neighbourhoods in Delhi have "Market" in the name.
     ///
-    /// - Important: the result *filters* the plan downstream, so a word here removes
-    ///   stops as well as choosing them. That is the intent — a host who says "lunch"
-    ///   should not be handed a 10 pm bar — but it is why every keyword below is a
-    ///   noun that names a stop, matched whole-word, and never a mood or an adjective.
-    static func keywordStops(from payload: ChatSummaryPayload) -> Set<SlotBand> {
-        let haystack = [
+    /// This is the Siri path's substitute for the host's raw words, which are gone by
+    /// the time a summary reaches the mapper. The capture path passes the real text.
+    static func haystack(of payload: ChatSummaryPayload) -> String {
+        [
             payload.plannedStops,
             payload.otherNotes,
             payload.time,
             payload.vibe,
             payload.outingType?.rawValue
         ]
-            .compactMap { $0?.lowercased() }
-            .joined(separator: " ")
+        .compactMap { $0?.lowercased() }
+        .joined(separator: " ")
+    }
 
-        guard !haystack.isEmpty else { return [] }
+    /// Stops named outright — words that fix the kind of stop *and* when it happens.
+    ///
+    /// Whole-word matched, and every entry is a noun that names a stop, never a mood
+    /// or an adjective: this set seeds the plan's shape, so a false positive here
+    /// invents a stop the host never asked for.
+    static func bandsNamed(inText raw: String) -> Set<SlotBand> {
+        guard !raw.isEmpty else { return [] }
+        let haystack = raw.lowercased()
+        return Set(
+            bandKeywords
+                .filter { _, words in words.contains { haystack.matchesWord($0) } }
+                .keys
+        )
+    }
+
+    /// Stops named only by kind — "somewhere to eat", "drinks".
+    ///
+    /// Offers every band the category can occupy and lets the window pin it down: an
+    /// open evening makes "somewhere to eat" dinner, a midday one makes it lunch.
+    /// Naming the meal outright is what fixes it to one.
+    static func categoriesNamed(inText raw: String) -> Set<SlotBand> {
+        guard !raw.isEmpty else { return [] }
+        let haystack = raw.lowercased()
 
         var found: Set<SlotBand> = []
-        // Words that fix the time of day as well as the kind of stop.
-        for (band, words) in bandKeywords where words.contains(where: { haystack.matchesWord($0) }) {
-            found.insert(band)
-        }
-        // Words that name only the kind. "Somewhere to eat" is lunch or dinner —
-        // whichever the window can hold — so both bands are offered and the schedule
-        // picks. Naming the meal outright is what pins it to one.
-        for (category, words) in categoryKeywords where words.contains(where: { haystack.matchesWord($0) }) {
+        for (category, words) in categoryKeywords
+        where words.contains(where: { haystack.matchesWord($0) }) {
             found.formUnion(SlotBand.all(in: category))
         }
         return found
     }
 
     /// Words that name a stop *and* when it happens. Whole-word matched.
+    ///
+    /// `breakfast` has its own band now. It used to be listed under `.lunch`, because
+    /// the band table began at noon and there was nowhere else to put it — which meant
+    /// a host asking for breakfast was scheduled a 12 o'clock meal.
     private static let bandKeywords: [SlotBand: [String]] = [
-        .lunch: ["lunch", "brunch", "breakfast"],
+        .breakfast: ["breakfast", "brekkie"],
+        // Brunch sits across both bands; lunch is the safer of the two, and a stated
+        // morning window still moves it since the band has to fit the window anyway.
+        .lunch: ["lunch", "brunch"],
         .dinner: ["dinner", "supper"]
     ]
 
@@ -124,6 +219,70 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
         .discover: ["shopping", "shop", "shops", "bookstore", "bookshop", "books",
                     "browse", "browsing", "activity", "arcade", "workshop", "gaming",
                     "bowling", "karaoke"]
+    ]
+
+    // MARK: - Group size
+
+    /// How many people are going, read straight out of what the host wrote.
+    ///
+    /// A headcount is a small number sitting next to a word that says it counts
+    /// people — something Swift reads exactly and a twelve-field generation cannot be
+    /// relied on to. It is the same argument as `stops(classified:inText:)`: a fact the
+    /// host stated plainly should not depend on which fields a particular run happened
+    /// to get right.
+    ///
+    /// Deliberately narrow, because a sentence about an outing is full of numbers that
+    /// are not people. It fires only on a value in `GroupSize.supportedRange` that is
+    /// *marked* as a headcount — by a following noun ("4 people", "6 of us") or a
+    /// preceding preposition ("for 2", "table of 8") — and never when the next word
+    /// makes it a time or an amount: "only 3 hours" is not a party of three, and
+    /// "2000 each" is out of range before the question is even asked.
+    static func groupSize(inText raw: String) -> Int? {
+        let tokens = raw.lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+
+        for (index, token) in tokens.enumerated() {
+            guard let value = Int(token) ?? wordedNumbers[token],
+                  GroupSize.supportedRange.contains(value)
+            else { continue }
+
+            let next = index + 1 < tokens.count ? tokens[index + 1] : nil
+
+            // The number is counting hours, rupees or o'clock, not people.
+            if let next, nonHeadcountUnits.contains(next) { continue }
+
+            let followedByNoun = next.map(headcountNouns.contains) ?? false
+            // "6 of us", "just the two of them".
+            let followedByOfUs = next == "of" && index + 2 < tokens.count
+                && ["us", "them"].contains(tokens[index + 2])
+            let precededByMarker = index > 0 && headcountMarkers.contains(tokens[index - 1])
+
+            if followedByNoun || followedByOfUs || precededByMarker { return value }
+        }
+        return nil
+    }
+
+    /// Nouns that make the number in front of them a headcount.
+    private static let headcountNouns: Set<String> = [
+        "people", "person", "persons", "pax", "adults", "friends", "guys", "folks", "heads"
+    ]
+
+    /// Words that make the number *after* them a headcount — "for 2", "party of 8".
+    private static let headcountMarkers: Set<String> = ["for", "of"]
+
+    /// Units that prove the number counts something other than people. Without these,
+    /// "we've only got 3 hours" reads as a group of three.
+    private static let nonHeadcountUnits: Set<String> = [
+        "hour", "hours", "hr", "hrs", "minute", "minutes", "min", "mins",
+        "am", "pm", "oclock", "k", "rs", "rupees", "inr", "each", "pp", "ph"
+    ]
+
+    /// "Just the two of us" is the commonest way to say a group of two and carries no
+    /// digit at all.
+    private static let wordedNumbers: [String: Int] = [
+        "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+        "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12
     ]
 
     // MARK: - Budget

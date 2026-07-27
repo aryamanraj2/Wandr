@@ -74,10 +74,7 @@ nonisolated struct FakeItineraryCurator: ItineraryCurating, Sendable {
 
         // The same schedule production uses, so the fake produces the same *shape* of
         // plan — including two stops of one category when the host asked for both.
-        let schedule = SlotSchedule.compute(
-            for: brief.timeWindow.value,
-            requesting: brief.requestedStops
-        )
+        let schedule = brief.schedule
 
         // Mirrors production: two stops of one category must not share a venue.
         var spent: Set<VenueID> = []

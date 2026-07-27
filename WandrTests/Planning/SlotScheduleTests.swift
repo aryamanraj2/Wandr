@@ -111,7 +111,9 @@ struct SlotScheduleTests {
         // which is the whole point of a category owning more than one band.
         #expect(first.category == .food)
         #expect(first.title == "Lunch")
-        #expect(first.startMinute == SlotSchedule.dayStartMinute)
+        // `defaultDayStartMinute`, not `dayStartMinute`: the breakfast band moved the
+        // table's literal minimum to 8 am, but an unanchored plan still opens at noon.
+        #expect(first.startMinute == SlotSchedule.defaultDayStartMinute)
         #expect(!schedule.feasibleCategories.contains(.nightlife))
         // Stops are laid end to end, never stacked on the same hour.
         #expect(zip(schedule.slots, schedule.slots.dropFirst()).allSatisfy { $0.endMinute <= $1.startMinute })
@@ -172,23 +174,126 @@ struct SlotScheduleTests {
         #expect(dinner.startMinute == 20 * 60)
     }
 
-    // MARK: - A named request is the plan
+    // MARK: - One named stop seeds the plan
     //
-    // The second report: "still i just said lunch" — and the plan came back with a
-    // nightlife deck for 10 pm to 1 am. The host had named no time, and the request
-    // was only ever a tiebreak inside a capacity budget that ran for windows bounded
-    // at both ends. An open window skipped it entirely, so the word did nothing.
+    // Two reports, and they pull in opposite directions:
+    //
+    //   1. "still i just said lunch" — the plan came back with a 10 pm nightlife deck.
+    //      The named stop was only ever a tiebreak, so an open window ignored it and
+    //      the word did nothing.
+    //   2. "dinner at saket ... only showing me dinner options instead of the whole
+    //      list from afternoon to late" — fixing (1) by making the request a hard
+    //      filter over-corrected: one word became the entire plan.
+    //
+    // Seeded growth satisfies both. The named stop is guaranteed, the plan is built
+    // around it, and growth is contiguous — so "lunch" grows forward into dinner and
+    // runs out of budget before it ever reaches a bar.
 
-    @Test("An open-ended plan contains only what the host asked for")
-    func requestFiltersAnOpenWindow() throws {
+    @Test("One named stop is a seed, and the plan is built around it")
+    func oneNamedStopSeedsTheArc() {
+        let schedule = SlotSchedule.compute(for: .unknown, requesting: [.dinner])
+
+        #expect(schedule.slots.map(\.band) == [.afternoon, .somethingNew, .dinner, .late])
+        #expect(schedule.shape == .seeded)
+        #expect(schedule.requestHonoured)
+    }
+
+    @Test("The earlier report stays fixed: lunch never reaches a 10 pm bar")
+    func seedingLunchNeverReachesNightlife() throws {
         let schedule = SlotSchedule.compute(for: .unknown, requesting: [.lunch])
 
-        #expect(schedule.feasibleCategories == [.food])
-        #expect(!schedule.feasibleCategories.contains(.nightlife), "Nobody asked for a 10 pm bar")
+        let bands = schedule.slots.map(\.band)
+        #expect(bands.contains(.lunch), "The word they actually said must be in the plan")
+        #expect(!bands.contains(.late), "Nobody asked for a 10 pm bar")
+        #expect(try #require(schedule.slots.first).band == .lunch,
+                "A bare `food` would have resolved to dinner")
+    }
 
-        let lunch = try #require(schedule.slots.first)
-        #expect(lunch.band == .lunch, "A bare `food` would have resolved to dinner")
-        #expect(lunch.title == "Lunch")
+    @Test("Growth reaches back only so far, so an evening word is not a whole day")
+    func growthDoesNotInventAMorning() {
+        let schedule = SlotSchedule.compute(for: .unknown, requesting: [.late])
+
+        #expect(schedule.slots.map(\.band) == [.somethingNew, .dinner, .late])
+        #expect(!schedule.slots.map(\.band).contains(.lunch), "'Drinks' is not a day out")
+    }
+
+    @Test("Exclusive means exactly what was named, however few")
+    func exclusiveCollapsesToTheNamedStops() {
+        let schedule = SlotSchedule.compute(for: .unknown, requesting: [.dinner], exclusive: true)
+
+        #expect(schedule.slots.map(\.band) == [.dinner])
+        #expect(schedule.shape == .exact)
+        #expect(schedule.requestHonoured)
+    }
+
+    @Test("Filler lost to a short window is not a broken promise")
+    func droppedFillerStillCountsAsHonoured() {
+        // Free only 8–9 pm, and they asked for dinner. The grown arc cannot fit, but
+        // the stop they named did — so nothing was taken from them.
+        let schedule = SlotSchedule.compute(for: eightToNine, requesting: [.dinner])
+
+        #expect(schedule.slots.map(\.band) == [.dinner])
+        #expect(schedule.requestHonoured, "They asked for dinner and got dinner")
+    }
+
+    @Test("A seeded stop outranks the filler grown around it when time is short")
+    func theSeedSurvivesTheCapacityTrim() {
+        // 12:30–2 holds one stop. Lunch starts earlier than afternoon, so a trim that
+        // simply took stops in time order would hand them lunch instead.
+        let window = OutingTimeWindow(earliestStartMinute: 12 * 60 + 30, latestEndMinute: 14 * 60)
+        let schedule = SlotSchedule.compute(for: window, requesting: [.afternoon])
+
+        #expect(schedule.slots.map(\.band) == [.afternoon])
+    }
+
+    // MARK: - Breakfast
+    //
+    // There was no breakfast band at all: the table opened at noon and "breakfast" was
+    // a keyword for `.lunch`, so a host asking for one was scheduled a 12 o'clock meal.
+
+    @Test("A morning plan is now representable")
+    func breakfastIsReachable() throws {
+        let morning = OutingTimeWindow(earliestStartMinute: 9 * 60, latestEndMinute: 11 * 60 + 30)
+        let schedule = SlotSchedule.compute(for: morning, requesting: [.breakfast])
+
+        let breakfast = try #require(schedule.slot(band: .breakfast))
+        #expect(breakfast.title == "Breakfast")
+        #expect(breakfast.startMinute == 9 * 60)
+        #expect(schedule.requestHonoured)
+    }
+
+    @Test("Breakfast is opt-in: an unanchored plan still opens at noon")
+    func breakfastIsNeverADefault() {
+        let schedule = SlotSchedule.compute(for: .unknown)
+
+        #expect(!schedule.slots.map(\.band).contains(.breakfast))
+        #expect(SlotSchedule.defaultDayStartMinute == 12 * 60)
+    }
+
+    @Test("A vague 'somewhere to eat' never resolves to breakfast")
+    func vagueFoodExcludesBreakfast() {
+        #expect(SlotBand.all(in: .food) == [.lunch, .dinner])
+    }
+
+    /// The reported case: "breakfast in khan market" came back as breakfast, lunch and
+    /// an activity. Seeding is right for a stop that anchors an outing — dinner earns
+    /// an afternoon in front of it — but breakfast *is* the outing.
+    @Test("Breakfast names a whole outing, so it does not grow one")
+    func breakfastDoesNotSeedADay() {
+        let schedule = SlotSchedule.compute(for: .unknown, requesting: [.breakfast])
+
+        #expect(schedule.slots.map(\.band) == [.breakfast])
+        #expect(schedule.shape == .exact, "Nothing was grown around it")
+        #expect(!SlotBand.breakfast.seedsAnOuting)
+        #expect(SlotBand.allCases.filter { !$0.seedsAnOuting } == [.breakfast],
+                "Every other stop is worth building a plan around")
+    }
+
+    @Test("Breakfast named alongside another stop still means both")
+    func breakfastStillCombines() {
+        let schedule = SlotSchedule.compute(for: .unknown, requesting: [.breakfast, .somethingNew])
+
+        #expect(schedule.slots.map(\.band) == [.breakfast, .somethingNew])
     }
 
     @Test("Two named stops give exactly two stops, in time order")

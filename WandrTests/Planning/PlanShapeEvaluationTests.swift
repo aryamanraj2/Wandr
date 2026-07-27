@@ -56,6 +56,7 @@ struct PlanShapeEvaluationTests {
 
     private static func payload(
         stops: String? = nil,
+        onlyTheseStops: Bool = false,
         time: String? = nil,
         budget: String? = nil,
         groupSize: Int? = nil,
@@ -64,6 +65,12 @@ struct PlanShapeEvaluationTests {
     ) -> ChatSummaryPayload {
         var p = ChatSummaryPayload()
         p.plannedStops = stops
+        // Set wherever the host's own sentence rules the other stops out ("we *just*
+        // want lunch"). The word lives in `said`, which a summary does not carry, so a
+        // faithful extractor is the thing that would report it — and does, via
+        // `PlanShape.onlyTheseStops`. Without it these cases would be asserting that
+        // Wandr can read a word it was never given.
+        p.onlyTheseStops = onlyTheseStops ? true : nil
         p.time = time
         p.budget = budget
         p.groupSize = groupSize
@@ -72,17 +79,37 @@ struct PlanShapeEvaluationTests {
         return p
     }
 
-    /// Fifteen phrasings, chosen to cover the four shapes the app has to support —
-    /// one stop, two stops, a whole day, and nothing stated — plus every reported bug.
+    /// Phrasings chosen to cover every shape the app has to support — a seeded stop, an
+    /// exclusive one, two stops, a whole day, and nothing stated — plus every report.
+    ///
+    /// ## The shape rule these encode
+    ///
+    /// Naming **one** stop seeds a plan built around it; naming **two** describes the
+    /// plan exactly; saying "just" or "only" collapses it to what was named. The set
+    /// used to assert the middle rule for all three, which is the bug it now pins: a
+    /// host who said "dinner at Saket" got a lone dinner deck instead of an evening.
     static let golden: [GoldenCase] = [
-        // — The reports —
+        // — The report: one named stop is a seed, not the whole plan —
+        GoldenCase(said: "dinner at saket for 2 people, around 2000",
+                   payload: payload(stops: "dinner", budget: "around 2000",
+                                    groupSize: 2, area: "Saket"),
+                   expectedBands: [.afternoon, .somethingNew, .dinner, .late],
+                   expectedCeilingPerHead: 1_000),
+
+        // The same sentence with the word that changes everything.
+        GoldenCase(said: "just dinner at saket",
+                   payload: payload(stops: "dinner", onlyTheseStops: true, area: "Saket"),
+                   expectedBands: [.dinner], expectedCeilingPerHead: nil),
+
+        // — The earlier report: "lunch" must never reach a 10 pm bar —
         GoldenCase(said: "we just want lunch",
-                   payload: payload(stops: "lunch"),
+                   payload: payload(stops: "lunch", onlyTheseStops: true),
                    expectedBands: [.lunch], expectedCeilingPerHead: nil),
 
         GoldenCase(said: "lunch for 2, ₹2000",
                    payload: payload(stops: "lunch", budget: "₹2000", groupSize: 2),
-                   expectedBands: [.lunch], expectedCeilingPerHead: 1_000),
+                   expectedBands: [.lunch, .afternoon, .somethingNew, .dinner],
+                   expectedCeilingPerHead: 1_000),
 
         GoldenCase(said: "outing, 12:30 to 2, lunch, in CP",
                    payload: payload(stops: "lunch", time: "from 12:30 to 2:00 pm", area: "CP"),
@@ -92,40 +119,81 @@ struct PlanShapeEvaluationTests {
                    payload: payload(time: "only 3 hours"),
                    expectedBands: [.dinner, .late], expectedCeilingPerHead: nil),
 
+        // — Breakfast, which had no band at all until now —
+        //
+        // And which does not seed. A plan grows *towards* the stop that was named, and
+        // it grows into an evening — so "dinner" earns an afternoon in front of it and
+        // breakfast earns nothing after it. Breakfast in Khan Market came back as
+        // breakfast, lunch and an activity, which is a day nobody asked for.
+        GoldenCase(said: "breakfast tomorrow around 9",
+                   payload: payload(stops: "breakfast", time: "around 9 am"),
+                   expectedBands: [.breakfast],
+                   expectedCeilingPerHead: nil),
+
+        GoldenCase(said: "breakfast in khan market",
+                   payload: payload(stops: "breakfast", area: "Khan Market"),
+                   expectedBands: [.breakfast], expectedCeilingPerHead: nil),
+
+        // Two named stops still mean both, whichever they are.
+        GoldenCase(said: "breakfast and then some shopping",
+                   payload: payload(stops: "breakfast and then some shopping"),
+                   expectedBands: [.breakfast, .somethingNew], expectedCeilingPerHead: nil),
+
+        // — Two meals, the reported sentence —
+        GoldenCase(said: "dinner and lunch for 2 near saket, around 2000 each",
+                   payload: payload(stops: "dinner and lunch", budget: "around 2000 each",
+                                    groupSize: 2, area: "Saket"),
+                   expectedBands: [.lunch, .dinner], expectedCeilingPerHead: 2_000),
+
         // — Two stops, nothing in between —
         GoldenCase(said: "lunch and then dinner, nothing else",
                    payload: payload(stops: "lunch and dinner"),
                    expectedBands: [.lunch, .dinner], expectedCeilingPerHead: nil),
 
+        // "Drinks" is a category word, and the stop it names is not covered by
+        // "dinner" — so it survives, and this stays two stops rather than becoming a
+        // seeded evening.
         GoldenCase(said: "dinner then drinks",
                    payload: payload(stops: "dinner then drinks"),
                    expectedBands: [.dinner, .late], expectedCeilingPerHead: nil),
 
         // — One stop, various kinds —
         GoldenCase(said: "just drinks somewhere",
-                   payload: payload(stops: "drinks"),
+                   payload: payload(stops: "drinks", onlyTheseStops: true),
                    expectedBands: [.late], expectedCeilingPerHead: nil),
+
+        // Growth reaches back at most two bands, so an evening word never invents a
+        // whole day in front of itself.
+        GoldenCase(said: "drinks tonight",
+                   payload: payload(stops: "drinks"),
+                   expectedBands: [.somethingNew, .dinner, .late],
+                   expectedCeilingPerHead: nil),
 
         GoldenCase(said: "a walk somewhere green",
                    payload: payload(stops: "a walk", vibe: "green"),
-                   expectedBands: [.afternoon], expectedCeilingPerHead: nil),
+                   expectedBands: [.afternoon, .somethingNew, .dinner, .late],
+                   expectedCeilingPerHead: nil),
 
         GoldenCase(said: "some shopping",
                    payload: payload(stops: "shopping"),
-                   expectedBands: [.somethingNew], expectedCeilingPerHead: nil),
+                   expectedBands: [.afternoon, .somethingNew, .dinner, .late],
+                   expectedCeilingPerHead: nil),
 
         // — Budget basis, both readings —
         GoldenCase(said: "dinner, 1500 each",
                    payload: payload(stops: "dinner", budget: "1500 each", groupSize: 4),
-                   expectedBands: [.dinner], expectedCeilingPerHead: 1_500),
+                   expectedBands: [.afternoon, .somethingNew, .dinner, .late],
+                   expectedCeilingPerHead: 1_500),
 
         GoldenCase(said: "dinner, 4k for all of us",
                    payload: payload(stops: "dinner", budget: "4k for all of us", groupSize: 4),
-                   expectedBands: [.dinner], expectedCeilingPerHead: 1_000),
+                   expectedBands: [.afternoon, .somethingNew, .dinner, .late],
+                   expectedCeilingPerHead: 1_000),
 
         GoldenCase(said: "drinks, 2k pp",
                    payload: payload(stops: "drinks", budget: "2k pp", groupSize: 3),
-                   expectedBands: [.late], expectedCeilingPerHead: 2_000),
+                   expectedBands: [.somethingNew, .dinner, .late],
+                   expectedCeilingPerHead: 2_000),
 
         // — A whole day, and nothing stated —
         // Eight hours from the top of the day reaches the 8 pm dinner band but has
@@ -156,10 +224,7 @@ struct PlanShapeEvaluationTests {
         guard case .normalized(let brief) = try BriefNormalizer().normalize(draft) else {
             throw EvaluationGap.briefNeededDetails
         }
-        let schedule = SlotSchedule.compute(
-            for: brief.timeWindow.value,
-            requesting: brief.requestedStops
-        )
+        let schedule = brief.schedule
         return (
             schedule.slots.map(\.band),
             brief.budget.value.ceilingPerHead(for: brief.groupSize.value)
@@ -234,10 +299,7 @@ struct PlanShapeEvaluationTests {
         let draft = ChatSummaryBriefMapper().draft(from: golden.payload)
         guard case .normalized(let brief) = try BriefNormalizer().normalize(draft) else { return }
 
-        let slots = SlotSchedule.compute(
-            for: brief.timeWindow.value,
-            requesting: brief.requestedStops
-        ).slots
+        let slots = brief.schedule.slots
 
         for (earlier, later) in zip(slots, slots.dropFirst()) {
             #expect(earlier.endMinute <= later.startMinute,

@@ -138,11 +138,10 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
         }
 
         return try await log.measure("curate", "run") {
-            // Only the slots the time window actually allows, in time order.
-            let schedule = SlotSchedule.compute(
-                for: brief.timeWindow.value,
-                requesting: brief.requestedStops
-            )
+            // Only the slots the time window actually allows, in time order. Read off
+            // the brief so the deck, the card's window label and the timeline cannot
+            // be computed from three slightly different sets of inputs.
+            let schedule = brief.schedule
 
             // Already filtered. `EvidenceResolver` applied the hard constraints *and*
             // decided which soft ones had to be given up, so re-filtering here would
@@ -159,12 +158,21 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
             // sees `requested=-` is looking at a word that never survived extraction,
             // which is a different bug from one the schedule got wrong. Both are Wandr's
             // own enum names, never the host's words.
+            //
+            // `group` carries its provenance because the number alone cannot say
+            // whether a plan for four is what the host asked for or what Wandr assumed
+            // when nothing was extracted — and those are opposite bugs. A bounded
+            // count (1...50), logged like the other counts on this line, never text.
             let window = brief.timeWindow.value
             let requested = brief.requestedStops.map(\.rawValue).sorted()
             log.event(
                 """
                 PLAN slots=\(schedule.slots.map(\.band.rawValue).joined(separator: ",")) \
                 requested=\(requested.isEmpty ? "-" : requested.joined(separator: ",")) \
+                shape=\(schedule.shape.rawValue) \
+                exclusive=\(brief.stopsAreExclusive) \
+                group=\(brief.groupSize.value.people)/\(brief.groupSize.source.rawValue) \
+                honoured=\(schedule.requestHonoured) \
                 windowConstrained=\(schedule.isWindowConstrained) \
                 windowStart=\(window.earliestStartMinute.map(String.init) ?? "-") \
                 windowEnd=\(window.latestEndMinute.map(String.init) ?? "-") \

@@ -52,10 +52,7 @@ nonisolated struct EvidenceResolver: Sendable {
         // from `requestedStops` alone: a host who named no stops still gets the
         // default shape, and a budget that leaves that shape with no restaurant is
         // just as much a dead end as one that empties a stop they asked for by name.
-        let needed = Set(
-            SlotSchedule.compute(for: brief.timeWindow.value, requesting: brief.requestedStops)
-                .slots.map(\.category)
-        )
+        let needed = Set(brief.schedule.slots.map(\.category))
 
         var relaxed: Set<RelaxableConstraint> = []
         var relaxations: [PlanRelaxation] = []
@@ -137,7 +134,10 @@ nonisolated struct EvidenceResolver: Sendable {
             return "We had to go a little outside the hours you gave."
 
         case .requestedStops:
-            return "We couldn't fit every stop you asked for into that time."
+            // Never reached from here — this rung is filtered out of the ladder above,
+            // because a stop that does not fit is a schedule problem, not an evidence
+            // one. The coordinator raises it. Kept in step via the shared constant.
+            return PlanRelaxation.stopsDidNotFit.disclosure
         }
     }
 }

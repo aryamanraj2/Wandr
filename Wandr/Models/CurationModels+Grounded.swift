@@ -76,10 +76,7 @@ enum GroundedPlanMapper {
 
     static func map(plan: WandrPlan, evidence: [GroundedVenue]) -> Output {
         let byID = Dictionary(evidence.map { ($0.venueID, $0) }, uniquingKeysWith: { first, _ in first })
-        let schedule = SlotSchedule.compute(
-            for: plan.brief.timeWindow.value,
-            requesting: plan.brief.requestedStops
-        )
+        let schedule = plan.brief.schedule
 
         var decks: [Deck] = []
         for slot in plan.slots {

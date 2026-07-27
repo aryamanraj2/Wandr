@@ -83,6 +83,20 @@ nonisolated struct PlanRelaxation: Sendable, Equatable, Hashable {
         self.constraint = constraint
         self.disclosure = disclosure
     }
+
+    /// The stops the host named would not fit the hours they gave, so the schedule
+    /// fell back to a shape that does.
+    ///
+    /// Raised by the coordinator rather than by `EvidenceResolver`: this is a
+    /// *schedule* compromise, and the resolver deliberately handles only the two
+    /// constraints that change which venues exist. `SlotSchedule.requestHonoured` has
+    /// reported this since it was written and nothing read it — so a host who asked
+    /// for lunch, and was free only in the evening, was quietly handed dinner with no
+    /// word about it anywhere.
+    static let stopsDidNotFit = PlanRelaxation(
+        .requestedStops,
+        disclosure: "We couldn't fit every stop you asked for into that time."
+    )
 }
 
 /// The order constraints are given up in, for one brief.

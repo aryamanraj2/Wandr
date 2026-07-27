@@ -247,8 +247,15 @@ nonisolated struct OutingBriefDraft: Sendable, Equatable {
     /// The stops the host asked for by name — "lunch", "drinks", "a walk".
     ///
     /// Empty means they didn't say, which is not the same as wanting nothing: an empty
-    /// request keeps every stop the window allows. A non-empty one *is* the plan.
+    /// request keeps every stop the window allows. One named stop seeds a plan built
+    /// around it; two or more describe the shape exactly. See `SlotSchedule.chooseBands`.
     var requestedStops: Set<SlotBand>
+    /// The host said these are the *only* stops they want — "just dinner".
+    ///
+    /// Separate from `requestedStops` because one named stop cannot otherwise tell
+    /// "an evening with dinner in it" apart from "dinner and nothing else", and those
+    /// are different plans.
+    var stopsAreExclusive: Bool
     /// Remaining neutral constraints. Data, never executable instructions.
     var notes: [String]
 
@@ -263,6 +270,7 @@ nonisolated struct OutingBriefDraft: Sendable, Equatable {
         accessibility: AccessibilityNeeds = .unknown,
         setting: SettingPreference = .noPreference,
         requestedStops: Set<SlotBand> = [],
+        stopsAreExclusive: Bool = false,
         notes: [String] = []
     ) {
         self.occasion = occasion
@@ -275,6 +283,7 @@ nonisolated struct OutingBriefDraft: Sendable, Equatable {
         self.accessibility = accessibility
         self.setting = setting
         self.requestedStops = requestedStops
+        self.stopsAreExclusive = stopsAreExclusive
         self.notes = notes
     }
 }
@@ -304,9 +313,12 @@ nonisolated struct OutingBrief: Sendable, Equatable {
     let accessibility: AccessibilityNeeds
     let setting: SettingPreference
 
-    /// The stops the host named. When non-empty this *is* the shape of the plan —
-    /// see `SlotSchedule.compute(for:requesting:)`.
+    /// The stops the host named. One seeds a plan built around it; two or more
+    /// describe it exactly — see `SlotSchedule.chooseBands`.
     let requestedStops: Set<SlotBand>
+
+    /// The host said these are the only stops they want. See `OutingBriefDraft`.
+    let stopsAreExclusive: Bool
 
     let notes: [String]
 
@@ -321,6 +333,7 @@ nonisolated struct OutingBrief: Sendable, Equatable {
         accessibility: AccessibilityNeeds = .unknown,
         setting: SettingPreference = .noPreference,
         requestedStops: Set<SlotBand> = [],
+        stopsAreExclusive: Bool = false,
         notes: [String] = []
     ) {
         self.occasion = occasion
@@ -333,6 +346,7 @@ nonisolated struct OutingBrief: Sendable, Equatable {
         self.accessibility = accessibility
         self.setting = setting
         self.requestedStops = requestedStops
+        self.stopsAreExclusive = stopsAreExclusive
         self.notes = notes
     }
 
@@ -345,6 +359,29 @@ nonisolated struct OutingBrief: Sendable, Equatable {
         if groupSize.isSafeDefault { defaults.append(.groupSize) }
         if budget.isSafeDefault { defaults.append(.budget) }
         return defaults
+    }
+}
+
+// MARK: - The plan's shape
+
+nonisolated extension OutingBrief {
+
+    /// The stops this brief's plan will contain, in time order.
+    ///
+    /// The *only* place `SlotSchedule.compute` is called from production code. Five
+    /// separate call sites used to pass the brief's window and stops themselves —
+    /// the curator, the fake curator, the evidence resolver, the schedule drafter and
+    /// the poll builder — which meant a new input like `stopsAreExclusive` had to be
+    /// threaded through five times to avoid the deck, the window label on the card,
+    /// and the timeline quietly disagreeing about what the night is.
+    ///
+    /// Pure arithmetic over six bands, so recomputing it per caller costs nothing.
+    var schedule: SlotSchedule {
+        SlotSchedule.compute(
+            for: timeWindow.value,
+            requesting: requestedStops,
+            exclusive: stopsAreExclusive
+        )
     }
 }
 

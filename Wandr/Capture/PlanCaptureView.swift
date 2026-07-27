@@ -86,6 +86,11 @@ struct PlanCaptureView: View {
             }
         }
         .background(Wandr.pageBackground)
+        // Everything the host says here goes straight into an on-device generation.
+        // Loading the model is the biggest part of that first call, so it starts now,
+        // while they are still deciding what to say, rather than after they tap.
+        // `prewarm()` is a non-blocking hint and returns immediately.
+        .onAppear { FreeTextSummaryExtractor().prewarm() }
         // One spring governs the whole morph, so the shape, the padding, and
         // the surrounding layout arrive together rather than in three passes.
         .animation(.wandrTransition, value: mode)

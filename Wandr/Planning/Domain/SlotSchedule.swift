@@ -31,7 +31,11 @@ import Foundation
 /// dinner deck, because `food` resolved to its latest band. The request is expressed
 /// in these instead, and a category-level word ("food", "eat") simply asks for every
 /// band the category owns.
+/// - Note: declared in time order, and `allCases` is relied on for that — seeded
+///   growth walks outward from a named band to its neighbours, and "neighbour" means
+///   the adjacent row of this table.
 nonisolated enum SlotBand: String, Sendable, Hashable, CaseIterable {
+    case breakfast
     case lunch
     case afternoon
     case somethingNew
@@ -40,17 +44,34 @@ nonisolated enum SlotBand: String, Sendable, Hashable, CaseIterable {
 
     var category: SlotCategory {
         switch self {
-        case .lunch, .dinner: return .food
+        case .breakfast, .lunch, .dinner: return .food
         case .afternoon:      return .sights
         case .somethingNew:   return .discover
         case .late:           return .nightlife
         }
     }
 
-    /// Every band that serves `category`, for a request that named the kind of stop
-    /// without naming when — "somewhere to eat" is lunch *or* dinner, whichever fits.
+    /// Whether naming this stop, and only this stop, implies an outing built around it.
+    ///
+    /// True of everything except breakfast. "Dinner" is the anchor of a night out and
+    /// "a walk" is the start of an afternoon, so both are worth growing into a plan —
+    /// that is the whole point of seeding. Breakfast is not: it names a complete
+    /// outing by itself, and a host who asked for breakfast in Khan Market got
+    /// breakfast, lunch and an activity, which is a day they never asked for.
+    ///
+    /// This is a rule about *growth*, not reachability. "Breakfast and then shopping"
+    /// is two named stops and still means both.
+    var seedsAnOuting: Bool { self != .breakfast }
+
+    /// Every band a *vague* request may resolve to — one that named the kind of stop
+    /// without naming when. "Somewhere to eat" is lunch or dinner, whichever fits.
+    ///
+    /// `breakfast` is deliberately absent. It is reachable only when the host names it
+    /// or gives a morning window: "let's get food", said at no particular time, is not
+    /// a 9 am request, and including it here would put three meals into a plan that
+    /// asked for one.
     static func all(in category: SlotCategory) -> Set<SlotBand> {
-        Set(allCases.filter { $0.category == category })
+        Set(allCases.filter { $0.category == category && $0 != .breakfast })
     }
 }
 
@@ -92,6 +113,25 @@ nonisolated struct SlotSchedule: Sendable, Equatable {
     /// to make visible.
     let requestHonoured: Bool
 
+    /// Which rule in `chooseBands` produced `slots`.
+    ///
+    /// Reported rather than re-derived, so the log cannot drift from the decision it
+    /// is describing. Worth having because "I got one deck when I expected four" is a
+    /// different bug for each value: `exact` means the request was read as a whole
+    /// plan, `seeded` means growth found nothing that fit, `standard` means the stop
+    /// never survived extraction at all.
+    let shape: Shape
+
+    /// How the plan's stops were chosen.
+    nonisolated enum Shape: String, Sendable, Equatable {
+        /// Nothing named — one stop per category, the latest with room.
+        case standard
+        /// One stop named, and the plan grown around it.
+        case seeded
+        /// The host described the shape, or ruled everything else out.
+        case exact
+    }
+
     // MARK: - Bands
     //
     // Each slot owns a time-of-day band, taken from the schedule template and the
@@ -117,6 +157,7 @@ nonisolated struct SlotSchedule: Sendable, Equatable {
     /// offered a restaurant. A category with no band over the host's hours is a
     /// category the plan silently cannot contain.
     private static let bands: [Band] = [
+        Band(id: .breakfast,    title: "Breakfast",     startMinute: 8 * 60,       endMinute: 11 * 60 + 30), //  8:00 – 11:30 am
         Band(id: .lunch,        title: "Lunch",         startMinute: 12 * 60,      endMinute: 15 * 60 + 30), // 12:00 – 3:30 pm
         Band(id: .afternoon,    title: "Afternoon",     startMinute: 12 * 60 + 30, endMinute: 17 * 60),      // 12:30 – 5:00 pm
         Band(id: .somethingNew, title: "Something new", startMinute: 17 * 60,      endMinute: 20 * 60),      //  5:00 – 8:00 pm
@@ -124,9 +165,21 @@ nonisolated struct SlotSchedule: Sendable, Equatable {
         Band(id: .late,         title: "Late",          startMinute: 22 * 60,      endMinute: 25 * 60)       // 10:00 pm – 1:00 am
     ]
 
-    /// The earliest a plan ever opens. Named rather than read off `bands.first`, so
-    /// reordering the table cannot quietly move when the day starts.
+    /// The earliest minute any band opens. The literal minimum of the table.
+    ///
+    /// - Important: this is *not* where an unanchored plan starts — see
+    ///   `defaultDayStartMinute`. Adding the breakfast band moved this from noon to
+    ///   8 am, and a duration cap measured from 8 am would have quietly turned "we
+    ///   have eight hours" into a plan that opens at breakfast for a host who never
+    ///   mentioned morning.
     static var dayStartMinute: Int { bands.map(\.startMinute).min() ?? 0 }
+
+    /// Where a plan opens when the host anchored it to nothing.
+    ///
+    /// Noon, and a literal rather than `dayStartMinute`, precisely so a new early
+    /// band cannot move it. Breakfast is reachable — but only when the host asks for
+    /// it by name or gives a morning window, never by default.
+    static let defaultDayStartMinute = 12 * 60
 
     /// Where a duration-capped outing starts when the host named no start time.
     ///
@@ -157,12 +210,16 @@ nonisolated struct SlotSchedule: Sendable, Equatable {
     /// did not. This is the only thing that makes "we've only got 3 hours" produce
     /// a materially shorter night — a duration cannot be expressed as a clock bound,
     /// so before this it expressed nothing at all.
-    /// - Parameter requested: the stops the host actually named. A non-empty request
-    ///   *is* the plan: nothing they didn't ask for survives. Empty means they said
-    ///   nothing, and every band the window allows is kept, exactly as before.
+    /// - Parameters:
+    ///   - requested: the stops the host actually named. Empty means they said
+    ///     nothing, and every band the window allows is kept.
+    ///   - exclusive: the host said these are the *only* stops they want — "just
+    ///     dinner", "only the breakfast plan". See `chooseBands` for how one named
+    ///     stop differs from two.
     static func compute(
         for window: OutingTimeWindow,
         requesting requested: Set<SlotBand> = [],
+        exclusive: Bool = false,
         minimumStopMinutes: Int = 60
     ) -> SlotSchedule {
         let anchor = anchorStart(for: window)
@@ -187,6 +244,7 @@ nonisolated struct SlotSchedule: Sendable, Equatable {
             earliestStart: earliestStart,
             latestEnd: latestEnd,
             requested: requested,
+            exclusive: exclusive,
             minimumStopMinutes: minimumStopMinutes
         )
 
@@ -194,30 +252,37 @@ nonisolated struct SlotSchedule: Sendable, Equatable {
             slots: layOut(chosen.bands, earliestStart: earliestStart, latestEnd: latestEnd,
                           minimumStopMinutes: minimumStopMinutes),
             isWindowConstrained: !window.isUnknown,
-            requestHonoured: chosen.honoured
+            requestHonoured: chosen.honoured,
+            shape: chosen.shape
         )
     }
 
     /// The bands the plan will actually contain, in time order.
     ///
-    /// Two rules, in order:
+    /// The shape is read off the request rather than taken from a fixed template.
+    /// How many stops the host named is itself the signal:
     ///
-    /// 1. **A named request filters.** A host who says "lunch" is telling you what the
-    ///    outing *is*, not which of four stops they feel most strongly about. This used
-    ///    to be a mere tiebreak inside a capacity budget that only ran for windows
-    ///    bounded at both ends — so a host who said "lunch" and named no clock time got
-    ///    every band in the table, nightlife included, and the word they actually said
-    ///    changed nothing at all.
-    /// 2. **One band per category — the latest that still has room.** Latest, not
-    ///    longest: with an open evening ahead, an unspecific "somewhere to eat" should
-    ///    mean dinner. The lunch band is what a window that never reaches 8 pm, or a
-    ///    host who said "lunch" outright, falls back to.
+    /// 1. **Nothing named** — one band per category, the latest that still has room.
+    ///    Latest, not longest: with an open evening ahead, an unspecific "somewhere to
+    ///    eat" should mean dinner.
+    /// 2. **One stop named** — that stop is guaranteed, and the plan is *grown* around
+    ///    it (`grown(from:within:)`). A single word is a seed, not a ceiling. This used
+    ///    to filter, so "dinner at Saket" came back as a lone dinner deck when what the
+    ///    host wanted was an evening with dinner in it.
+    /// 3. **Two or more named** — exactly those, including two that share a category.
+    ///    "Lunch and dinner" describes a shape, and nothing goes in between.
+    /// 4. **Exclusive** ("just dinner", "only breakfast") — exactly what they named,
+    ///    however few. This is the one way to ask for a single-stop plan.
+    ///
+    /// Rules 2 and 3 both keep the fix that rule 1 alone could not give: the stop the
+    /// host actually said is always in the plan.
     private static func chooseBands(
         earliestStart: Int?,
         latestEnd: Int?,
         requested: Set<SlotBand>,
+        exclusive: Bool,
         minimumStopMinutes: Int
-    ) -> (bands: [Band], honoured: Bool) {
+    ) -> (bands: [Band], honoured: Bool, shape: Shape) {
 
         func room(_ band: Band) -> Int {
             min(band.endMinute, latestEnd ?? band.endMinute)
@@ -231,36 +296,101 @@ nonisolated struct SlotSchedule: Sendable, Equatable {
         // used to empty the plan. A contradicted host gets dinner, not nothing.
         let asked = fits.filter { requested.contains($0.id) }
 
-        let chosen: [Band]
+        // In give-up order, not time order: what the host named comes before what
+        // Wandr grew around it, so a window too short for everything costs them
+        // filler rather than the word they actually said.
+        let prioritised: [Band]
+        let shape: Shape
         if asked.isEmpty {
+            shape = .standard
             // Nothing named, or nothing named that fits: one stop per category, the
             // latest that has room, exactly as an unspecified outing has always worked.
-            chosen = SlotCategory.allCases.compactMap { category in
+            let latestPerCategory: [Band] = SlotCategory.allCases.compactMap { category in
                 fits.filter { $0.category == category }.max { $0.startMinute < $1.startMinute }
             }
+            prioritised = latestPerCategory.sorted { $0.startMinute < $1.startMinute }
+
+        } else if let seed = asked.first, requested.count == 1, !exclusive, seed.id.seedsAnOuting {
+            shape = .seeded
+            prioritised = grown(from: seed, within: fits)
+
         } else {
-            // Every band they named, including two that share a category. "Lunch and
-            // dinner" is two stops; collapsing to one per category is precisely what
-            // made that impossible to ask for.
-            chosen = asked
+            shape = .exact
+            prioritised = asked.sorted { $0.startMinute < $1.startMinute }
         }
-        let ordered = chosen.sorted { $0.startMinute < $1.startMinute }
+
         let honoured = requested.isEmpty || !asked.isEmpty
+
+        /// How many of these the host actually asked for by name.
+        func named(_ list: [Band]) -> Int { list.count { requested.contains($0.id) } }
 
         // Only a window bounded at both ends has a budget to run out of. An open one
         // keeps everything the request allowed.
-        guard let earliestStart, let latestEnd else { return (ordered, honoured) }
-
-        var capacity = latestEnd - earliestStart
-        var kept: [Band] = []
-        for band in ordered where capacity >= minimumStopMinutes {
-            kept.append(band)
-            capacity -= minimumStopMinutes
+        guard let earliestStart, let latestEnd else {
+            return (prioritised.sorted { $0.startMinute < $1.startMinute }, honoured, shape)
         }
 
-        // Dropping a named stop for want of time is still a request not honoured,
-        // even though the ones that survived were all asked for.
-        return (kept, honoured && kept.count == ordered.count)
+        let affordable = max(0, (latestEnd - earliestStart) / minimumStopMinutes)
+        let kept = Array(prioritised.prefix(affordable))
+
+        // Dropping a stop for want of time only breaks the promise when the host
+        // named it. Filler grown around a seed was Wandr's suggestion, not their
+        // request, so losing it to a short window is not a request unhonoured — and
+        // reporting it as one would put a "we couldn't fit everything" notice in
+        // front of a host who got exactly what they asked for.
+        return (kept.sorted { $0.startMinute < $1.startMinute },
+                honoured && named(kept) == named(prioritised),
+                shape)
+    }
+
+    /// How many stops a plan grown around a single named request aims for.
+    ///
+    /// Four — the same depth an unconstrained plan has. "Dinner" should come back as
+    /// an afternoon, something to discover, the dinner they asked for, and somewhere
+    /// to end up.
+    static let targetStopCount = 4
+
+    /// How many bands before the named one a plan may reach back over.
+    ///
+    /// A plan builds *towards* the thing the host said and only leads in briefly.
+    /// Without the cap, "let's get drinks" grew backwards through dinner and something
+    /// new all the way to a 12:30 pm afternoon — a whole day invented out of one
+    /// evening word. Two is what makes "dinner" reach back to the afternoon (the
+    /// asked-for case) while "late" stops at something new.
+    static let maximumEarlierStops = 2
+
+    /// The arc around a single named stop, in give-up order: the seed first, then
+    /// outward to its neighbours in the band table.
+    ///
+    /// Later before earlier, because a night out grows forward — "dinner" reaches
+    /// `late` before it reaches `afternoon`. Bands the window cannot hold are stepped
+    /// over rather than ending the walk, so a 6 pm start still reaches `somethingNew`
+    /// even though `afternoon` is already gone.
+    ///
+    /// Contiguity is what keeps the *other* report fixed: growth from `lunch` runs out
+    /// of budget at `dinner`, so a host who says "lunch" is never handed a 10 pm bar.
+    private static func grown(from seed: Band, within fits: [Band]) -> [Band] {
+        let order = SlotBand.allCases
+        guard let seedIndex = order.firstIndex(of: seed.id) else { return [seed] }
+
+        let fitting = Dictionary(fits.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var kept: [Band] = [seed]
+
+        func extend(_ indices: [Int]) {
+            for index in indices where kept.count < targetStopCount {
+                if let band = fitting[order[index]] { kept.append(band) }
+            }
+        }
+
+        let later = Array((seedIndex + 1)..<order.count)
+        // Capped by *position*, not by how many were taken: a band the window already
+        // ruled out must not buy the walk another step further into the past.
+        let earlier = Array(stride(from: seedIndex - 1, through: 0, by: -1).prefix(maximumEarlierStops))
+
+        extend(later)
+        extend(earlier)
+
+        return kept
     }
 
     /// Places the chosen bands end to end inside the window.
@@ -308,8 +438,8 @@ nonisolated struct SlotSchedule: Sendable, Equatable {
     /// a day, and starting them at 8 pm would throw most of their time past midnight.
     private static func anchorStart(for window: OutingTimeWindow) -> Int {
         if let stated = window.earliestStartMinute { return stated }
-        guard let duration = window.maximumDurationMinutes else { return dayStartMinute }
-        return duration <= eveningSpanMinutes ? defaultEveningStartMinute : dayStartMinute
+        guard let duration = window.maximumDurationMinutes else { return defaultDayStartMinute }
+        return duration <= eveningSpanMinutes ? defaultEveningStartMinute : defaultDayStartMinute
     }
 
     /// The feasible slot for a band, if it survived the window.

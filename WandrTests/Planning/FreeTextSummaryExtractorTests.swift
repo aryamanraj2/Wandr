@@ -23,7 +23,7 @@ struct FreeTextSummaryExtractorTests {
     private func empty() -> Extracted {
         Extracted(
             outingType: nil, dateOrDay: nil, time: nil, area: nil, groupSize: nil,
-            budget: nil, plannedStops: nil, stops: nil, dietary: nil, accessibility: nil,
+            budget: nil, plannedStops: nil, dietary: nil, accessibility: nil,
             vibe: nil, indoorOutdoor: nil, otherNotes: nil
         )
     }
@@ -160,6 +160,32 @@ struct FreeTextSummaryExtractorTests {
         extracted.groupSize = 8
 
         #expect(FreeTextSummaryExtractor.payload(from: extracted).groupSize == 8)
+    }
+
+    /// The reported run. The model settled a `groupSize`, and the plan came back for
+    /// the wrong number of people — so the host's own "for 2" now wins over it.
+    @Test("The host's own headcount beats the model's")
+    func rawTextHeadcountWinsOverTheModel() {
+        var extracted = empty()
+        extracted.groupSize = 5
+
+        let payload = FreeTextSummaryExtractor.payload(
+            from: extracted,
+            source: "Let's plan dinner and lunch for 2 near Saket with budget around 2000 each"
+        )
+        #expect(payload.groupSize == 2)
+    }
+
+    @Test("With nothing readable in the text, the model's headcount still stands")
+    func modelHeadcountSurvivesAnUnreadableSentence() {
+        var extracted = empty()
+        extracted.groupSize = 6
+
+        // No "for N" or "N of us" anywhere — the model is the only source there is.
+        #expect(
+            FreeTextSummaryExtractor.payload(from: extracted, source: "a few of us want dinner")
+                .groupSize == 6
+        )
     }
 
     @Test("An absurd group size is rejected rather than clamped silently")

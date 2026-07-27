@@ -70,6 +70,13 @@ nonisolated struct ChatSummaryPayload: Codable, Sendable, Equatable {
     /// `ChatSummaryBriefMapper`, so an unrecognised word is dropped in exactly one
     /// place rather than trusted here and rejected later.
     var stops: [String]?
+    /// The host said `stops` is the whole plan — "just dinner", "only breakfast".
+    ///
+    /// Three-valued on purpose. `nil` is "the model didn't answer", which is not the
+    /// same as `false`: one named stop otherwise means an outing built *around* that
+    /// stop, and collapsing an unanswered flag to "no" would be indistinguishable from
+    /// a host who explicitly asked for one thing.
+    var onlyTheseStops: Bool?
     var otherNotes: String?
 
     /// `true` when the model returned a well-formed object but settled no fields at all.
@@ -119,7 +126,8 @@ nonisolated extension ChatSummaryPayload {
 
     enum CodingKeys: String, CodingKey {
         case outingType, dateOrDay, time, area, groupSize, budget
-        case dietary, accessibility, vibe, indoorOutdoor, plannedStops, stops, otherNotes
+        case dietary, accessibility, vibe, indoorOutdoor, plannedStops, stops
+        case onlyTheseStops, otherNotes
         /// The key this field shipped under before the per-head/total distinction
         /// existed. Shortcuts already installed on a host's phone still emit it, and
         /// they update on Apple's schedule rather than ours, so it is read forever.
@@ -145,6 +153,7 @@ nonisolated extension ChatSummaryPayload {
             indoorOutdoor: try container.decodeIfPresent(String.self, forKey: .indoorOutdoor),
             plannedStops: try container.decodeIfPresent(String.self, forKey: .plannedStops),
             stops: try container.decodeIfPresent([String].self, forKey: .stops),
+            onlyTheseStops: try container.decodeIfPresent(Bool.self, forKey: .onlyTheseStops),
             otherNotes: try container.decodeIfPresent(String.self, forKey: .otherNotes)
         )
     }
@@ -163,6 +172,7 @@ nonisolated extension ChatSummaryPayload {
         try container.encodeIfPresent(indoorOutdoor, forKey: .indoorOutdoor)
         try container.encodeIfPresent(plannedStops, forKey: .plannedStops)
         try container.encodeIfPresent(stops, forKey: .stops)
+        try container.encodeIfPresent(onlyTheseStops, forKey: .onlyTheseStops)
         try container.encodeIfPresent(otherNotes, forKey: .otherNotes)
     }
 }

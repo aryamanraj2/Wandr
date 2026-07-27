@@ -230,9 +230,12 @@ struct ChatSummaryBriefMapperTests {
 
     // MARK: - The model's own classification
     //
-    // The keyword table is the fallback now. It can only ever recognise words
-    // somebody thought to list; "something to eat before the movie" is a lunch and
-    // no list of nouns will ever say so, which is the job the model does better.
+    // Neither source outranks the other. The model is the only thing that can read
+    // "something to eat before the movie"; the host's own words are the only thing
+    // that cannot be lost to a bad generation. The keyword table used to be a mere
+    // fallback, which meant a run where the model dropped the field lost the word the
+    // host had literally typed — and the same sentence planned a different night
+    // depending on how the generation went.
 
     @Test("A model-classified stop list is used in preference to the keywords")
     func modelClassificationWins() {
@@ -273,6 +276,133 @@ struct ChatSummaryBriefMapperTests {
         payload.plannedStops = "lunch"
 
         #expect(ChatSummaryBriefMapper().draft(from: payload).requestedStops == [.lunch])
+    }
+
+    // MARK: - A word the host typed is never lost
+    //
+    // The reported bug. "I asked for a dinner at saket ... it got most of the things
+    // right but not the DINNER." The model's `stops` came back empty, the keyword scan
+    // only ran as a fallback over fields the *same* generation had filled, and the raw
+    // text the host actually wrote was never consulted at all — so the one word that
+    // decides the whole shape of the plan disappeared with no error anywhere.
+
+    @Test("A stop the model dropped is recovered from the host's own words")
+    func rawTextRecoversADroppedStop() {
+        #expect(
+            ChatSummaryBriefMapper.stops(classified: [], inText: "dinner at saket for 2 people")
+                == [.dinner]
+        )
+    }
+
+    @Test("A stop is recovered even when the model answered with a word we don't use")
+    func rawTextSurvivesAnInventedToken() {
+        #expect(
+            ChatSummaryBriefMapper.stops(classified: ["food"], inText: "dinner at saket")
+                == [.dinner]
+        )
+    }
+
+    @Test("The model's reading and the host's words are unioned, not ranked")
+    func bothSourcesContribute() {
+        // Only the model can classify the first half; only the text carries "dinner".
+        #expect(
+            ChatSummaryBriefMapper.stops(
+                classified: ["somethingNew"],
+                inText: "a bit of shopping and then dinner"
+            ) == [.somethingNew, .dinner]
+        )
+    }
+
+    @Test("A category word still adds a stop nothing else covers")
+    func categoryWordsAddUncoveredStops() {
+        // "Drinks" is the whole second half of the plan — dropping it makes this one
+        // stop instead of two.
+        #expect(
+            ChatSummaryBriefMapper.stops(classified: nil, inText: "dinner then drinks")
+                == [.dinner, .late]
+        )
+    }
+
+    @Test("A category word does not add a stop of a kind already asked for")
+    func categoryWordsDoNotDuplicateAKind() {
+        var payload = ChatSummaryPayload()
+        payload.plannedStops = "dinner"
+        payload.vibe = "somewhere we can get good coffee"
+
+        // "Coffee" is a food word, but food is already covered — a mood must not put a
+        // second meal in the plan.
+        #expect(ChatSummaryBriefMapper.requestedStops(from: payload) == [.dinner])
+    }
+
+    @Test("Breakfast is its own stop, not a noon lunch")
+    func breakfastIsItsOwnBand() {
+        #expect(ChatSummaryBriefMapper.stops(classified: nil, inText: "breakfast at 9") == [.breakfast])
+    }
+
+    // MARK: - "Just" has to be next to the stop to mean it
+    //
+    // Presence alone is useless: "just" and "only" are among the commonest words in a
+    // sentence about plans, and reading every one of them as exclusivity would turn
+    // "just 2 of us for dinner" into a one-stop night.
+
+    @Test("An exclusivity word beside a stop means exactly that stop", arguments: [
+        "just dinner",
+        "just the breakfast plan",
+        "only doing lunch",
+        "dinner and nothing else",
+        "we just want lunch"
+    ])
+    func exclusivityIsRecognised(said: String) {
+        #expect(ChatSummaryBriefMapper.statesExclusiveStops(inText: said), "\(said)")
+    }
+
+    @Test("An exclusivity word about something else does not collapse the plan", arguments: [
+        "just 2 of us for dinner",
+        "only 1500 each, dinner somewhere",
+        "dinner at saket for 2 people",
+        "we have just under three hours, dinner and drinks"
+    ])
+    func exclusivityIsNotOverread(said: String) {
+        #expect(!ChatSummaryBriefMapper.statesExclusiveStops(inText: said), "\(said)")
+    }
+
+    // MARK: - How many people, read from the sentence
+    //
+    // The reported run: "dinner and lunch for 2 near Saket with budget around 2000
+    // each" planned for a different number of people. `groupSize` is the fifth of
+    // twelve fields in one generation, and nothing checked it against the sentence the
+    // host had actually written — where "for 2" is sitting in plain sight.
+
+    @Test("A headcount is read exactly from the host's own words", arguments: [
+        ("Let's plan dinner and lunch for 2 near Saket with budget around 2000 each", 2),
+        ("8 of us, Khan Market, Saturday evening", 8),
+        ("just the two of us for dinner", 2),
+        ("table for 6 at 8pm", 6),
+        ("a party of 12, birthday", 12),
+        ("dinner, 4 people, 1500 each", 4)
+    ])
+    func groupSizeIsReadFromTheText(said: String, expected: Int) {
+        #expect(ChatSummaryBriefMapper.groupSize(inText: said) == expected, "\(said)")
+    }
+
+    @Test("A number counting something other than people is not a headcount", arguments: [
+        "we've only got 3 hours",
+        "dinner, free only 8 to 9 pm",
+        "dinner with budget around 2000",
+        "drinks, 2k pp",
+        "from 6, only three hours"
+    ])
+    func groupSizeIgnoresOtherNumbers(said: String) {
+        #expect(ChatSummaryBriefMapper.groupSize(inText: said) == nil, "\(said)")
+    }
+
+    @Test("The model's exclusivity answer reaches the draft")
+    func exclusivityReachesTheDraft() {
+        var payload = ChatSummaryPayload()
+        payload.plannedStops = "dinner"
+        payload.onlyTheseStops = true
+
+        #expect(ChatSummaryBriefMapper().draft(from: payload).stopsAreExclusive)
     }
 
     /// The reported scenario, end to end through the deterministic half of the
@@ -334,12 +464,10 @@ struct ChatSummaryBriefMapperTests {
         }
         #expect(brief.budget.value.ceilingPerHead(for: brief.groupSize.value) == 1_000)
 
-        // One stop, and it is the meal they named.
-        let schedule = SlotSchedule.compute(
-            for: brief.timeWindow.value,
-            requesting: brief.requestedStops
-        )
-        #expect(schedule.slots.map(\.band) == [.lunch])
+        // The meal they named is in the plan. It is no longer the *whole* plan —
+        // one named stop seeds an outing built around it — but this test is about the
+        // budget, and what it needs is that lunch survives the shared-budget path.
+        #expect(brief.schedule.slots.map(\.band).contains(.lunch))
 
         // And whatever the dataset offers, the plan is possible: the resolver gives
         // up the ceiling rather than the outing, and says so.
@@ -370,15 +498,34 @@ struct ChatSummaryBriefMapperTests {
         }
         #expect(brief.timeWindow.value.isUnknown, "The host set no time — that is the point")
 
-        let schedule = SlotSchedule.compute(
-            for: brief.timeWindow.value,
-            requesting: brief.requestedStops
-        )
+        let schedule = brief.schedule
 
-        #expect(schedule.feasibleCategories == [.food], "Nothing they didn't ask for may survive")
+        // The defect was never that the plan had other stops in it — it was that the
+        // plan had *no lunch* and did have a 10 pm bar. Both of those stay fixed. What
+        // changed is that "lunch" now seeds a day built around lunch rather than
+        // erasing everything else, which is the other half of the same report.
         let meal = try #require(schedule.slot(for: .food))
         #expect(meal.band == .lunch, "They said lunch, not dinner")
         #expect(meal.title == "Lunch")
+        #expect(!schedule.slots.map(\.band).contains(.late), "Nobody asked for a 10 pm bar")
+        #expect(schedule.shape == .seeded)
+    }
+
+    /// The same sentence with the one word that makes it a single-stop plan.
+    @Test("'We just want lunch' is lunch and nothing else")
+    func exclusiveLunchIsOneStop() {
+        var payload = ChatSummaryPayload()
+        payload.plannedStops = "lunch"
+        payload.onlyTheseStops = true
+
+        let draft = ChatSummaryBriefMapper().draft(from: payload)
+        guard case .normalized(let brief) = try? BriefNormalizer().normalize(draft) else {
+            Issue.record("Expected a normalized brief")
+            return
+        }
+
+        #expect(brief.schedule.slots.map(\.band) == [.lunch])
+        #expect(brief.schedule.shape == .exact)
     }
 
     // MARK: - Whole payload
