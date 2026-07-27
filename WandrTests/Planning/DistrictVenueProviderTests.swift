@@ -208,13 +208,13 @@ struct DistrictVenueProviderTests {
     func uncoveredAreaReturnsNothing() throws {
         let provider = try makeProvider()
         #expect(provider.venues(in: "Atlantis").isEmpty)
-        #expect(provider.venues(in: "Noida").isEmpty)
+        #expect(provider.venues(in: "Faridabad").isEmpty)
     }
 
     @Test("Research reports an uncovered area instead of silently widening it")
     func uncoveredAreaFailsHonestly() async throws {
         let provider = try makeProvider()
-        let brief = OutingBrief(area: .host("Noida"))
+        let brief = OutingBrief(area: .host("Faridabad"))
 
         await #expect(throws: PlanningFailure.self) {
             try await provider.research(for: brief)

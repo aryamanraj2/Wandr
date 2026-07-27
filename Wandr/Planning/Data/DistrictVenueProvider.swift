@@ -342,7 +342,16 @@ nonisolated struct DistrictVenueProvider: VenueResearching, Sendable {
                             "cybercity", "gurugram", "gurgaon"],
         "saket":           ["select citywalk", "select city walk", "saket"],
         "aerocity":        ["aerocity", "aero city", "worldmark"],
-        "nizamuddin":      ["hazrat nizamuddin", "basti nizamuddin", "nizamuddin", "nizam"]
+        "nizamuddin":      ["hazrat nizamuddin", "basti nizamuddin", "nizamuddin", "nizam"],
+        "vasant kunj":     ["vasant kunj", "vasantkunj", "vk"],
+        "greater kailash": ["greater kailash", "greater kailash 1", "greater kailash 2",
+                            "gk 1", "gk 2", "gk1", "gk2", "gk"],
+        "dwarka":          ["dwarka", "dwaraka", "new dwarka"],
+        "noida":           ["greater noida", "noida"],
+        "chandni chowk":   ["chandni chowk", "chandni", "old delhi", "purani dilli"],
+        "karol bagh":      ["karol bagh", "karolbagh", "kb"],
+        "shahpur jat":     ["shahpur jat", "shahpurjat", "sj"],
+        "chattarpur":      ["chattarpur", "chhatarpur"]
     ]
 
     /// Aliases longest-first inside each area, so "hauz khas village" is tried before
