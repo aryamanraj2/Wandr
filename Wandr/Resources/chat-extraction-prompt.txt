@@ -14,6 +14,8 @@ Return ONLY a single JSON object and nothing else — no explanation, no code fe
   "groupSize": integer,
   "budget": string, copying their wording exactly including whether it is each or for the group,
   "plannedStops": string, the kinds of stop they asked for, in their words,
+  "stops": array of strings, each exactly one of "earlyStart", "breakfast", "midMorning", "lunch", "afternoon", "somethingNew", "dinner", "late", listing only the stops they actually asked for, in the order they happen, omitted entirely if they did not say what they want to do,
+  "onlyTheseStops": boolean, true only if they said these are the ONLY stops they want,
   "dietary": string,
   "accessibility": string, only if a participant raised one themselves,
   "vibe": string,

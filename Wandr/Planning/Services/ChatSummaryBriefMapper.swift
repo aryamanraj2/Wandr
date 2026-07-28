@@ -64,24 +64,31 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
     /// The stops a request names, from the model's classification *and* the words
     /// themselves.
     ///
-    /// Three sources, and the order between the first two is the fix for the reported
-    /// bug:
+    /// Two sources, unioned — neither may override the other:
     ///
     /// 1. **The model's classification**, validated against `SlotBand` so an invented
     ///    token is dropped rather than trusted. This is the path that handles
     ///    "something to eat before the movie" — a phrase no keyword list will contain.
-    /// 2. **Band words the host actually typed**, *unioned* with (1), not used as a
-    ///    fallback for it. A host who writes "dinner" has already told us the stop in
-    ///    Wandr's own vocabulary; treating that as a mere backup meant a run where the
-    ///    model dropped the field lost the word entirely, and the same sentence planned
-    ///    a different night depending on how the generation went. Deterministic
-    ///    evidence should never lose to a probabilistic one that says nothing.
-    /// 3. **Category words** — "eat", "drinks" — but only for a *kind of stop nothing
-    ///    above already covers*. "Dinner then drinks" needs the nightlife half or it
-    ///    plans one stop instead of two; "dinner" with a vibe of "loves coffee" must
-    ///    not gain a second meal from that word. Coverage by category is what
-    ///    separates the two, and it is why these are neither unioned outright nor
-    ///    demoted to a plain fallback.
+    /// 2. **Band words the host actually typed.** A host who writes "dinner" has said
+    ///    the stop in Wandr's own vocabulary; treating that as a mere backup meant a run
+    ///    where the model dropped the field lost the word entirely, and the same
+    ///    sentence planned a different night depending on how the generation went.
+    ///    Deterministic evidence should never lose to a probabilistic one that says
+    ///    nothing.
+    ///
+    /// There used to be a third source: a 63-word table mapping "drinks", "arcade",
+    /// "biryani" and the like onto categories. It is gone, and its absence is the point.
+    /// It worked exactly as far as the list went and failed silently past it — "ramen",
+    /// "brewery", "escape room", "listening bar" were all things a host would plausibly
+    /// say and none were in it, so every miss became a new entry and the list only grew.
+    ///
+    /// What replaced it is not a longer list. Which *stops* exist now comes from the
+    /// model, constrained token-by-token to this vocabulary by `.anyOf`; what goes
+    /// *inside* each stop comes from `SemanticVenueRanker`, which scores a written query
+    /// against the words the dataset already carries. Neither side enumerates anything.
+    ///
+    /// `bandKeywords` survives, and is not the same kind of thing: it is three meals and
+    /// their synonyms. There will not be a fourth meal.
     ///
     /// - Parameters:
     ///   - classified: the model's own tokens, if it produced any.
@@ -89,12 +96,7 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
     ///     settled summary fields on the Siri one.
     static func stops(classified: [String]?, inText text: String) -> Set<SlotBand> {
         let fromModel = Set((classified ?? []).compactMap(band(named:)))
-        let named = fromModel.union(bandsNamed(inText: text))
-
-        let covered = Set(named.map(\.category))
-        let byKind = categoriesNamed(inText: text).filter { !covered.contains($0.category) }
-
-        return named.union(byKind)
+        return fromModel.union(bandsNamed(inText: text))
     }
 
     /// Whether the host said these are the *only* stops they want.
@@ -132,7 +134,7 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
     /// Every word that names a stop, of either kind. Used only by the exclusivity
     /// scan, which cares that a stop was mentioned, not which one.
     private static let allStopWords: Set<String> = Set(
-        bandKeywords.values.flatMap { $0 } + categoryKeywords.values.flatMap { $0 }
+        bandKeywords.values.flatMap { $0 }
     )
 
     /// One model-emitted token resolved to a band, or `nil` if it is not one of ours.
@@ -180,23 +182,6 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
         )
     }
 
-    /// Stops named only by kind — "somewhere to eat", "drinks".
-    ///
-    /// Offers every band the category can occupy and lets the window pin it down: an
-    /// open evening makes "somewhere to eat" dinner, a midday one makes it lunch.
-    /// Naming the meal outright is what fixes it to one.
-    static func categoriesNamed(inText raw: String) -> Set<SlotBand> {
-        guard !raw.isEmpty else { return [] }
-        let haystack = raw.lowercased()
-
-        var found: Set<SlotBand> = []
-        for (category, words) in categoryKeywords
-        where words.contains(where: { haystack.matchesWord($0) }) {
-            found.formUnion(SlotBand.all(in: category))
-        }
-        return found
-    }
-
     /// Words that name a stop *and* when it happens. Whole-word matched.
     ///
     /// `breakfast` has its own band now. It used to be listed under `.lunch`, because
@@ -208,23 +193,6 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
         // morning window still moves it since the band has to fit the window anyway.
         .lunch: ["lunch", "brunch"],
         .dinner: ["dinner", "supper"]
-    ]
-
-    /// Words that name a kind of stop but not a time of day. Whole-word matched, so
-    /// "bar" does not fire on "barbecue" and "walk" does not fire on "walkable".
-    private static let categoryKeywords: [SlotCategory: [String]] = [
-        .food: ["eat", "eating", "food", "meal", "meals", "restaurant", "restaurants",
-                "cafe", "café", "coffee", "bite", "biryani", "pizza", "thali",
-                "dessert", "snacks"],
-        .nightlife: ["drink", "drinks", "bar", "bars", "pub", "pubs", "club", "clubbing",
-                     "party", "cocktail", "cocktails", "beer", "wine", "nightcap",
-                     "nightlife", "dancing"],
-        .sights: ["sightseeing", "sights", "monument", "monuments", "park", "walk",
-                  "garden", "gardens", "museum", "gallery", "temple", "fort", "tomb",
-                  "view", "views", "stroll", "heritage"],
-        .discover: ["shopping", "shop", "shops", "bookstore", "bookshop", "books",
-                    "browse", "browsing", "activity", "arcade", "workshop", "gaming",
-                    "bowling", "karaoke"]
     ]
 
     // MARK: - Group size
