@@ -35,6 +35,12 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
             setting: Self.setting(from: payload.indoorOutdoor),
             requestedStops: Self.requestedStops(from: payload),
             stopsAreExclusive: Self.stopsAreExclusive(from: payload),
+            // No fallback reading of the words here, deliberately. Every other field on
+            // this mapper has a keyword scan behind it because the model drops fields;
+            // an occasion cannot have one, because the whole point of these four values
+            // is that they describe nights nobody enumerated. A missing profile is an
+            // unspecified one, and an unspecified one still plans.
+            occasionProfile: payload.occasionProfile ?? .unspecified,
             notes: payload.otherNotes?.trimmed.nonEmpty.map { [$0] } ?? []
         )
     }
