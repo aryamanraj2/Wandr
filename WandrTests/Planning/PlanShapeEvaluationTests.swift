@@ -65,6 +65,15 @@ struct PlanShapeEvaluationTests {
 
     private static func payload(
         stops: String? = nil,
+        /// What a faithful extractor's `PlanShape.stops` would be for this sentence.
+        ///
+        /// Needed wherever the request names a stop by *activity* rather than by meal —
+        /// "drinks", "a walk", "some shopping". Those used to resolve through a 63-word
+        /// category table in Swift; that table is gone, because deciding "a brewery" is
+        /// a nightlife stop is world knowledge and no list ever finishes. The model
+        /// classifies them now, token-constrained to this vocabulary, so a faithful
+        /// extraction carries them here.
+        bands: [SlotBand] = [],
         onlyTheseStops: Bool = false,
         time: String? = nil,
         budget: String? = nil,
@@ -74,6 +83,7 @@ struct PlanShapeEvaluationTests {
     ) -> ChatSummaryPayload {
         var p = ChatSummaryPayload()
         p.plannedStops = stops
+        p.stops = bands.isEmpty ? nil : bands.map(\.rawValue)
         // Set wherever the host's own sentence rules the other stops out ("we *just*
         // want lunch"). The word lives in `said`, which a summary does not carry, so a
         // faithful extractor is the thing that would report it — and does, via
@@ -161,7 +171,7 @@ struct PlanShapeEvaluationTests {
         // Two named stops mean both — and the morning between them, because they
         // bracketed it themselves.
         GoldenCase(said: "breakfast and then some shopping",
-                   payload: payload(stops: "breakfast and then some shopping"),
+                   payload: payload(stops: "breakfast and then some shopping", bands: [.breakfast, .somethingNew]),
                    expectedBands: [.breakfast, .midMorning, .afternoon, .somethingNew],
                    expectedCeilingPerHead: nil),
 
@@ -190,28 +200,28 @@ struct PlanShapeEvaluationTests {
         // "dinner" — so it survives, and this is a two-stop request rather than a
         // one-stop one.
         GoldenCase(said: "dinner then drinks",
-                   payload: payload(stops: "dinner then drinks"),
+                   payload: payload(stops: "dinner then drinks", bands: [.dinner, .late]),
                    expectedBands: [.dinner, .late], expectedCeilingPerHead: nil),
 
         // — One stop, various kinds —
         GoldenCase(said: "just drinks somewhere",
-                   payload: payload(stops: "drinks", onlyTheseStops: true),
+                   payload: payload(stops: "drinks", bands: [.late], onlyTheseStops: true),
                    expectedBands: [.late], expectedCeilingPerHead: nil),
 
         // An evening word is an evening stop. It used to reach backwards two bands and
         // invent most of a day in front of itself.
         GoldenCase(said: "drinks tonight",
-                   payload: payload(stops: "drinks"),
+                   payload: payload(stops: "drinks", bands: [.late]),
                    expectedBands: [.late],
                    expectedCeilingPerHead: nil),
 
         GoldenCase(said: "a walk somewhere green",
-                   payload: payload(stops: "a walk", vibe: "green"),
+                   payload: payload(stops: "a walk", bands: [.afternoon], vibe: "green"),
                    expectedBands: [.afternoon],
                    expectedCeilingPerHead: nil),
 
         GoldenCase(said: "some shopping",
-                   payload: payload(stops: "shopping"),
+                   payload: payload(stops: "shopping", bands: [.somethingNew]),
                    expectedBands: [.somethingNew],
                    expectedCeilingPerHead: nil),
 
@@ -227,7 +237,7 @@ struct PlanShapeEvaluationTests {
                    expectedCeilingPerHead: 1_000),
 
         GoldenCase(said: "drinks, 2k pp",
-                   payload: payload(stops: "drinks", budget: "2k pp", groupSize: 3),
+                   payload: payload(stops: "drinks", bands: [.late], budget: "2k pp", groupSize: 3),
                    expectedBands: [.late],
                    expectedCeilingPerHead: 2_000),
 

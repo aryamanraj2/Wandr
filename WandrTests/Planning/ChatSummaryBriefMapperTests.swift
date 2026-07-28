@@ -154,15 +154,39 @@ struct ChatSummaryBriefMapperTests {
     // from every field it might have landed in, because the extractor puts it
     // wherever it likes and losing it costs the host the one stop they asked for.
 
-    @Test("A meal word anywhere in the summary asks for food")
+    /// Only the words that *name a meal* are read here now.
+    ///
+    /// "Somewhere to eat" and "grab a bite" used to resolve through a 63-word category
+    /// table, which is gone: deciding that "a bite" means food is semantics, and
+    /// semantics is the model's job — `PlanShape.stops` classifies it, constrained
+    /// token-by-token to this vocabulary. What stays deterministic is the three meal
+    /// names, because three meals is a closed set and no fourth one is coming.
+    @Test("A meal named outright is read without a model")
     func mealWordsRequestFood() {
-        for field in ["lunch", "we want dinner", "somewhere to eat", "grab a bite"] {
+        for field in ["lunch", "we want dinner", "breakfast first"] {
             var payload = ChatSummaryPayload()
             payload.plannedStops = field
 
             let categories = Set(ChatSummaryBriefMapper.requestedStops(from: payload).map(\.category))
             #expect(categories.contains(.food), "\(field) should ask for food")
         }
+    }
+
+    /// The other half of the same rule: a phrase that describes food without naming a
+    /// meal is the model's to classify, and Swift declines rather than guessing.
+    @Test("A phrase that names no meal asks for nothing on its own")
+    func unnamedFoodPhrasesNeedTheModel() {
+        for field in ["somewhere to eat", "grab a bite", "ramen", "a brewery"] {
+            var payload = ChatSummaryPayload()
+            payload.plannedStops = field
+
+            #expect(ChatSummaryBriefMapper.requestedStops(from: payload).isEmpty,
+                    "\(field) is semantics, not vocabulary")
+        }
+
+        // And with the model's answer, it resolves — the path production actually uses.
+        #expect(ChatSummaryBriefMapper.stops(classified: ["dinner"], inText: "ramen somewhere")
+                == [.dinner])
     }
 
     /// The half of the request a `Set<SlotCategory>` could not carry. Both of these
@@ -182,12 +206,18 @@ struct ChatSummaryBriefMapperTests {
 
     /// A word that names the kind of stop but not the hour asks for every band the
     /// category owns, and lets the window decide which one it gets.
-    @Test("A meal word with no hour in it leaves the choice to the window")
+    /// "Somewhere to eat" names no meal, so it pins no band — the plan's own default
+    /// shape decides, which is what an unspecified request is *for*. It used to expand
+    /// to every food band through the category table; that table taught "snacks" to
+    /// mean dinner, which is how a 12-to-5 request planned an 8 pm meal.
+    @Test("A meal word with no hour in it leaves the choice to the plan")
     func unspecificFoodAsksForBoth() {
         var payload = ChatSummaryPayload()
         payload.plannedStops = "somewhere to eat"
 
-        #expect(ChatSummaryBriefMapper.requestedStops(from: payload) == [.lunch, .dinner])
+        #expect(ChatSummaryBriefMapper.requestedStops(from: payload).isEmpty)
+        #expect(ChatSummaryBriefMapper.stops(classified: ["lunch", "dinner"], inText: "somewhere to eat")
+                == [.lunch, .dinner], "The model names the meals; the words alone do not")
     }
 
     @Test("The request is read from other fields too, not only plannedStops")
@@ -201,12 +231,20 @@ struct ChatSummaryBriefMapperTests {
         #expect(ChatSummaryBriefMapper.requestedStops(from: inTime) == [.lunch])
     }
 
-    @Test("Several kinds of stop are all recognised")
+    @Test("Several kinds of stop are all recognised, once the model has read them")
     func multipleCategoriesAreRecognised() {
         var payload = ChatSummaryPayload()
         payload.plannedStops = "lunch, then a walk, then drinks"
+        // What a faithful extractor returns for that sentence. "A walk" and "drinks"
+        // are semantics; only "lunch" is vocabulary.
+        payload.stops = ["lunch", "afternoon", "late"]
 
         #expect(ChatSummaryBriefMapper.requestedStops(from: payload) == [.lunch, .afternoon, .late])
+
+        // Without the model, the meal survives and the rest does not — deterministically
+        // less, never differently.
+        payload.stops = nil
+        #expect(ChatSummaryBriefMapper.requestedStops(from: payload) == [.lunch])
     }
 
     @Test("Matching is whole-word, so ordinary prose does not conscript a category")
@@ -313,12 +351,20 @@ struct ChatSummaryBriefMapperTests {
         )
     }
 
-    @Test("A category word still adds a stop nothing else covers")
-    func categoryWordsAddUncoveredStops() {
-        // "Drinks" is the whole second half of the plan — dropping it makes this one
-        // stop instead of two.
+    /// "Drinks" is the whole second half of that plan, and it now reaches the plan
+    /// through the model rather than a word list — which is the only way "a brewery",
+    /// "a listening bar" or "somewhere to dance" ever get there too.
+    @Test("A stop the model classified is unioned with the meals the host named")
+    func modelClassificationAddsUncoveredStops() {
         #expect(
-            ChatSummaryBriefMapper.stops(classified: nil, inText: "dinner then drinks")
+            ChatSummaryBriefMapper.stops(classified: ["dinner", "late"], inText: "dinner then drinks")
+                == [.dinner, .late]
+        )
+
+        // The union is what makes the meal safe: even if the model returns only the
+        // half it understood, the word the host typed still lands.
+        #expect(
+            ChatSummaryBriefMapper.stops(classified: ["late"], inText: "dinner then drinks")
                 == [.dinner, .late]
         )
     }
