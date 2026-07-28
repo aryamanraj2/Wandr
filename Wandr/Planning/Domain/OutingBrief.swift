@@ -359,7 +359,7 @@ nonisolated struct OutingBriefDraft: Sendable, Equatable {
         occasionProfile: OccasionProfile = .unspecified,
         notes: [String] = []
     ) {
-        self.occasionProfile = occasionProfile
+        self.occasion = occasion
         self.timeWindow = timeWindow
         self.area = area
         self.groupSize = groupSize
@@ -428,7 +428,7 @@ nonisolated struct OutingBrief: Sendable, Equatable {
         occasionProfile: OccasionProfile = .unspecified,
         notes: [String] = []
     ) {
-        self.occasionProfile = occasionProfile
+        self.occasion = occasion
         self.timeWindow = timeWindow
         self.area = area
         self.groupSize = groupSize
