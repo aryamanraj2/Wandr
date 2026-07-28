@@ -526,4 +526,94 @@ struct FeasibilityValidatorTests {
         #expect(Budget.total(rupees: 2_000).ceilingPerHead(for: GroupSize(clamping: 2)) == 1_000)
         #expect(Budget.perHead(rupees: 2_000).ceilingPerHead(for: GroupSize(clamping: 2)) == 2_000)
     }
+
+    // MARK: - Rule 9: the host's stops bound the plan
+    //
+    // A plan can be made entirely of legal picks and still be the wrong plan. Every
+    // other rule in this file catches a bad *venue*; this one catches a bad *night*.
+    //
+    // It exists because the failure it describes has been fixed twice as a special
+    // case and returned in a new sentence both times — most recently as "12.00 to
+    // 5:00 pm outing with lunch and snacks", which planned through to an 8 pm dinner.
+
+    /// A brief that names stops, so the span is pinned.
+    private func briefRequesting(
+        _ stops: Set<SlotBand>,
+        latestEnd: Int? = nil
+    ) -> OutingBrief {
+        OutingBrief(
+            timeWindow: .host(OutingTimeWindow(latestEndMinute: latestEnd)),
+            area: .safeDefault(OutingBrief.defaultArea),
+            groupSize: .safeDefault(OutingBrief.defaultGroupSize),
+            budget: .safeDefault(.unspecified),
+            requestedStops: stops
+        )
+    }
+
+    @Test("A stop past the last one the host named is a violation")
+    func aStopBeyondTheRequestIsCaught() {
+        // They asked for dinner. The curation also carries a late deck.
+        let found = violations(
+            brief: briefRequesting([.dinner]),
+            slots: [
+                Fixtures.slot(.dinner, ["food-1", "food-2", "food-3"]),
+                Fixtures.slot(.late, ["night-1", "night-2", "night-3"])
+            ]
+        )
+
+        #expect(found.contains { violation in
+            if case .grewBeyondRequest(_, let band, _) = violation { return band == .late }
+            return false
+        }, "A late deck on a dinner request is a night they did not ask for")
+    }
+
+    @Test("A stop before the first one the host named is equally a violation")
+    func aStopEarlierThanTheRequestIsCaught() {
+        let found = violations(
+            brief: briefRequesting([.dinner]),
+            slots: [
+                Fixtures.slot(.lunch, ["food-1", "food-2", "food-3"]),
+                Fixtures.slot(.dinner, ["food-4"])
+            ]
+        )
+
+        #expect(found.contains { violation in
+            if case .grewBeyondRequest(_, let band, _) = violation { return band == .lunch }
+            return false
+        })
+    }
+
+    @Test("Anything between two named stops is legitimate, not growth")
+    func fillingBetweenNamedStopsIsAllowed() {
+        // Lunch and dinner were both named, so the afternoon between them is a gap the
+        // host themselves bounded — the one place Wandr may add a stop.
+        let found = violations(
+            brief: briefRequesting([.lunch, .dinner]),
+            slots: [
+                Fixtures.slot(.lunch, ["food-1"]),
+                Fixtures.slot(.afternoon, ["sight-1"]),
+                Fixtures.slot(.dinner, ["food-2"])
+            ]
+        )
+
+        #expect(!found.contains { if case .grewBeyondRequest = $0 { return true }; return false })
+    }
+
+    @Test("Naming nothing means there is no span to exceed")
+    func anUnspecifiedRequestIsNeverGrowth() {
+        // The one case where Wandr proposing a whole day is the feature.
+        let found = violations(brief: Fixtures.sparseBrief, slots: Fixtures.validSlots)
+
+        #expect(!found.contains { if case .grewBeyondRequest = $0 { return true }; return false })
+    }
+
+    @Test("A plan that matches the request exactly passes")
+    func anExactRequestPasses() {
+        let found = violations(
+            brief: briefRequesting([.dinner, .late]),
+            slots: Fixtures.validSlots
+        )
+
+        #expect(found.isEmpty, "Got: \(found)")
+    }
 }

@@ -45,6 +45,57 @@ extension Sourced: Hashable where Value: Hashable {}
 
 // MARK: - Time
 
+/// Whether the night should build towards something or stay level.
+///
+/// A birthday ends somewhere bigger than it started; a Tuesday catch-up does not.
+/// Read from what the host said, never inferred from the clock.
+nonisolated enum OccasionArc: String, Sendable, Equatable, Hashable, Codable, CaseIterable {
+    case flat
+    case buildsToFinale
+}
+
+/// What kind of occasion this is, as four numbers the rest of the app can act on.
+///
+/// This is the whole of what the model contributes to a plan's *shape*, and it is
+/// deliberately not a stop, a time, or a count. "A date", "five of us after work" and
+/// "her birthday" are the same arithmetic over the same venues and three different
+/// nights — the difference lives here, and nowhere in this type names a place, an
+/// hour, or a number of stops.
+///
+/// Contrast with what came before: an occasion was a *string* (`"birthday"`) matched
+/// against a list, so every new kind of night needed a new case somewhere. Nothing
+/// here enumerates occasions. A photography walk and a first date produce different
+/// values of these four fields without either being a case anyone wrote down.
+nonisolated struct OccasionProfile: Sendable, Equatable, Hashable, Codable {
+    /// How fast they want to move. Drives how many stops fill a gap — via division,
+    /// in `SlotSchedule`, never by the model counting anything.
+    var pace: SlotSchedule.Pace
+    /// 0 = the outing is a meal, 1 = the outing is an activity and food is incidental.
+    /// A ranking weight, not a filter: it can never empty a deck, so it never needs
+    /// relaxing and stays off the constraint ladder.
+    var activityBias: Double
+    /// The group has to sit down together. A hard requirement when true.
+    var groupSeating: Bool
+    var arc: OccasionArc
+
+    /// What Wandr assumes when the host described no occasion at all.
+    ///
+    /// Mid-scale on both axes deliberately: an unspecified outing should lean neither
+    /// towards a tasting menu nor towards an escape room.
+    static let unspecified = OccasionProfile(
+        pace: .steady, activityBias: 0.5, groupSeating: false, arc: .flat
+    )
+
+    /// Clamped on the way in — `activityBias` is the one field a model can put out of
+    /// range, and a bias of 4.0 would swamp every other ranking term.
+    init(pace: SlotSchedule.Pace, activityBias: Double, groupSeating: Bool, arc: OccasionArc) {
+        self.pace = pace
+        self.activityBias = min(max(activityBias, 0), 1)
+        self.groupSeating = groupSeating
+        self.arc = arc
+    }
+}
+
 /// A time window that keeps "unknown" and "flexible" honest.
 ///
 /// Minutes are measured from midnight, matching the schedule surface. Actual
@@ -65,17 +116,48 @@ nonisolated struct OutingTimeWindow: Sendable, Equatable, Hashable {
     /// e.g. "Friday". A label only — never parsed into a `Date` at this layer.
     var dayLabel: String?
 
+    /// - Important: a window that ends no later than it starts is **not
+    ///   representable**. A finish at or before the start is never a real
+    ///   constraint — it is a misread phrase — and the upper bound is dropped here
+    ///   rather than defended against downstream.
+    ///
+    ///   This is enforced at construction because the alternative failed silently and
+    ///   catastrophically. `"12.00 to 5:00 pm"` parsed the `.00` as a *second* clock
+    ///   token, which then inherited the trailing `pm` and became a second 12:00 —
+    ///   so the window read as 12:00 pm → 12:00 pm, no band could fit a
+    ///   zero-minute span, and the host got a plan with **no stops in it at all**.
+    ///   A bad parse should cost the constraint, never the day.
+    ///
+    ///   Normalising in the initializer makes the property hold for every window the
+    ///   app can build, from any source, rather than at the one call site that was
+    ///   known to be wrong.
     init(
         earliestStartMinute: Int? = nil,
         latestEndMinute: Int? = nil,
         maximumDurationMinutes: Int? = nil,
         dayLabel: String? = nil
     ) {
+        let contradictory = if let latestEndMinute, let earliestStartMinute {
+            latestEndMinute <= earliestStartMinute
+        } else {
+            false
+        }
+
         self.earliestStartMinute = earliestStartMinute
-        self.latestEndMinute = latestEndMinute
+        self.latestEndMinute = contradictory ? nil : latestEndMinute
         self.maximumDurationMinutes = maximumDurationMinutes
         self.dayLabel = dayLabel
+        self.statedEndWasUnreadable = contradictory
     }
+
+    /// Whether the phrase produced bounds that contradicted each other, so the finish
+    /// time was dropped. Drives the host-facing disclosure — a constraint given up
+    /// silently is the failure mode `PlanRelaxation` exists to prevent.
+    ///
+    /// Deliberately excluded from `isUnknown`: a window that carries only this flag
+    /// still constrains nothing, and should not switch on the "you're only free 8–9"
+    /// banner.
+    private(set) var statedEndWasUnreadable: Bool = false
 
     /// Nothing was said about timing at all.
     static let unknown = OutingTimeWindow()
@@ -256,6 +338,9 @@ nonisolated struct OutingBriefDraft: Sendable, Equatable {
     /// "an evening with dinner in it" apart from "dinner and nothing else", and those
     /// are different plans.
     var stopsAreExclusive: Bool
+
+    /// What kind of night this is. `.unspecified` until the model reads one.
+    var occasion: OccasionProfile
     /// Remaining neutral constraints. Data, never executable instructions.
     var notes: [String]
 
@@ -271,6 +356,7 @@ nonisolated struct OutingBriefDraft: Sendable, Equatable {
         setting: SettingPreference = .noPreference,
         requestedStops: Set<SlotBand> = [],
         stopsAreExclusive: Bool = false,
+        occasion: OccasionProfile = .unspecified,
         notes: [String] = []
     ) {
         self.occasion = occasion
@@ -284,6 +370,7 @@ nonisolated struct OutingBriefDraft: Sendable, Equatable {
         self.setting = setting
         self.requestedStops = requestedStops
         self.stopsAreExclusive = stopsAreExclusive
+        self.occasion = occasion
         self.notes = notes
     }
 }
@@ -320,6 +407,10 @@ nonisolated struct OutingBrief: Sendable, Equatable {
     /// The host said these are the only stops they want. See `OutingBriefDraft`.
     let stopsAreExclusive: Bool
 
+    /// What kind of night this is. Drives how many stops fill a gap, and how venues
+    /// are ranked inside each — never which stops exist.
+    let occasion: OccasionProfile
+
     let notes: [String]
 
     init(
@@ -334,6 +425,7 @@ nonisolated struct OutingBrief: Sendable, Equatable {
         setting: SettingPreference = .noPreference,
         requestedStops: Set<SlotBand> = [],
         stopsAreExclusive: Bool = false,
+        occasion: OccasionProfile = .unspecified,
         notes: [String] = []
     ) {
         self.occasion = occasion
@@ -347,6 +439,7 @@ nonisolated struct OutingBrief: Sendable, Equatable {
         self.setting = setting
         self.requestedStops = requestedStops
         self.stopsAreExclusive = stopsAreExclusive
+        self.occasion = occasion
         self.notes = notes
     }
 
@@ -380,7 +473,8 @@ nonisolated extension OutingBrief {
         SlotSchedule.compute(
             for: timeWindow.value,
             requesting: requestedStops,
-            exclusive: stopsAreExclusive
+            exclusive: stopsAreExclusive,
+            pace: occasion.pace
         )
     }
 }

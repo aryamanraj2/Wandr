@@ -230,8 +230,16 @@ struct DistrictVenueProviderTests {
             }
             #expect(covered.contains("Khan Market"))
             #expect(failure.retryAction == .editRequest)
+
             // The message names what Wandr *does* cover — never the host's own word.
-            #expect(!failure.userMessage.contains("Noida"))
+            //
+            // Asserted against the area actually asked for, not against a second area
+            // that merely happened to be absent from the dataset. The earlier version
+            // named "Noida" here, which tested the same idea only for as long as Noida
+            // stayed uncovered; it started failing the moment the dataset gained it,
+            // reporting a dataset addition as a message-formatting bug.
+            #expect(!failure.userMessage.contains("Faridabad"))
+            #expect(covered.allSatisfy { !$0.isEmpty })
         }
     }
 

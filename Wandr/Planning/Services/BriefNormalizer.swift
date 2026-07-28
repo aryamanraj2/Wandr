@@ -65,6 +65,7 @@ nonisolated struct BriefNormalizer: BriefNormalizing, Sendable {
             setting: draft.setting,
             requestedStops: draft.requestedStops,
             stopsAreExclusive: draft.stopsAreExclusive,
+            occasion: draft.occasion,
             // Notes are data, never instructions. Carried verbatim.
             notes: draft.notes
         )

@@ -97,6 +97,51 @@ nonisolated struct FreeTextSummaryExtractor: Sendable {
         var onlyTheseStops: Bool
     }
 
+    /// What kind of occasion this is — the only thing here the model is better at than
+    /// a rule.
+    ///
+    /// ## Why these four fields and not a time or a stop count
+    ///
+    /// A date, five colleagues after work, and a birthday are three different nights
+    /// out of the same 194 venues, and no keyword list will ever separate them: the
+    /// difference is in what "worth going to" means for each, which is world knowledge.
+    /// That is what a language model has and Swift does not.
+    ///
+    /// Arithmetic is the opposite case. How many stops fit between lunch and dinner is
+    /// division — `SlotSchedule.interludeCount(forGapOf:pace:)` — and a ~3B model
+    /// asked to do it will sometimes answer four for a ninety-minute gap. So this type
+    /// carefully emits **no time, no count, and no stop name**. `pace` is a judgement
+    /// about the group; turning it into a number of stops is Swift's job, and Swift
+    /// gets the same answer every run.
+    ///
+    /// The fields are strings rather than `@Generable` enums for the reason recorded on
+    /// `outingType` below: a non-frozen enum traps on a case the model invents. `.anyOf`
+    /// makes the invalid tokens unavailable to the decoder, and `parsed()` still
+    /// validates, so an unusable answer degrades to a default instead of a crash.
+    @Generable
+    nonisolated struct OccasionShape {
+        @Guide(
+            description: "How much of the time they want to spend moving between places. Answer packed when they want to fit a lot in, or the group is large and social. Answer unhurried for a date, a long meal, or anyone who says they want to take it slow. Answer steady when they did not say.",
+            .anyOf(SlotSchedule.Pace.allCases.map(\.rawValue))
+        )
+        var pace: String
+
+        @Guide(
+            description: "How much of this outing is about doing something rather than eating. 0 means it is entirely a meal. 1 means it is entirely an activity and food barely matters. Answer around 0.5 when they did not say.",
+            .range(0...1)
+        )
+        var activityBias: Double
+
+        @Guide(description: "true only if the whole group has to sit down together at one table — a birthday dinner, a party of eight. false for a couple, or anywhere people can stand and move around.")
+        var groupSeating: Bool
+
+        @Guide(
+            description: "Answer buildsToFinale when the night should end somewhere bigger than it started — a celebration, a birthday, a night out. Answer flat when every stop is meant to feel the same, which is most outings.",
+            .anyOf(OccasionArc.allCases.map(\.rawValue))
+        )
+        var arc: String
+    }
+
     /// Call two: everything else the host said.
     ///
     /// Every field optional, mirroring `ChatSummaryPayload`: the host describes an

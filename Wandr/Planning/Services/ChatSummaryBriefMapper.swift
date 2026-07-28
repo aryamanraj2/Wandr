@@ -600,8 +600,19 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
             while i < chars.count, chars[i].isNumber, hourText.count < 2 { hourText.append(chars[i]); i += 1 }
             guard let hour = Int(hourText), (0...23).contains(hour) else { continue }
 
+            // "8:30" and "8.30" are the same time. A dot counts only when a digit
+            // follows it, which is what separates a minute separator from a sentence
+            // ending in an hour ("we're free from 8. Anywhere is fine").
+            //
+            // Without this, "12.00" split into *two* tokens — hour 12, then hour 00 —
+            // and the second inherited the phrase's trailing meridiem to become a
+            // second 12:00 pm. In a range that made the finish equal the start.
+            // Durations are cut out of the phrase before this runs, so "1.5 hours"
+            // never reaches here and cannot be misread as 1:05.
             var minute = 0
-            if i < chars.count, chars[i] == ":" {
+            let separatesMinutes = i < chars.count
+                && (chars[i] == ":" || (chars[i] == "." && i + 1 < chars.count && chars[i + 1].isNumber))
+            if separatesMinutes {
                 i += 1
                 var minuteText = ""
                 while i < chars.count, chars[i].isNumber, minuteText.count < 2 { minuteText.append(chars[i]); i += 1 }

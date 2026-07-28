@@ -501,14 +501,12 @@ struct ChatSummaryBriefMapperTests {
         let schedule = brief.schedule
 
         // The defect was never that the plan had other stops in it — it was that the
-        // plan had *no lunch* and did have a 10 pm bar. Both of those stay fixed. What
-        // changed is that "lunch" now seeds a day built around lunch rather than
-        // erasing everything else, which is the other half of the same report.
+        // plan had *no lunch* and did have a 10 pm bar. Both of those stay fixed.
         let meal = try #require(schedule.slot(for: .food))
         #expect(meal.band == .lunch, "They said lunch, not dinner")
         #expect(meal.title == "Lunch")
         #expect(!schedule.slots.map(\.band).contains(.late), "Nobody asked for a 10 pm bar")
-        #expect(schedule.shape == .seeded)
+        #expect(schedule.shape == .exact, "They named a stop, so the request is the plan")
     }
 
     /// The same sentence with the one word that makes it a single-stop plan.

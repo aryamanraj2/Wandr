@@ -68,6 +68,37 @@ nonisolated enum FeasibilityViolation: Sendable, Equatable, Hashable {
     /// Evidence was surveyed and contradicts an explicit indoor/outdoor preference.
     case unmetSettingPreference(slotID: SlotID, venueID: VenueID, preference: SettingPreference, actual: VenueSetting)
 
+    // MARK: Shape invariants
+    //
+    // The two below differ in kind from everything above. The others catch a bad
+    // *pick* — a venue that should not have been chosen. These catch a bad *plan*:
+    // the right venues arranged into a night the host never asked for. They are
+    // quantified over every plan rather than written as cases, because the failure
+    // they guard against has recurred in a new sentence every time it was fixed as
+    // one.
+
+    /// The plan contains a stop the host neither named nor could have implied.
+    ///
+    /// Once the host names anything, the span of the plan is pinned: it may not reach
+    /// earlier than their first stop or later than their last. Anything inside that
+    /// span is filling a gap they themselves bounded; anything outside it is Wandr
+    /// deciding it knows better.
+    ///
+    /// This is the invariant for the reported failure. "12 to 5, lunch and snacks"
+    /// recognised only `lunch`, took a growth branch meant for unspecified requests,
+    /// and extended forward to an 8 pm dinner — three hours past a stated finish, out
+    /// of a sentence that named two stops. The growth path is gone; this makes its
+    /// return detectable rather than depending on nobody reintroducing it.
+    case grewBeyondRequest(slotID: SlotID, band: SlotBand, named: [SlotBand])
+
+    /// A block runs past the finish the host gave.
+    ///
+    /// `SlotSchedule` already truncates to the window, so this should be unreachable —
+    /// which is the point. It is the backstop that makes "no stop ever ends after
+    /// their stated end" a property of the *plan*, not a property of one function
+    /// that happens to be careful.
+    case ranPastStatedEnd(slotID: SlotID, endMinute: Int, statedEnd: Int)
+
     /// User-readable. Never mentions the host's own words.
     var message: String {
         switch self {
@@ -93,6 +124,12 @@ nonisolated enum FeasibilityViolation: Sendable, Equatable, Hashable {
 
         case .unmetSettingPreference(_, _, let preference, _):
             return "One pick isn't \(preference.rawValue), which you asked for."
+
+        case .grewBeyondRequest:
+            return "We put together more of a day than you asked for. Let's try again."
+
+        case .ranPastStatedEnd:
+            return "One stop ran past the time you said you had to finish. Let's try again."
         }
     }
 }
@@ -184,6 +221,9 @@ nonisolated struct FeasibilityValidator: ItineraryValidating, Sendable {
             }
         }
 
+        // MARK: Rules 9, 10 — the plan's shape
+        violations.append(contentsOf: shapeViolations(brief: brief, slots: slots))
+
         // Sorting keeps the reported order stable across dictionary iteration.
         violations.sort { $0.sortKey < $1.sortKey }
 
@@ -229,6 +269,74 @@ nonisolated struct FeasibilityValidator: ItineraryValidating, Sendable {
             evidenceSources: sources,
             generatedAt: now
         )
+    }
+
+    // MARK: - Rules 9 and 10: the plan's shape
+
+    /// Every way the arrangement of stops can betray the request, checked over the
+    /// whole plan at once.
+    ///
+    /// Quantified deliberately. Both properties below hold for *all* briefs and all
+    /// plans, and neither names a stop, a time, or a phrasing — so a new sentence
+    /// cannot require a new branch here. That is the whole reason they are written
+    /// this way: the failures they cover have each been fixed before as a special
+    /// case, and each came back wearing different words.
+    private func shapeViolations(brief: OutingBrief, slots: [CurationSlot]) -> [FeasibilityViolation] {
+        let schedule = brief.schedule
+        var found: [FeasibilityViolation] = []
+
+        // Rule 9 — the host's own stops bound the plan's span.
+        //
+        // Only once they have named something. An unspecified request has no span to
+        // exceed, and proposing a full day for it is the feature, not a violation.
+        let requested = brief.requestedStops
+        if !requested.isEmpty {
+            let order = SlotBand.allCases
+            let namedPositions = order.indices.filter { requested.contains(order[$0]) }
+
+            if let first = namedPositions.min(), let last = namedPositions.max() {
+                for slot in slots {
+                    guard let position = order.firstIndex(of: slot.band) else { continue }
+                    guard position < first || position > last else { continue }
+                    found.append(
+                        .grewBeyondRequest(
+                            slotID: slot.slotID,
+                            band: slot.band,
+                            named: requested.sorted { lhs, rhs in
+                                (order.firstIndex(of: lhs) ?? 0) < (order.firstIndex(of: rhs) ?? 0)
+                            }
+                        )
+                    )
+                }
+            }
+        }
+
+        // Rule 10 — no block ends after the finish the host gave.
+        //
+        // Over `schedule.slots`, which are the blocks the timeline actually lays down,
+        // rather than over the curated decks: a deck has no time of its own, it shows
+        // whatever window its band resolved to.
+        //
+        // Honest about what this is: `SlotSchedule.layOut` clamps every block to
+        // `latestEnd`, so as the code stands this cannot fire. It is a backstop, kept
+        // because the property is one the host can *see* violated — an 11 pm bar on a
+        // plan they said had to end at nine — and because the clamp has been rewritten
+        // three times. An assertion that only earns its place after a regression is
+        // still worth its four lines. The reachable half of the same property is
+        // enforced in `SlotScheduleTests`, quantified over every band and window.
+        if let statedEnd = brief.timeWindow.value.latestEndMinute {
+            for block in schedule.slots where block.endMinute > statedEnd {
+                found.append(
+                    .ranPastStatedEnd(
+                        slotID: SlotID(block.band.rawValue),
+                        endMinute: block.endMinute,
+                        statedEnd: statedEnd
+                    )
+                )
+            }
+        }
+
+        return found
     }
 
     // MARK: - Rule 4: budget
@@ -381,6 +489,11 @@ nonisolated private extension FeasibilityViolation {
         case .unmetAccessibilityRequirement(let slot, let venue, _):
             return "6|\(slot.rawValue)|\(venue.rawValue)"
         case .unmetSettingPreference(let slot, let venue, _, _):
-            return "7|\(slot.rawValue)|\(venue.rawValue)"        }
+            return "7|\(slot.rawValue)|\(venue.rawValue)"
+        case .grewBeyondRequest(let slot, let band, _):
+            return "8|\(slot.rawValue)|\(band.rawValue)"
+        case .ranPastStatedEnd(let slot, let end, _):
+            return "9|\(slot.rawValue)|\(end)"
+        }
     }
 }
