@@ -1,5 +1,5 @@
 {
-  "version": "delhi-ncr-2026-07d",
+  "version": "delhi-ncr-2026-07e",
   "venues": [
     {
       "id": "hk-food-1",
@@ -2870,7 +2870,7 @@
       "name": "Sector 18 Escape Zone",
       "area": "Noida",
       "category": "discover",
-      "tagline": "Themed escape rooms, sixty minutes a run.",
+      "tagline": "Two-room escape puzzles above the metro station.",
       "perHead": 700,
       "openWindow": "11:00 am - 11:00 pm",
       "accessibilityTags": [
@@ -3741,6 +3741,2022 @@
         "Slots depend on horse availability; call ahead."
       ],
       "imageSeed": 293
+    },
+    {
+      "id": "aero-food-4",
+      "name": "Kheer & Kadhai",
+      "area": "Aerocity",
+      "category": "food",
+      "tagline": "Regional thalis served till the last flight lands.",
+      "perHead": 750,
+      "openWindow": "7:00 am - 2:00 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "classic",
+        "late"
+      ],
+      "availability": "available",
+      "imageSeed": 294
+    },
+    {
+      "id": "aero-food-5",
+      "name": "Nook Breakfast Room",
+      "area": "Aerocity",
+      "category": "food",
+      "tagline": "Hotel breakfast counter open to walk-ins from six.",
+      "perHead": 600,
+      "openWindow": "6:00 am - 11:00 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quiet",
+        "brunch"
+      ],
+      "availability": "available",
+      "imageSeed": 295
+    },
+    {
+      "id": "aero-sight-4",
+      "name": "Aerocity Water Garden",
+      "area": "Aerocity",
+      "category": "sights",
+      "tagline": "Reflecting pools and benches between the towers.",
+      "perHead": 0,
+      "openWindow": "6:00 am - 10:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "green",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 296
+    },
+    {
+      "id": "aero-sight-5",
+      "name": "Departures Mural Wall",
+      "area": "Aerocity",
+      "category": "sights",
+      "tagline": "Sixty metres of commissioned mural along the underpass.",
+      "perHead": 0,
+      "openWindow": "Always open",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "art",
+        "photo"
+      ],
+      "availability": "available",
+      "imageSeed": 297
+    },
+    {
+      "id": "aero-night-4",
+      "name": "Holdover Whisky Room",
+      "area": "Aerocity",
+      "category": "nightlife",
+      "tagline": "Forty single malts and armchairs you sink into.",
+      "perHead": 1600,
+      "openWindow": "5:00 pm - 2:00 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "intimate",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 298
+    },
+    {
+      "id": "aero-night-5",
+      "name": "Runway Beer Garden",
+      "area": "Aerocity",
+      "category": "nightlife",
+      "tagline": "Long benches, communal tables, planes overhead.",
+      "perHead": 900,
+      "openWindow": "4:00 pm - 1:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "beer",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 299
+    },
+    {
+      "id": "aero-disc-4",
+      "name": "Cabin Pressure Escape",
+      "area": "Aerocity",
+      "category": "discover",
+      "tagline": "Aviation-themed escape rooms, four to eight players.",
+      "perHead": 900,
+      "openWindow": "11:00 am - 11:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "games",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 300
+    },
+    {
+      "id": "aero-disc-5",
+      "name": "Layover Reading Room",
+      "area": "Aerocity",
+      "category": "discover",
+      "tagline": "Quiet library with day passes and free refills.",
+      "perHead": 300,
+      "openWindow": "7:00 am - 11:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quiet",
+        "browse"
+      ],
+      "availability": "available",
+      "imageSeed": 301
+    },
+    {
+      "id": "cc-food-4",
+      "name": "Sitaram Bazaar Kachori",
+      "area": "Chandni Chowk",
+      "category": "food",
+      "tagline": "Fried kachori and aloo from a hatch, standing only.",
+      "perHead": 120,
+      "openWindow": "6:00 am - 2:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "street",
+        "quick"
+      ],
+      "availability": "available",
+      "imageSeed": 302
+    },
+    {
+      "id": "cc-food-5",
+      "name": "Chandni Sweet House",
+      "area": "Chandni Chowk",
+      "category": "food",
+      "tagline": "Milk sweets and morning kachori, standing room only.",
+      "perHead": 180,
+      "openWindow": "6:00 am - 9:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quick",
+        "street"
+      ],
+      "availability": "available",
+      "imageSeed": 303
+    },
+    {
+      "id": "cc-sight-4",
+      "name": "Gurudwara Sis Ganj",
+      "area": "Chandni Chowk",
+      "category": "sights",
+      "tagline": "Marble hall, constant kirtan, langar all day.",
+      "perHead": 0,
+      "openWindow": "4:00 am - 10:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quiet",
+        "historic"
+      ],
+      "availability": "available",
+      "imageSeed": 304
+    },
+    {
+      "id": "cc-sight-5",
+      "name": "Kinari Bazaar Lanes",
+      "area": "Chandni Chowk",
+      "category": "sights",
+      "tagline": "Ribbon, sequin and wedding-trim alleys, shoulder wide.",
+      "perHead": 0,
+      "openWindow": "11:00 am - 8:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "colourful",
+        "walk"
+      ],
+      "availability": "available",
+      "imageSeed": 305
+    },
+    {
+      "id": "cc-night-4",
+      "name": "Roof Above Ballimaran",
+      "area": "Chandni Chowk",
+      "category": "nightlife",
+      "tagline": "Tea and a skyline of domes after the shops close.",
+      "perHead": 200,
+      "openWindow": "5:00 pm - 12:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "view",
+        "relaxed"
+      ],
+      "availability": "available",
+      "imageSeed": 306
+    },
+    {
+      "id": "cc-night-5",
+      "name": "Old Delhi Night Kitchen",
+      "area": "Chandni Chowk",
+      "category": "nightlife",
+      "tagline": "Charcoal grills that only get going after ten.",
+      "perHead": 400,
+      "openWindow": "7:00 pm - 2:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "street",
+        "late"
+      ],
+      "availability": "available",
+      "imageSeed": 307
+    },
+    {
+      "id": "cc-disc-4",
+      "name": "Spice Market Walk",
+      "area": "Chandni Chowk",
+      "category": "discover",
+      "tagline": "Guided hour through the wholesale spice godowns.",
+      "perHead": 500,
+      "openWindow": "10:00 am - 6:00 pm",
+      "indoorOutdoor": "mixed",
+      "vibeTags": [
+        "sensory",
+        "walk"
+      ],
+      "availability": "available",
+      "imageSeed": 308
+    },
+    {
+      "id": "cc-disc-5",
+      "name": "Haveli Print Workshop",
+      "area": "Chandni Chowk",
+      "category": "discover",
+      "tagline": "Block-printing bench inside a restored haveli.",
+      "perHead": 600,
+      "openWindow": "11:00 am - 7:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "craft",
+        "hands-on"
+      ],
+      "availability": "available",
+      "imageSeed": 309
+    },
+    {
+      "id": "cht-food-4",
+      "name": "Farmstead Kitchen",
+      "area": "Chattarpur",
+      "category": "food",
+      "tagline": "Long lunches under neem trees, produce from the back.",
+      "perHead": 900,
+      "openWindow": "8:00 am - 10:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "garden",
+        "brunch"
+      ],
+      "availability": "available",
+      "imageSeed": 310
+    },
+    {
+      "id": "cht-food-5",
+      "name": "Banquet Lane Dhaba",
+      "area": "Chattarpur",
+      "category": "food",
+      "tagline": "Tandoor running all night for the wedding crowd.",
+      "perHead": 450,
+      "openWindow": "11:00 am - 3:00 am",
+      "indoorOutdoor": "mixed",
+      "vibeTags": [
+        "late",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 311
+    },
+    {
+      "id": "cht-sight-4",
+      "name": "Chattarpur Mandir Complex",
+      "area": "Chattarpur",
+      "category": "sights",
+      "tagline": "Marble halls and carved gates, lit after dark.",
+      "perHead": 0,
+      "openWindow": "6:00 am - 10:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "historic",
+        "photo"
+      ],
+      "availability": "available",
+      "imageSeed": 312
+    },
+    {
+      "id": "cht-sight-5",
+      "name": "Aravalli Ridge Trail",
+      "area": "Chattarpur",
+      "category": "sights",
+      "tagline": "Scrub-forest path along the last of the ridge.",
+      "perHead": 0,
+      "openWindow": "6:00 am - 6:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "green",
+        "walk"
+      ],
+      "availability": "available",
+      "imageSeed": 313
+    },
+    {
+      "id": "cht-night-4",
+      "name": "Farmhouse Lawn Sessions",
+      "area": "Chattarpur",
+      "category": "nightlife",
+      "tagline": "Open-lawn sets on weekends, bring a blanket.",
+      "perHead": 1200,
+      "openWindow": "6:00 pm - 1:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "music",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 314
+    },
+    {
+      "id": "cht-night-5",
+      "name": "The Long Table Bar",
+      "area": "Chattarpur",
+      "category": "nightlife",
+      "tagline": "One thirty-foot table and a very short cocktail list.",
+      "perHead": 1300,
+      "openWindow": "7:00 pm - 2:00 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "intimate",
+        "cocktails"
+      ],
+      "availability": "available",
+      "imageSeed": 315
+    },
+    {
+      "id": "cht-disc-4",
+      "name": "Potter's Yard Chattarpur",
+      "area": "Chattarpur",
+      "category": "discover",
+      "tagline": "Wheel-throwing barn, half-day slots, fire your own.",
+      "perHead": 800,
+      "openWindow": "9:00 am - 7:00 pm",
+      "indoorOutdoor": "mixed",
+      "vibeTags": [
+        "craft",
+        "hands-on"
+      ],
+      "availability": "available",
+      "imageSeed": 316
+    },
+    {
+      "id": "cht-disc-5",
+      "name": "Riding School Paddock",
+      "area": "Chattarpur",
+      "category": "discover",
+      "tagline": "Beginner hacks around a sand school, helmets provided.",
+      "perHead": 1500,
+      "openWindow": "6:00 am - 6:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "active",
+        "novel"
+      ],
+      "availability": "available",
+      "imageSeed": 317
+    },
+    {
+      "id": "cp-sight-4",
+      "name": "Hanuman Mandir Lane",
+      "area": "Connaught Place",
+      "category": "sights",
+      "tagline": "Bangle stalls and mehndi benches along the temple wall.",
+      "perHead": 0,
+      "openWindow": "5:00 am - 10:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "colourful",
+        "classic"
+      ],
+      "availability": "available",
+      "imageSeed": 318
+    },
+    {
+      "id": "cp-sight-5",
+      "name": "Palika Underground Circle",
+      "area": "Connaught Place",
+      "category": "sights",
+      "tagline": "Subterranean market ring, unchanged for decades.",
+      "perHead": 0,
+      "openWindow": "11:00 am - 8:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "retro",
+        "browse"
+      ],
+      "availability": "available",
+      "imageSeed": 319
+    },
+    {
+      "id": "cp-night-5",
+      "name": "Radial Road Terrace",
+      "area": "Connaught Place",
+      "category": "nightlife",
+      "tagline": "Fourth-floor terrace looking down the radial roads.",
+      "perHead": 1500,
+      "openWindow": "6:00 pm - 1:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "view",
+        "lively"
+      ],
+      "availability": "available",
+      "imageSeed": 320
+    },
+    {
+      "id": "cp-disc-4",
+      "name": "Coffee Home Courtyard",
+      "area": "Connaught Place",
+      "category": "discover",
+      "tagline": "Shaded courtyard, filter coffee, no one hurries you.",
+      "perHead": 250,
+      "openWindow": "9:00 am - 9:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "quiet",
+        "relaxed"
+      ],
+      "availability": "available",
+      "imageSeed": 321
+    },
+    {
+      "id": "cp-disc-5",
+      "name": "Janpath Textile Stalls",
+      "area": "Connaught Place",
+      "category": "discover",
+      "tagline": "Block-print and mirror-work stalls, haggling expected.",
+      "perHead": 0,
+      "openWindow": "11:00 am - 8:00 pm",
+      "indoorOutdoor": "mixed",
+      "vibeTags": [
+        "browse",
+        "colourful"
+      ],
+      "availability": "available",
+      "imageSeed": 322
+    },
+    {
+      "id": "cp-food-5",
+      "name": "Inner Circle Breakfast Room",
+      "area": "Connaught Place",
+      "category": "food",
+      "tagline": "Toast, eggs and newspapers from seven on the colonnade.",
+      "perHead": 400,
+      "openWindow": "7:00 am - 11:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quiet",
+        "classic"
+      ],
+      "availability": "available",
+      "imageSeed": 323
+    },
+    {
+      "id": "cyber-food-4",
+      "name": "Sunrise Bowl Bar",
+      "area": "Cyberhub",
+      "category": "food",
+      "tagline": "Grain bowls from seven for the pre-office crowd.",
+      "perHead": 550,
+      "openWindow": "7:00 am - 4:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quick",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 324
+    },
+    {
+      "id": "cyber-food-5",
+      "name": "Terrace Twenty Nine",
+      "area": "Cyberhub",
+      "category": "food",
+      "tagline": "Sharing plates on a heated winter terrace.",
+      "perHead": 1600,
+      "openWindow": "12:00 pm - 1:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "group",
+        "view"
+      ],
+      "availability": "available",
+      "imageSeed": 325
+    },
+    {
+      "id": "cyber-sight-4",
+      "name": "Sculpture Court Gurgaon",
+      "area": "Cyberhub",
+      "category": "sights",
+      "tagline": "Rotating steel sculpture in the open court.",
+      "perHead": 0,
+      "openWindow": "Always open",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "art",
+        "photo"
+      ],
+      "availability": "available",
+      "imageSeed": 326
+    },
+    {
+      "id": "cyber-sight-5",
+      "name": "Aravalli Biodiversity Park",
+      "area": "Cyberhub",
+      "category": "sights",
+      "tagline": "Restored forest with marked morning trails.",
+      "perHead": 0,
+      "openWindow": "5:30 am - 7:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "green",
+        "walk"
+      ],
+      "availability": "available",
+      "imageSeed": 327
+    },
+    {
+      "id": "cyber-night-5",
+      "name": "Tap Room Twelve",
+      "area": "Cyberhub",
+      "category": "nightlife",
+      "tagline": "Twelve rotating taps and a very loud quiz night.",
+      "perHead": 1000,
+      "openWindow": "4:00 pm - 1:00 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "beer",
+        "lively"
+      ],
+      "availability": "available",
+      "imageSeed": 328
+    },
+    {
+      "id": "cyber-disc-4",
+      "name": "Cyber Comedy Loft",
+      "area": "Cyberhub",
+      "category": "discover",
+      "tagline": "Stand-up loft, two shows a night, tiny room.",
+      "perHead": 600,
+      "openWindow": "7:00 pm - 12:00 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "comedy",
+        "lively"
+      ],
+      "availability": "available",
+      "imageSeed": 329
+    },
+    {
+      "id": "cyber-disc-5",
+      "name": "Studio Pottery Gurgaon",
+      "area": "Cyberhub",
+      "category": "discover",
+      "tagline": "Quiet wheel studio, two-hour drop-in sittings.",
+      "perHead": 700,
+      "openWindow": "10:00 am - 8:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "craft",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 330
+    },
+    {
+      "id": "dwk-food-4",
+      "name": "Sector Six Bhojanalya",
+      "area": "Dwarka",
+      "category": "food",
+      "tagline": "Unlimited thali, cash only, queue at one.",
+      "perHead": 250,
+      "openWindow": "8:00 am - 10:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quick",
+        "classic"
+      ],
+      "availability": "available",
+      "imageSeed": 331
+    },
+    {
+      "id": "dwk-food-5",
+      "name": "Garden Cafe Dwarka",
+      "area": "Dwarka",
+      "category": "food",
+      "tagline": "Sun-trap courtyard, long breakfasts, slow wifi.",
+      "perHead": 500,
+      "openWindow": "7:00 am - 11:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "garden",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 332
+    },
+    {
+      "id": "dwk-sight-4",
+      "name": "Bharat Vandana Park",
+      "area": "Dwarka",
+      "category": "sights",
+      "tagline": "Scale replicas of monuments across a landscaped park.",
+      "perHead": 100,
+      "openWindow": "9:00 am - 8:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "photo",
+        "walk"
+      ],
+      "availability": "available",
+      "imageSeed": 333
+    },
+    {
+      "id": "dwk-sight-5",
+      "name": "Dwarka Sector Nine Lake",
+      "area": "Dwarka",
+      "category": "sights",
+      "tagline": "Reclaimed lake with a flat lit loop for evenings.",
+      "perHead": 0,
+      "openWindow": "5:00 am - 9:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "green",
+        "calm"
+      ],
+      "availability": "available",
+      "imageSeed": 334
+    },
+    {
+      "id": "dwk-night-4",
+      "name": "Cross Point Brewhouse",
+      "area": "Dwarka",
+      "category": "nightlife",
+      "tagline": "Suburban brewery, families early and a DJ late.",
+      "perHead": 900,
+      "openWindow": "12:00 pm - 1:00 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "beer",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 335
+    },
+    {
+      "id": "dwk-night-5",
+      "name": "Sky Deck Dwarka",
+      "area": "Dwarka",
+      "category": "nightlife",
+      "tagline": "Twentieth-floor lounge, sunset side of the building.",
+      "perHead": 1200,
+      "openWindow": "6:00 pm - 1:00 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "view",
+        "relaxed"
+      ],
+      "availability": "available",
+      "imageSeed": 336
+    },
+    {
+      "id": "dwk-disc-4",
+      "name": "Dwarka Bowling Centre",
+      "area": "Dwarka",
+      "category": "discover",
+      "tagline": "Eight lanes and a very serious league night.",
+      "perHead": 600,
+      "openWindow": "11:00 am - 12:00 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "games",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 337
+    },
+    {
+      "id": "dwk-disc-5",
+      "name": "Sub City Art Space",
+      "area": "Dwarka",
+      "category": "discover",
+      "tagline": "Artist-run space in a basement, free entry.",
+      "perHead": 0,
+      "openWindow": "11:00 am - 7:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "art",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 338
+    },
+    {
+      "id": "gk-food-4",
+      "name": "M Block Breakfast Club",
+      "area": "Greater Kailash",
+      "category": "food",
+      "tagline": "Eggs and filter coffee from seven, papers provided.",
+      "perHead": 450,
+      "openWindow": "7:00 am - 11:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quiet",
+        "brunch"
+      ],
+      "availability": "available",
+      "imageSeed": 339
+    },
+    {
+      "id": "gk-food-5",
+      "name": "Kailash Grill House",
+      "area": "Greater Kailash",
+      "category": "food",
+      "tagline": "Charcoal kebabs at pavement tables, no bookings.",
+      "perHead": 700,
+      "openWindow": "12:00 pm - 12:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "street",
+        "lively"
+      ],
+      "availability": "available",
+      "imageSeed": 340
+    },
+    {
+      "id": "gk-sight-4",
+      "name": "Deer Park GK Loop",
+      "area": "Greater Kailash",
+      "category": "sights",
+      "tagline": "Shaded jogging loop with peacocks and a lake.",
+      "perHead": 0,
+      "openWindow": "5:00 am - 8:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "green",
+        "walk"
+      ],
+      "availability": "available",
+      "imageSeed": 341
+    },
+    {
+      "id": "gk-sight-5",
+      "name": "Chirag Delhi Wall",
+      "area": "Greater Kailash",
+      "category": "sights",
+      "tagline": "Fourteenth-century village wall inside the colony.",
+      "perHead": 0,
+      "openWindow": "Sunrise - sunset",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "historic",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 342
+    },
+    {
+      "id": "gk-night-4",
+      "name": "N Block Wine Room",
+      "area": "Greater Kailash",
+      "category": "nightlife",
+      "tagline": "Twenty by the glass and a room that stays quiet.",
+      "perHead": 1400,
+      "openWindow": "5:00 pm - 1:00 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "wine",
+        "intimate"
+      ],
+      "availability": "available",
+      "imageSeed": 343
+    },
+    {
+      "id": "gk-night-5",
+      "name": "Rooftop GK Two",
+      "area": "Greater Kailash",
+      "category": "nightlife",
+      "tagline": "Fairy-lit roof with a resident guitarist.",
+      "perHead": 1100,
+      "openWindow": "6:00 pm - 1:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "music",
+        "relaxed"
+      ],
+      "availability": "available",
+      "imageSeed": 344
+    },
+    {
+      "id": "gk-disc-4",
+      "name": "GK Design Studios",
+      "area": "Greater Kailash",
+      "category": "discover",
+      "tagline": "Three floors of independent Indian labels.",
+      "perHead": 0,
+      "openWindow": "11:00 am - 8:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "browse",
+        "upscale"
+      ],
+      "availability": "available",
+      "imageSeed": 345
+    },
+    {
+      "id": "gk-disc-5",
+      "name": "Board & Brew GK",
+      "area": "Greater Kailash",
+      "category": "discover",
+      "tagline": "Four hundred board games, pay by the hour.",
+      "perHead": 450,
+      "openWindow": "12:00 pm - 12:00 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "games",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 346
+    },
+    {
+      "id": "hk-sight-4",
+      "name": "Hauz Khas Reservoir Walk",
+      "area": "Hauz Khas",
+      "category": "sights",
+      "tagline": "Flat path along the water, herons at dusk.",
+      "perHead": 0,
+      "openWindow": "5:00 am - 8:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "green",
+        "calm"
+      ],
+      "availability": "available",
+      "imageSeed": 347
+    },
+    {
+      "id": "hk-sight-5",
+      "name": "Village Rooftop Viewpoint",
+      "area": "Hauz Khas",
+      "category": "sights",
+      "tagline": "Free terrace above the lane, best at golden hour.",
+      "perHead": 0,
+      "openWindow": "10:00 am - 8:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "view",
+        "photo"
+      ],
+      "availability": "available",
+      "imageSeed": 348
+    },
+    {
+      "id": "hk-night-4",
+      "name": "Hauz Khas Social Roof",
+      "area": "Hauz Khas",
+      "category": "nightlife",
+      "tagline": "Sprawling roof, long communal tables, gets loud.",
+      "perHead": 1000,
+      "openWindow": "11:00 am - 1:00 am",
+      "indoorOutdoor": "mixed",
+      "vibeTags": [
+        "group",
+        "lively"
+      ],
+      "availability": "available",
+      "imageSeed": 349
+    },
+    {
+      "id": "hk-night-5",
+      "name": "Quiet Corner Wine Bar",
+      "area": "Hauz Khas",
+      "category": "nightlife",
+      "tagline": "Eight tables, natural wine, conversation possible.",
+      "perHead": 1500,
+      "openWindow": "6:00 pm - 12:30 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "wine",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 350
+    },
+    {
+      "id": "hk-disc-5",
+      "name": "Deer Park Amphitheatre",
+      "area": "Hauz Khas",
+      "category": "discover",
+      "tagline": "Open-air steps used for weekend readings.",
+      "perHead": 0,
+      "openWindow": "6:00 am - 8:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "quiet",
+        "green"
+      ],
+      "availability": "available",
+      "imageSeed": 351
+    },
+    {
+      "id": "kb-food-4",
+      "name": "Ajmal Khan Chaat Row",
+      "area": "Karol Bagh",
+      "category": "food",
+      "tagline": "A row of chaat carts working from four.",
+      "perHead": 120,
+      "openWindow": "4:00 pm - 11:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "street",
+        "quick"
+      ],
+      "availability": "available",
+      "imageSeed": 352
+    },
+    {
+      "id": "kb-food-5",
+      "name": "Bagh Breakfast Halwai",
+      "area": "Karol Bagh",
+      "category": "food",
+      "tagline": "Bedmi puri and jalebi from six in the morning.",
+      "perHead": 150,
+      "openWindow": "6:00 am - 12:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "street",
+        "classic"
+      ],
+      "availability": "available",
+      "imageSeed": 353
+    },
+    {
+      "id": "kb-sight-4",
+      "name": "Gaffar Market Arcades",
+      "area": "Karol Bagh",
+      "category": "sights",
+      "tagline": "Electronics arcades that have their own weather.",
+      "perHead": 0,
+      "openWindow": "11:00 am - 8:00 pm",
+      "indoorOutdoor": "mixed",
+      "vibeTags": [
+        "colourful",
+        "browse"
+      ],
+      "availability": "available",
+      "imageSeed": 354
+    },
+    {
+      "id": "kb-sight-5",
+      "name": "Karol Bagh Jain Temple",
+      "area": "Karol Bagh",
+      "category": "sights",
+      "tagline": "Marble prayer hall, shoes off, very still inside.",
+      "perHead": 0,
+      "openWindow": "5:00 am - 9:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quiet",
+        "historic"
+      ],
+      "availability": "available",
+      "imageSeed": 355
+    },
+    {
+      "id": "kb-night-4",
+      "name": "Rooftop Ghaffar",
+      "area": "Karol Bagh",
+      "category": "nightlife",
+      "tagline": "Cheap beer above the market, plastic chairs, great view.",
+      "perHead": 500,
+      "openWindow": "6:00 pm - 1:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "view",
+        "casual"
+      ],
+      "availability": "available",
+      "imageSeed": 356
+    },
+    {
+      "id": "kb-night-5",
+      "name": "Bagh Night Bazaar",
+      "area": "Karol Bagh",
+      "category": "nightlife",
+      "tagline": "Stalls and speakers running past midnight on weekends.",
+      "perHead": 300,
+      "openWindow": "7:00 pm - 2:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "lively",
+        "street"
+      ],
+      "availability": "available",
+      "imageSeed": 357
+    },
+    {
+      "id": "kb-disc-4",
+      "name": "Saree Border Workshop",
+      "area": "Karol Bagh",
+      "category": "discover",
+      "tagline": "Watch zari borders woven, then buy the offcuts.",
+      "perHead": 400,
+      "openWindow": "11:00 am - 7:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "craft",
+        "colourful"
+      ],
+      "availability": "available",
+      "imageSeed": 358
+    },
+    {
+      "id": "kb-disc-5",
+      "name": "Cycle Market Walk",
+      "area": "Karol Bagh",
+      "category": "discover",
+      "tagline": "Guided hour through the wholesale cycle bazaar.",
+      "perHead": 300,
+      "openWindow": "10:00 am - 6:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "novel",
+        "walk"
+      ],
+      "availability": "available",
+      "imageSeed": 359
+    },
+    {
+      "id": "km-sight-4",
+      "name": "Sunder Nursery Grove",
+      "area": "Khan Market",
+      "category": "sights",
+      "tagline": "Restored Mughal garden, ninety acres, deck chairs.",
+      "perHead": 200,
+      "openWindow": "7:00 am - 7:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "green",
+        "historic"
+      ],
+      "availability": "available",
+      "imageSeed": 360
+    },
+    {
+      "id": "km-sight-5",
+      "name": "Khan Market Back Lane",
+      "area": "Khan Market",
+      "category": "sights",
+      "tagline": "Second-floor balconies and old signage, quiet at ten.",
+      "perHead": 0,
+      "openWindow": "Always open",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "quiet",
+        "photo"
+      ],
+      "availability": "available",
+      "imageSeed": 361
+    },
+    {
+      "id": "km-night-4",
+      "name": "Middle Lane Listening Bar",
+      "area": "Khan Market",
+      "category": "nightlife",
+      "tagline": "Vinyl only, low light, no one shouts.",
+      "perHead": 1700,
+      "openWindow": "6:00 pm - 1:00 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "music",
+        "intimate"
+      ],
+      "availability": "available",
+      "imageSeed": 362
+    },
+    {
+      "id": "km-night-5",
+      "name": "Khan Terrace Beer Garden",
+      "area": "Khan Market",
+      "category": "nightlife",
+      "tagline": "Open roof with taps and long shared tables.",
+      "perHead": 1200,
+      "openWindow": "12:00 pm - 12:30 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "beer",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 363
+    },
+    {
+      "id": "km-disc-4",
+      "name": "Anand Stationers",
+      "area": "Khan Market",
+      "category": "discover",
+      "tagline": "Three floors of paper, pens and drawing supplies.",
+      "perHead": 0,
+      "openWindow": "10:00 am - 8:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "browse",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 364
+    },
+    {
+      "id": "km-disc-5",
+      "name": "Khan Market Cookery Room",
+      "area": "Khan Market",
+      "category": "discover",
+      "tagline": "Two-hour regional cooking classes, eight seats.",
+      "perHead": 1800,
+      "openWindow": "10:00 am - 8:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "hands-on",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 365
+    },
+    {
+      "id": "km-food-5",
+      "name": "Khan Market Morning Counter",
+      "area": "Khan Market",
+      "category": "food",
+      "tagline": "Standing counter for coffee and parathas before nine.",
+      "perHead": 350,
+      "openWindow": "7:00 am - 12:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quick",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 366
+    },
+    {
+      "id": "lodhi-food-4",
+      "name": "Meharchand Breakfast Bar",
+      "area": "Lodhi",
+      "category": "food",
+      "tagline": "Counter breakfast from seven, single-origin coffee.",
+      "perHead": 500,
+      "openWindow": "7:00 am - 9:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quiet",
+        "brunch"
+      ],
+      "availability": "available",
+      "imageSeed": 367
+    },
+    {
+      "id": "lodhi-food-5",
+      "name": "Lodhi Colony Kebab Room",
+      "area": "Lodhi",
+      "category": "food",
+      "tagline": "Small charcoal room behind the market arches.",
+      "perHead": 800,
+      "openWindow": "6:00 pm - 12:00 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "classic",
+        "intimate"
+      ],
+      "availability": "available",
+      "imageSeed": 368
+    },
+    {
+      "id": "lodhi-sight-4",
+      "name": "Lodhi Rose Garden",
+      "area": "Lodhi",
+      "category": "sights",
+      "tagline": "Formal rose beds, benches, quietest at eight.",
+      "perHead": 0,
+      "openWindow": "6:00 am - 8:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "green",
+        "calm"
+      ],
+      "availability": "available",
+      "imageSeed": 369
+    },
+    {
+      "id": "lodhi-sight-5",
+      "name": "Bara Gumbad Terrace",
+      "area": "Lodhi",
+      "category": "sights",
+      "tagline": "Domed platform with the whole park below it.",
+      "perHead": 0,
+      "openWindow": "6:00 am - 8:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "historic",
+        "photo"
+      ],
+      "availability": "available",
+      "imageSeed": 370
+    },
+    {
+      "id": "lodhi-night-4",
+      "name": "Colony Jazz Cellar",
+      "area": "Lodhi",
+      "category": "nightlife",
+      "tagline": "Live trio Thursday to Sunday, forty seats.",
+      "perHead": 1500,
+      "openWindow": "7:00 pm - 1:00 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "jazz",
+        "intimate"
+      ],
+      "availability": "available",
+      "imageSeed": 371
+    },
+    {
+      "id": "lodhi-night-5",
+      "name": "Lodhi Roof Social",
+      "area": "Lodhi",
+      "category": "nightlife",
+      "tagline": "Rooftop with a long bar and a young crowd.",
+      "perHead": 1000,
+      "openWindow": "5:00 pm - 1:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "lively",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 372
+    },
+    {
+      "id": "lodhi-disc-5",
+      "name": "Lodhi Art Walk Guides",
+      "area": "Lodhi",
+      "category": "discover",
+      "tagline": "Guided hour through the street-art district.",
+      "perHead": 400,
+      "openWindow": "8:00 am - 6:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "art",
+        "walk"
+      ],
+      "availability": "available",
+      "imageSeed": 373
+    },
+    {
+      "id": "nizam-food-4",
+      "name": "Karim's Nizamuddin",
+      "area": "Nizamuddin",
+      "category": "food",
+      "tagline": "Mutton korma and sheermal in a courtyard kitchen.",
+      "perHead": 600,
+      "openWindow": "7:00 am - 12:00 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "classic",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 374
+    },
+    {
+      "id": "nizam-food-5",
+      "name": "Basti Breakfast Corner",
+      "area": "Nizamuddin",
+      "category": "food",
+      "tagline": "Nihari from six, sold out by nine.",
+      "perHead": 200,
+      "openWindow": "6:00 am - 11:00 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "street",
+        "quick"
+      ],
+      "availability": "available",
+      "imageSeed": 375
+    },
+    {
+      "id": "nizam-sight-4",
+      "name": "Chausath Khamba",
+      "area": "Nizamuddin",
+      "category": "sights",
+      "tagline": "Sixty-four marble pillars, almost always empty.",
+      "perHead": 0,
+      "openWindow": "9:00 am - 6:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quiet",
+        "historic"
+      ],
+      "availability": "available",
+      "imageSeed": 376
+    },
+    {
+      "id": "nizam-sight-5",
+      "name": "Sunder Nursery Lake",
+      "area": "Nizamuddin",
+      "category": "sights",
+      "tagline": "Restored lake walk on the park's quiet side.",
+      "perHead": 200,
+      "openWindow": "7:00 am - 7:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "green",
+        "calm"
+      ],
+      "availability": "available",
+      "imageSeed": 377
+    },
+    {
+      "id": "nizam-night-1",
+      "name": "Qawwali Courtyard Evenings",
+      "area": "Nizamuddin",
+      "category": "nightlife",
+      "tagline": "Thursday qawwali at the dargah, sit on the marble.",
+      "perHead": 0,
+      "openWindow": "6:00 pm - 10:30 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "music",
+        "historic"
+      ],
+      "availability": "available",
+      "imageSeed": 378
+    },
+    {
+      "id": "nizam-night-2",
+      "name": "Nizamuddin Chai Terrace",
+      "area": "Nizamuddin",
+      "category": "nightlife",
+      "tagline": "Tea and shared benches under the flyover lights.",
+      "perHead": 100,
+      "openWindow": "5:00 pm - 1:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "casual",
+        "late"
+      ],
+      "availability": "available",
+      "imageSeed": 379
+    },
+    {
+      "id": "nizam-night-3",
+      "name": "Sufi Roof Sessions",
+      "area": "Nizamuddin",
+      "category": "nightlife",
+      "tagline": "Rooftop acoustic sets facing the dome.",
+      "perHead": 800,
+      "openWindow": "7:00 pm - 12:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "music",
+        "relaxed"
+      ],
+      "availability": "available",
+      "imageSeed": 380
+    },
+    {
+      "id": "nizam-night-4",
+      "name": "Mathura Road Taproom",
+      "area": "Nizamuddin",
+      "category": "nightlife",
+      "tagline": "Nearest craft taps, forty seats, quiet on weeknights.",
+      "perHead": 1100,
+      "openWindow": "5:00 pm - 12:30 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "beer",
+        "casual"
+      ],
+      "availability": "available",
+      "imageSeed": 381
+    },
+    {
+      "id": "nizam-night-5",
+      "name": "Barapullah Night Grill",
+      "area": "Nizamuddin",
+      "category": "nightlife",
+      "tagline": "Late charcoal grill under the elevated road.",
+      "perHead": 450,
+      "openWindow": "8:00 pm - 3:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "street",
+        "late"
+      ],
+      "availability": "available",
+      "imageSeed": 382
+    },
+    {
+      "id": "nizam-disc-1",
+      "name": "Nizamuddin Heritage Walk",
+      "area": "Nizamuddin",
+      "category": "discover",
+      "tagline": "Two-hour walk through the basti with a local guide.",
+      "perHead": 500,
+      "openWindow": "7:00 am - 6:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "historic",
+        "walk"
+      ],
+      "availability": "available",
+      "imageSeed": 383
+    },
+    {
+      "id": "nizam-disc-2",
+      "name": "Basti Craft Centre",
+      "area": "Nizamuddin",
+      "category": "discover",
+      "tagline": "Zardozi embroidery workshop run by the community trust.",
+      "perHead": 600,
+      "openWindow": "10:00 am - 6:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "craft",
+        "hands-on"
+      ],
+      "availability": "available",
+      "imageSeed": 384
+    },
+    {
+      "id": "nizam-disc-3",
+      "name": "Ghalib Ki Haveli",
+      "area": "Nizamuddin",
+      "category": "discover",
+      "tagline": "The poet's restored house, one room, free entry.",
+      "perHead": 0,
+      "openWindow": "10:00 am - 6:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quiet",
+        "historic"
+      ],
+      "availability": "available",
+      "imageSeed": 385
+    },
+    {
+      "id": "nizam-disc-4",
+      "name": "Insha Bookroom",
+      "area": "Nizamuddin",
+      "category": "discover",
+      "tagline": "Urdu poetry bookshop with a reading bench.",
+      "perHead": 300,
+      "openWindow": "11:00 am - 8:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quiet",
+        "browse"
+      ],
+      "availability": "available",
+      "imageSeed": 386
+    },
+    {
+      "id": "nizam-disc-5",
+      "name": "Sunder Nursery Bird Hide",
+      "area": "Nizamuddin",
+      "category": "discover",
+      "tagline": "Screened hide on the wetland, binoculars for hire.",
+      "perHead": 200,
+      "openWindow": "6:00 am - 6:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "quiet",
+        "green"
+      ],
+      "availability": "available",
+      "imageSeed": 387
+    },
+    {
+      "id": "noi-food-4",
+      "name": "Sector Eighteen Chaat Lane",
+      "area": "Noida",
+      "category": "food",
+      "tagline": "Six carts, one lane, everything under a hundred.",
+      "perHead": 100,
+      "openWindow": "11:00 am - 11:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "street",
+        "quick"
+      ],
+      "availability": "available",
+      "imageSeed": 388
+    },
+    {
+      "id": "noi-food-5",
+      "name": "Atta Market Breakfast Room",
+      "area": "Noida",
+      "category": "food",
+      "tagline": "Chole bhature from seven, tables shared.",
+      "perHead": 200,
+      "openWindow": "7:00 am - 11:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "classic",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 389
+    },
+    {
+      "id": "noi-sight-4",
+      "name": "Yamuna Ghat Steps",
+      "area": "Noida",
+      "category": "sights",
+      "tagline": "Ferrymen, gulls and mist on the water at dawn.",
+      "perHead": 0,
+      "openWindow": "5:00 am - 7:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "quiet",
+        "photo"
+      ],
+      "availability": "available",
+      "imageSeed": 390
+    },
+    {
+      "id": "noi-sight-5",
+      "name": "Noida Botanic Terraces",
+      "area": "Noida",
+      "category": "sights",
+      "tagline": "Terraced beds and a long shaded pergola walk.",
+      "perHead": 50,
+      "openWindow": "6:00 am - 7:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "green",
+        "walk"
+      ],
+      "availability": "available",
+      "imageSeed": 391
+    },
+    {
+      "id": "noi-night-4",
+      "name": "Sector Twenty Nine Brewhouse",
+      "area": "Noida",
+      "category": "nightlife",
+      "tagline": "Big brewery floor, live band Fridays.",
+      "perHead": 900,
+      "openWindow": "12:00 pm - 1:00 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "beer",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 392
+    },
+    {
+      "id": "noi-night-5",
+      "name": "Mall Road Skybar",
+      "area": "Noida",
+      "category": "nightlife",
+      "tagline": "Rooftop over the expressway, sunset side.",
+      "perHead": 1200,
+      "openWindow": "6:00 pm - 1:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "view",
+        "music"
+      ],
+      "availability": "available",
+      "imageSeed": 393
+    },
+    {
+      "id": "noi-disc-4",
+      "name": "Worlds of Wonder Arcade",
+      "area": "Noida",
+      "category": "discover",
+      "tagline": "Indoor arcade floor with go-karts alongside.",
+      "perHead": 900,
+      "openWindow": "11:00 am - 10:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "games",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 394
+    },
+    {
+      "id": "noi-disc-5",
+      "name": "Film City Studio Tour",
+      "area": "Noida",
+      "category": "discover",
+      "tagline": "Ninety-minute walk through working television sets.",
+      "perHead": 700,
+      "openWindow": "10:00 am - 6:00 pm",
+      "indoorOutdoor": "mixed",
+      "vibeTags": [
+        "novel",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 395
+    },
+    {
+      "id": "saket-food-4",
+      "name": "Champa Gali Breakfast",
+      "area": "Saket",
+      "category": "food",
+      "tagline": "Courtyard coffee and eggs from eight, cats included.",
+      "perHead": 450,
+      "openWindow": "8:00 am - 11:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "quiet",
+        "garden"
+      ],
+      "availability": "available",
+      "imageSeed": 396
+    },
+    {
+      "id": "saket-food-5",
+      "name": "Saket Kebab Terrace",
+      "area": "Saket",
+      "category": "food",
+      "tagline": "Rooftop charcoal grill facing the archaeological park.",
+      "perHead": 850,
+      "openWindow": "6:00 pm - 12:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "view",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 397
+    },
+    {
+      "id": "saket-sight-4",
+      "name": "Jahaz Mahal Mehrauli",
+      "area": "Saket",
+      "category": "sights",
+      "tagline": "Stepped 'ship palace' beside the tank, rarely busy.",
+      "perHead": 0,
+      "openWindow": "Sunrise - sunset",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "historic",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 398
+    },
+    {
+      "id": "saket-sight-5",
+      "name": "Saket District Green",
+      "area": "Saket",
+      "category": "sights",
+      "tagline": "Landscaped green between the malls, lit till late.",
+      "perHead": 0,
+      "openWindow": "6:00 am - 10:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "green",
+        "walk"
+      ],
+      "availability": "available",
+      "imageSeed": 399
+    },
+    {
+      "id": "saket-night-4",
+      "name": "Champa Gali Night Lane",
+      "area": "Saket",
+      "category": "nightlife",
+      "tagline": "Fairy lights, low walls, everyone sits outside.",
+      "perHead": 700,
+      "openWindow": "5:00 pm - 12:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "relaxed",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 400
+    },
+    {
+      "id": "saket-night-5",
+      "name": "Saket Listening Room",
+      "area": "Saket",
+      "category": "nightlife",
+      "tagline": "Records, low light, forty seats, no requests.",
+      "perHead": 1200,
+      "openWindow": "6:00 pm - 1:00 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "music",
+        "intimate"
+      ],
+      "availability": "available",
+      "imageSeed": 401
+    },
+    {
+      "id": "saket-disc-4",
+      "name": "Mehrauli Pottery Barn",
+      "area": "Saket",
+      "category": "discover",
+      "tagline": "Wheel and glaze sessions in a converted stable.",
+      "perHead": 700,
+      "openWindow": "10:00 am - 7:00 pm",
+      "indoorOutdoor": "mixed",
+      "vibeTags": [
+        "craft",
+        "hands-on"
+      ],
+      "availability": "available",
+      "imageSeed": 402
+    },
+    {
+      "id": "saket-disc-5",
+      "name": "Saket Indie Cinema",
+      "area": "Saket",
+      "category": "discover",
+      "tagline": "One screen, subtitled programming, tiny bar.",
+      "perHead": 400,
+      "openWindow": "12:00 pm - 11:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "cinema",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 403
+    },
+    {
+      "id": "sj-food-4",
+      "name": "Jat Lane Breakfast",
+      "area": "Shahpur Jat",
+      "category": "food",
+      "tagline": "Three tables, one cook, eggs until noon.",
+      "perHead": 350,
+      "openWindow": "7:00 am - 12:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quiet",
+        "quick"
+      ],
+      "availability": "available",
+      "imageSeed": 404
+    },
+    {
+      "id": "sj-food-5",
+      "name": "Studio Cafe Shahpur",
+      "area": "Shahpur Jat",
+      "category": "food",
+      "tagline": "Designers' canteen behind an unmarked door.",
+      "perHead": 650,
+      "openWindow": "9:00 am - 11:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quiet",
+        "relaxed"
+      ],
+      "availability": "available",
+      "imageSeed": 405
+    },
+    {
+      "id": "sj-sight-4",
+      "name": "Siri Fort Ramparts",
+      "area": "Shahpur Jat",
+      "category": "sights",
+      "tagline": "Broken fourteenth-century walls through the village.",
+      "perHead": 0,
+      "openWindow": "Sunrise - sunset",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "historic",
+        "walk"
+      ],
+      "availability": "available",
+      "imageSeed": 406
+    },
+    {
+      "id": "sj-sight-5",
+      "name": "Asiad Village Colonnade",
+      "area": "Shahpur Jat",
+      "category": "sights",
+      "tagline": "Brutalist housing project you can walk straight through.",
+      "perHead": 0,
+      "openWindow": "Always open",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "photo",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 407
+    },
+    {
+      "id": "sj-night-4",
+      "name": "Shahpur Roof Bar",
+      "area": "Shahpur Jat",
+      "category": "nightlife",
+      "tagline": "Small roof over the lanes, natural wine, no menu.",
+      "perHead": 1300,
+      "openWindow": "6:00 pm - 12:30 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "wine",
+        "intimate"
+      ],
+      "availability": "available",
+      "imageSeed": 408
+    },
+    {
+      "id": "sj-night-5",
+      "name": "The Village Taproom",
+      "area": "Shahpur Jat",
+      "category": "nightlife",
+      "tagline": "Six taps, standing room, spills onto the lane.",
+      "perHead": 800,
+      "openWindow": "5:00 pm - 1:00 am",
+      "indoorOutdoor": "mixed",
+      "vibeTags": [
+        "beer",
+        "lively"
+      ],
+      "availability": "available",
+      "imageSeed": 409
+    },
+    {
+      "id": "sj-disc-4",
+      "name": "Shahpur Jat Ateliers",
+      "area": "Shahpur Jat",
+      "category": "discover",
+      "tagline": "Bridalwear studios stacked three storeys up.",
+      "perHead": 0,
+      "openWindow": "11:00 am - 8:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "browse",
+        "craft"
+      ],
+      "availability": "available",
+      "imageSeed": 410
+    },
+    {
+      "id": "sj-disc-5",
+      "name": "Screenprint Shahpur",
+      "area": "Shahpur Jat",
+      "category": "discover",
+      "tagline": "Pull your own poster on a flatbed press.",
+      "perHead": 550,
+      "openWindow": "11:00 am - 7:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "hands-on",
+        "craft"
+      ],
+      "availability": "available",
+      "imageSeed": 411
+    },
+    {
+      "id": "vk-food-4",
+      "name": "Kunj Breakfast Counter",
+      "area": "Vasant Kunj",
+      "category": "food",
+      "tagline": "Dosas from seven, filter coffee in steel tumblers.",
+      "perHead": 300,
+      "openWindow": "7:00 am - 11:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "quick",
+        "classic"
+      ],
+      "availability": "available",
+      "imageSeed": 412
+    },
+    {
+      "id": "vk-food-5",
+      "name": "Andheria Grill Garden",
+      "area": "Vasant Kunj",
+      "category": "food",
+      "tagline": "Garden tables, slow charcoal, families till late.",
+      "perHead": 800,
+      "openWindow": "12:00 pm - 12:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "garden",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 413
+    },
+    {
+      "id": "vk-sight-4",
+      "name": "Sanjay Van Trails",
+      "area": "Vasant Kunj",
+      "category": "sights",
+      "tagline": "Ridge forest with marked trails and a step-well.",
+      "perHead": 0,
+      "openWindow": "6:00 am - 6:00 pm",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "green",
+        "walk"
+      ],
+      "availability": "available",
+      "imageSeed": 414
+    },
+    {
+      "id": "vk-sight-5",
+      "name": "Qutub Fringe Ruins",
+      "area": "Vasant Kunj",
+      "category": "sights",
+      "tagline": "Unfenced tombs in the scrub behind the malls.",
+      "perHead": 0,
+      "openWindow": "Sunrise - sunset",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "historic",
+        "quiet"
+      ],
+      "availability": "available",
+      "imageSeed": 415
+    },
+    {
+      "id": "vk-night-4",
+      "name": "Kunj Rooftop Lounge",
+      "area": "Vasant Kunj",
+      "category": "nightlife",
+      "tagline": "Quiet roof, deep sofas, cocktails made slowly.",
+      "perHead": 1500,
+      "openWindow": "6:00 pm - 1:00 am",
+      "indoorOutdoor": "outdoor",
+      "vibeTags": [
+        "intimate",
+        "relaxed"
+      ],
+      "availability": "available",
+      "imageSeed": 416
+    },
+    {
+      "id": "vk-night-5",
+      "name": "Mall Mile Sports Bar",
+      "area": "Vasant Kunj",
+      "category": "nightlife",
+      "tagline": "Screens on every wall, gets very loud on match nights.",
+      "perHead": 1000,
+      "openWindow": "12:00 pm - 1:00 am",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "lively",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 417
+    },
+    {
+      "id": "vk-disc-4",
+      "name": "Vasant Kunj Craft Museum Shop",
+      "area": "Vasant Kunj",
+      "category": "discover",
+      "tagline": "Handloom and toy collection with a workshop bench.",
+      "perHead": 0,
+      "openWindow": "10:00 am - 6:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "craft",
+        "browse"
+      ],
+      "availability": "available",
+      "imageSeed": 418
+    },
+    {
+      "id": "vk-disc-5",
+      "name": "Kunj Climbing Wall",
+      "area": "Vasant Kunj",
+      "category": "discover",
+      "tagline": "Indoor bouldering, shoes for hire, beginner sessions.",
+      "perHead": 800,
+      "openWindow": "6:00 am - 11:00 pm",
+      "indoorOutdoor": "indoor",
+      "vibeTags": [
+        "active",
+        "group"
+      ],
+      "availability": "available",
+      "imageSeed": 419
     }
   ]
 }

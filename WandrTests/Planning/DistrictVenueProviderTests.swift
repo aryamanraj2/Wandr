@@ -292,7 +292,14 @@ struct DistrictVenueProviderTests {
         let provider = try makeProvider()
         let result = try await provider.research(for: Fixtures.impossibleBudgetBrief)
 
-        #expect(result.venues.count == provider.allVenues.count, "Budget must not drop venues")
+        // Against the venues *in the brief's area*, not the whole dataset: the claim
+        // here is that budget ranks rather than filters, and comparing to every venue
+        // in Delhi conflates that with area coverage. The fixture names an area
+        // precisely because a budget cannot be unmeetable across the full dataset —
+        // some category always has a free option.
+        let inArea = provider.venues(in: Fixtures.impossibleBudgetBrief.area.value)
+        #expect(!inArea.isEmpty)
+        #expect(result.venues.count == inArea.count, "Budget must not drop venues")
 
         let brief = Fixtures.impossibleBudgetBrief
         let limit = try #require(brief.budget.value.ceilingPerHead(for: brief.groupSize.value))

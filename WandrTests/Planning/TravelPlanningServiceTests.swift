@@ -348,7 +348,7 @@ struct TravelPlanningServiceTests {
     }
 
     /// The reported screenshot, end to end. A budget nothing in the dataset can meet
-    /// used to end the run with "over your ₹200 limit" and a Try again button that
+    /// used to end the run with "over your limit" and a Try again button that
     /// could only ever produce the same dead end.
     @Test("An unmeetable budget still produces a plan, with the compromise disclosed")
     func unmeetableBudgetRelaxesRatherThanFailing() async throws {
@@ -361,7 +361,7 @@ struct TravelPlanningServiceTests {
         #expect(!plan.slots.isEmpty)
 
         let given = try #require(plan.relaxations.first { $0.constraint == .budget })
-        #expect(given.disclosure.contains("₹200"), "The host is told which ceiling was given up")
+        #expect(given.disclosure.contains("₹50"), "The host is told which ceiling was given up")
 
         // And every card that broke it says so on its own face.
         #expect(plan.warnings.contains {

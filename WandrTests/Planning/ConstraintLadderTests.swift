@@ -77,7 +77,10 @@ struct EvidenceResolverTests {
 
     private let resolver = EvidenceResolver()
 
-    /// A ₹200-a-head ceiling against a dataset whose cheapest restaurant is dearer.
+    /// A ₹50-a-head ceiling against a dataset whose cheapest restaurant is dearer.
+    ///
+    /// The figure has to stay under the dataset's cheapest food venue or this stops
+    /// testing relaxation. It was ₹200 until street-food entries at ₹100 landed.
     /// Before the ladder this ended the run; the host got a Try again button that
     /// could only ever produce the same dead end.
     @Test("An unmeetable budget is given up, and the giving-up is disclosed")
@@ -91,7 +94,7 @@ struct EvidenceResolverTests {
         #expect(resolution.eligible.contains { $0.category == .food })
 
         let given = try #require(resolution.relaxations.first { $0.constraint == .budget })
-        #expect(given.disclosure.contains("₹200"))
+        #expect(given.disclosure.contains("₹50"))
     }
 
     @Test("A budget everything already meets is never reported as given up")

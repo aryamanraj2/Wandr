@@ -90,7 +90,7 @@ struct BriefNormalizerTests {
     func impossibleBudgetNormalizes() throws {
         let brief = try normalized(FakeBriefExtractor.impossibleBudgetDraft)
         expectMatches(brief, Fixtures.impossibleBudgetBrief)
-        #expect(brief.budget == .host(.perHead(rupees: 200)))
+        #expect(brief.budget == .host(.perHead(rupees: 50)))
     }
 
     // MARK: - Defaults and marking

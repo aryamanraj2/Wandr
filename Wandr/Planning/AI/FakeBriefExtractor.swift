@@ -72,10 +72,18 @@ nonisolated struct FakeBriefExtractor: BriefExtracting, Sendable {
     )
 
     /// The impossible-budget request: a ceiling no real venue can meet.
+    /// A budget no venue in the named area can meet.
+    ///
+    /// The **area matters as much as the figure**. Across all of Delhi NCR the dataset
+    /// now holds free entries in every category — a qawwali evening costs nothing —
+    /// so no ceiling, however low, can leave a category empty and the ladder correctly
+    /// never relaxes. Pinning it to one expensive market is what makes the constraint
+    /// genuinely unmeetable, and it stays that way as the dataset grows.
     static let impossibleBudgetDraft = OutingBriefDraft(
         occasion: "dinner and club",
+        area: "Khan Market",
         groupSize: 10,
-        budget: .perHead(rupees: 200)
+        budget: .perHead(rupees: 50)
     )
 
     // MARK: - Dispatch
@@ -92,7 +100,7 @@ nonisolated struct FakeBriefExtractor: BriefExtracting, Sendable {
         if normalized.contains("ignore instructions") {
             return injectionDraft
         }
-        if normalized.contains("club") && normalized.contains("200") {
+        if normalized.contains("club") && normalized.contains("50") {
             return impossibleBudgetDraft
         }
         if normalized.contains("something fun") {
