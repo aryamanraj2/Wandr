@@ -340,7 +340,7 @@ nonisolated struct OutingBriefDraft: Sendable, Equatable {
     var stopsAreExclusive: Bool
 
     /// What kind of night this is. `.unspecified` until the model reads one.
-    var occasion: OccasionProfile
+    var occasionProfile: OccasionProfile
     /// Remaining neutral constraints. Data, never executable instructions.
     var notes: [String]
 
@@ -356,10 +356,10 @@ nonisolated struct OutingBriefDraft: Sendable, Equatable {
         setting: SettingPreference = .noPreference,
         requestedStops: Set<SlotBand> = [],
         stopsAreExclusive: Bool = false,
-        occasion: OccasionProfile = .unspecified,
+        occasionProfile: OccasionProfile = .unspecified,
         notes: [String] = []
     ) {
-        self.occasion = occasion
+        self.occasionProfile = occasionProfile
         self.timeWindow = timeWindow
         self.area = area
         self.groupSize = groupSize
@@ -370,7 +370,7 @@ nonisolated struct OutingBriefDraft: Sendable, Equatable {
         self.setting = setting
         self.requestedStops = requestedStops
         self.stopsAreExclusive = stopsAreExclusive
-        self.occasion = occasion
+        self.occasionProfile = occasionProfile
         self.notes = notes
     }
 }
@@ -409,7 +409,7 @@ nonisolated struct OutingBrief: Sendable, Equatable {
 
     /// What kind of night this is. Drives how many stops fill a gap, and how venues
     /// are ranked inside each — never which stops exist.
-    let occasion: OccasionProfile
+    let occasionProfile: OccasionProfile
 
     let notes: [String]
 
@@ -425,10 +425,10 @@ nonisolated struct OutingBrief: Sendable, Equatable {
         setting: SettingPreference = .noPreference,
         requestedStops: Set<SlotBand> = [],
         stopsAreExclusive: Bool = false,
-        occasion: OccasionProfile = .unspecified,
+        occasionProfile: OccasionProfile = .unspecified,
         notes: [String] = []
     ) {
-        self.occasion = occasion
+        self.occasionProfile = occasionProfile
         self.timeWindow = timeWindow
         self.area = area
         self.groupSize = groupSize
@@ -439,7 +439,7 @@ nonisolated struct OutingBrief: Sendable, Equatable {
         self.setting = setting
         self.requestedStops = requestedStops
         self.stopsAreExclusive = stopsAreExclusive
-        self.occasion = occasion
+        self.occasionProfile = occasionProfile
         self.notes = notes
     }
 
@@ -474,7 +474,7 @@ nonisolated extension OutingBrief {
             for: timeWindow.value,
             requesting: requestedStops,
             exclusive: stopsAreExclusive,
-            pace: occasion.pace
+            pace: occasionProfile.pace
         )
     }
 }
