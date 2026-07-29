@@ -614,4 +614,156 @@ struct ChatSummaryBriefMapperTests {
         #expect(draft.dietary == .unknown)
         #expect(draft.timeWindow.isUnknown)
     }
+
+    // MARK: - Per-head basis, however it is spelled
+
+    /// The invariant, not the case: **how a per-head phrase is punctuated cannot change
+    /// what it means.** Quantified over the spellings of one phrase rather than over a
+    /// list of examples, because the bug was never about a missing example — it was a
+    /// literal-string list written with single spaces, which recognised the first
+    /// spelling of every phrase and silently missed the rest.
+    ///
+    /// The observed failure: `"around 1000 perhead"` for seven people read as a ₹1000
+    /// group total — a ₹142 ceiling — so a ₹120 chaat counter outranked every
+    /// restaurant in the deck and nothing reported a problem.
+    @Test(
+        "A per-head phrase means the same however it is spaced",
+        arguments: ["per head", "per person", "per pax"]
+    )
+    func perHeadSpellingDoesNotChangeMeaning(phrase: String) {
+        let closed = phrase.replacingOccurrences(of: " ", with: "")
+        let hyphenated = phrase.replacingOccurrences(of: " ", with: "-")
+        let doubled = phrase.replacingOccurrences(of: " ", with: "  ")
+
+        for spelling in [phrase, closed, hyphenated, doubled] {
+            #expect(
+                ChatSummaryBriefMapper.statesPerHead("around 1000 \(spelling)"),
+                "'\(spelling)' did not read as per head"
+            )
+            #expect(
+                ChatSummaryBriefMapper.budget(from: "around 1000 \(spelling) budget")
+                    == .perHead(rupees: 1_000),
+                "'\(spelling)' produced the wrong basis"
+            )
+        }
+    }
+
+    /// The other half: a number with no basis stated stays the group's total, which is
+    /// the weaker of the two readings and the only one the host actually said.
+    @Test(
+        "A phrase that does not say 'each' is still the group's total",
+        arguments: [
+            "around 1000",
+            "1000 for the group",
+            "1000 in total",
+            // The words that *contain* a per-head token without being one. "reach"
+            // holds "each"; the old substring check read it as a per-head budget.
+            "1000, we'll reach by 8",
+            "1000, we're planning ahead",
+            "1000 for shopping"
+        ]
+    )
+    func absentBasisStaysTotal(phrase: String) {
+        #expect(!ChatSummaryBriefMapper.statesPerHead(phrase), "'\(phrase)' invented a per-head basis")
+        #expect(ChatSummaryBriefMapper.budget(from: phrase) == .total(rupees: 1_000))
+    }
+
+    // MARK: - A stated time survives the model dropping it
+
+    /// The observed failure: `"after office after 5:30 pm"` came back with `time: nil`,
+    /// the clause swept into `otherNotes`, and the brief's window `.unknown` — so a
+    /// stated 5:30 start constrained nothing.
+    /// One bound per case, named, so the tuple stays simple enough for the type
+    /// checker inside a parameterised `@Test`.
+    struct BoundCase: Sendable {
+        let sentence: String
+        let earliest: Int?
+        let latest: Int?
+
+        static func start(_ sentence: String, _ minute: Int) -> Self {
+            Self(sentence: sentence, earliest: minute, latest: nil)
+        }
+        static func finish(_ sentence: String, _ minute: Int) -> Self {
+            Self(sentence: sentence, earliest: nil, latest: minute)
+        }
+    }
+
+    @Test(
+        "A bound stated in prose reaches the window even with no extracted time",
+        arguments: [
+            BoundCase.start("after office after 5:30 pm, dinner somewhere", 17 * 60 + 30),
+            BoundCase.start("dinner from 8pm", 20 * 60),
+            BoundCase.start("something at 7", 19 * 60),
+            BoundCase.finish("dinner before 9pm", 21 * 60),
+            BoundCase.finish("we need to be done by 10:30 pm", 22 * 60 + 30)
+        ]
+    )
+    func statedBoundSurvives(testCase: BoundCase) {
+        let phrase = ChatSummaryBriefMapper.timePhrase(inText: testCase.sentence)
+        let window = ChatSummaryBriefMapper.timeWindow(day: nil, time: phrase)
+        let detail = "\(testCase.sentence) → \(String(describing: phrase))"
+
+        #expect(window.earliestStartMinute == testCase.earliest, "\(detail)")
+        #expect(window.latestEndMinute == testCase.latest, "\(detail)")
+    }
+
+    // MARK: - A stated budget survives the model dropping it
+
+    @Test(
+        "An amount stated in prose reaches the budget, with the basis the host gave",
+        arguments: [
+            ("around 1000 perhead budget for 7 people", Budget.perHead(rupees: 1_000)),
+            ("dinner for 4, 2000 each", .perHead(rupees: 2_000)),
+            ("₹1500 for the whole group", .total(rupees: 1_500)),
+            ("we can spend 2k", .total(rupees: 2_000)),
+            ("budget 800 pp, dinner at 8", .perHead(rupees: 800)),
+            ("dinner for 6, rs 3000 total", .total(rupees: 3_000))
+        ]
+    )
+    func statedAmountSurvives(sentence: String, expected: Budget) {
+        let phrase = ChatSummaryBriefMapper.moneyPhrase(inText: sentence)
+        #expect(
+            ChatSummaryBriefMapper.budget(from: phrase) == expected,
+            "\(sentence) → \(String(describing: phrase))"
+        )
+    }
+
+    /// The half that matters more. An invented amount is worse than no amount: it does
+    /// not widen the search, it marks real venues as over budget. So every number in a
+    /// sentence that is *not* money has to read as none — a headcount, a clock, a
+    /// party size, a duration.
+    @Test(
+        "Numbers that are not money produce no budget",
+        arguments: [
+            "plan an outing for 7 people, after office after 5:30 pm",
+            "dinner for 4 of us at 8pm",
+            "a table for 8 on saturday",
+            "we've only got 3 hours",
+            "6 of us, somewhere loud",
+            "dinner at 9:30, 12 people"
+        ]
+    )
+    func unmarkedNumbersAreNotMoney(sentence: String) {
+        let phrase = ChatSummaryBriefMapper.moneyPhrase(inText: sentence)
+        #expect(phrase == nil, "read '\(String(describing: phrase))' as money")
+        #expect(ChatSummaryBriefMapper.budget(from: phrase) == nil)
+    }
+
+    /// The scan's whole discipline: a number is a time only when something *says* it is.
+    /// Handing this sentence to `timeWindow` directly is what produced a window
+    /// finishing before it started — 7 from "7 people", 10:00 and 00:00 from "1000".
+    @Test(
+        "Numbers that are not times produce no window",
+        arguments: [
+            "plan an outing for 7 people with around 1000 perhead budget",
+            "dinner for 4 of us, 2000 each",
+            "a table for 8",
+            "budget is 1500 pp"
+        ]
+    )
+    func unmarkedNumbersAreNotTimes(sentence: String) {
+        let phrase = ChatSummaryBriefMapper.timePhrase(inText: sentence)
+        #expect(phrase == nil, "read '\(String(describing: phrase))' as a time")
+        #expect(ChatSummaryBriefMapper.timeWindow(day: nil, time: phrase).isUnknown)
+    }
 }

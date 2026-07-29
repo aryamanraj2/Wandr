@@ -276,16 +276,58 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
 
     /// Whether the phrase says the number is *each*.
     ///
-    /// Whole-word matched where the token is a word, so "app" does not read as "pp".
+    /// Read as a marker *word* beside a unit word, not as a literal string. The list
+    /// this replaced was written with single spaces — `"per head"`, `"per person"` —
+    /// so it recognised exactly one spelling of each phrase and silently missed every
+    /// other. `"around 1000 perhead"` for seven people therefore came back as a ₹1000
+    /// *group total*: a ₹142 ceiling, which ranked a ₹120 chaat counter above every
+    /// restaurant in the deck and reported nothing wrong anywhere.
+    ///
+    /// Extending the list would have fixed that one spelling and left "per-head" and
+    /// "per  head" broken, so the spacing is normalized away instead. One entry per
+    /// *concept*; how the host punctuated it is not their problem.
+    ///
+    /// Two kinds of marker, and the distinction is load-bearing: `per` may be written
+    /// closed onto the unit, because "perhead" is a real spelling of "per head". `a`
+    /// may not, because "ahead" is a different word — reading "planning ahead" as a
+    /// per-head budget would quadruple a group's ceiling.
     static func statesPerHead(_ raw: String) -> Bool {
-        let text = raw.lowercased()
-        if ["per head", "a head", "per person", "a person", "each", "/head", "/person",
-             "per pax", "a pax", "apiece"].contains(where: text.contains) {
-            return true
+        let tokens = raw.lowercased()
+            // "1000/head" says "each" with punctuation where the word would be.
+            .replacingOccurrences(of: "/", with: " per ")
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+
+        // Whole words that mean "each" with no unit after them. Whole-word matched, so
+        // "shopping" is not "pp" and — the case the old `contains` got wrong — "we'll
+        // reach by 8" is not "each".
+        if tokens.contains(where: perHeadWords.contains) { return true }
+
+        for (index, token) in tokens.enumerated() {
+            // Written closed: one token that is a closable marker plus a unit.
+            if closablePerHeadMarkers.contains(where: { marker in
+                token.hasPrefix(marker) && perHeadUnits.contains(String(token.dropFirst(marker.count)))
+            }) { return true }
+
+            // Written open: the marker, then the unit as the next word.
+            guard index + 1 < tokens.count, perHeadUnits.contains(tokens[index + 1]) else { continue }
+            if closablePerHeadMarkers.contains(token) || openPerHeadMarkers.contains(token) { return true }
         }
-        // "pp" and "pax" only as standalone words — "2k pp", not "shopping".
-        return ["pp", "pax", "ph"].contains { text.matchesWord($0) }
+        return false
     }
+
+    /// Words that say "each" on their own, with no unit after them.
+    private static let perHeadWords: Set<String> = ["each", "apiece", "pp", "pax", "ph"]
+
+    /// Markers that may be written closed onto the unit — "per head" or "perhead".
+    private static let closablePerHeadMarkers: [String] = ["per"]
+
+    /// Markers that must keep their separator, because the closed form is another
+    /// word: "a head", never "ahead".
+    private static let openPerHeadMarkers: Set<String> = ["a"]
+
+    /// The unit a per-head marker attaches to.
+    private static let perHeadUnits: Set<String> = ["head", "heads", "person", "pax", "plate"]
 
     /// First monetary figure in the string. Tolerates "₹", commas, "per head", and a
     /// trailing "k" (1.5k → 1500). Absent or unparseable → `nil` (normalizer defaults it).
@@ -387,6 +429,219 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
         case (false, true):  return .outdoor
         case (false, false): return text.contains("mixed") || text.contains("both") ? .mixed : .noPreference
         }
+    }
+
+    // MARK: - Time phrase
+
+    /// The time phrase a sentence states, in the host's own words, or `nil`.
+    ///
+    /// The third field with nothing but the model reading it, and the third to be
+    /// lost the same way: `"after office after 5:30 pm"` came back with `time: nil` and
+    /// the whole clause swept into `otherNotes`, so the brief's window was `.unknown`
+    /// and a stated 5:30 start constrained nothing at all.
+    ///
+    /// Deliberately *not* the whole sentence handed to `timeWindow(day:time:)`. That
+    /// parser reads a phrase the extractor already isolated, and over raw prose its
+    /// range rule ("two clock tokens means a range") misfires badly: this very sentence
+    /// yields 7 — from "7 people" — and 10:00 and 00:00 — from "1000" — which pairs
+    /// into a window that finishes before it starts.
+    ///
+    /// So the scan is narrow in the same way `groupSize(inText:)` is narrow. A number
+    /// counts only when it is *marked* as a time by a word in front of it, and never
+    /// when the word after it says it counts something else. "for 7 people" is not a
+    /// 7 o'clock start, and "around 1000 perhead" is not a clock at all.
+    ///
+    /// Returns the host's own span so the existing parser reads the bound — "after"
+    /// versus "by" — from the same words they wrote, rather than this having to decide
+    /// what kind of bound it found.
+    static func timePhrase(inText raw: String) -> String? {
+        let tokens = spacedTokens(in: raw)
+
+        for (index, token) in tokens.enumerated() where timeMarkers.contains(token.text) {
+            // The clock this marker refers to, within the next two words: far enough
+            // for "from about 8", tight enough that the "after" in "after office"
+            // cannot reach across to a clock in the next clause.
+            for offset in 1...2 where index + offset < tokens.count {
+                let clock = tokens[index + offset]
+                guard isClockToken(clock.text) else { continue }
+
+                let following = index + offset + 1 < tokens.count ? tokens[index + offset + 1] : nil
+                // The number counts people, not hours.
+                if let following, headcountNouns.contains(following.text) || following.text == "of" {
+                    continue
+                }
+
+                // A trailing meridiem belongs to the phrase — without it "after 5:30"
+                // loses the "pm" the host actually said.
+                var end = clock.range.upperBound
+                if let following, ["am", "pm"].contains(following.text) {
+                    end = following.range.upperBound
+                }
+                return String(raw[token.range.lowerBound..<end])
+            }
+        }
+        return nil
+    }
+
+    /// The money phrase a sentence states, in the host's own words, or `nil`.
+    ///
+    /// Observed being dropped by the same 12-field generation that dropped `area` and
+    /// `time`, on a different run — the losses are not stable, which is the whole
+    /// argument for reading the host's own words. A lost budget becomes
+    /// `Budget.unspecified`, so *no* ceiling applies and a ₹4,000 table can be
+    /// proposed to a group who said ₹1,000; like the others, nothing reports it.
+    ///
+    /// The tightest of the three scans, because the failure mode here is worse than
+    /// silence: an invented amount does not merely widen the search, it marks real
+    /// venues as over budget. So an amount counts only when something *says* it is
+    /// money — a currency symbol or word, a "k" suffix, an adjacent "budget", or a
+    /// per-head marker right after it — and never when it is a clock reading or a
+    /// headcount. "for 7 people, after 5:30 pm" contains no amount.
+    static func moneyPhrase(inText raw: String) -> String? {
+        let tokens = spacedTokens(in: raw)
+
+        for (index, token) in tokens.enumerated() {
+            guard token.text.contains(where: \.isNumber) else { continue }
+            // A clock reading is not an amount, however it is written.
+            guard !isClockToken(token.text) else { continue }
+
+            let previous = index > 0 ? tokens[index - 1].text : nil
+            let following = index + 1 < tokens.count ? tokens[index + 1].text : nil
+
+            // The number counts people or hours, not rupees.
+            if let following,
+               headcountNouns.contains(following) || nonHeadcountUnits.contains(following)
+                   || following == "of" {
+                // "each" and "pp" are in `nonHeadcountUnits` because they rule a number
+                // out as a headcount — but they are exactly what marks one as money.
+                if !statesPerHead(following) { continue }
+            }
+
+            // A symbol attached to the front of the amount. Read off the original
+            // string rather than the token, because `spacedTokens` trims punctuation
+            // from the ends — which is what "pm.." needs and what would otherwise
+            // throw away the ₹ that makes "₹1500" an amount at all.
+            let symbolBefore = token.range.lowerBound > raw.startIndex
+                && currencySymbols.contains(raw[raw.index(before: token.range.lowerBound)])
+
+            let markedBefore = previous.map(currencyWords.contains) ?? false
+            let markedAfter = following.map { currencyWords.contains($0) || statesPerHead($0) } ?? false
+            // "1.5k", "2000/head" — the marker is inside the token itself.
+            let markedWithin = hasThousandsSuffix(token.text) || statesPerHead(token.text)
+
+            guard symbolBefore || markedBefore || markedAfter || markedWithin else { continue }
+
+            // Reach forward over a per-head marker so the *basis* travels with the
+            // amount — the number alone would read as the group's total.
+            var end = token.range.upperBound
+            if let following, statesPerHead(following) || currencyWords.contains(following) {
+                end = tokens[index + 1].range.upperBound
+            }
+            var lower = token.range.lowerBound
+            if markedBefore {
+                lower = tokens[index - 1].range.lowerBound
+            } else if symbolBefore {
+                lower = raw.index(before: lower)
+            }
+
+            return String(raw[lower..<end])
+        }
+        return nil
+    }
+
+    /// Words that say the number beside them is money.
+    private static let currencyWords: Set<String> = [
+        "rs", "inr", "rupees", "budget", "spend", "under", "upto", "max"
+    ]
+
+    private static let currencySymbols: Set<Character> = ["₹", "$", "€", "£"]
+
+    /// Whether the token is an amount with a "k" thousands suffix — "2k", "1.5k".
+    private static func hasThousandsSuffix(_ token: String) -> Bool {
+        guard token.hasSuffix("k") else { return false }
+        let amount = token.dropLast()
+        return !amount.isEmpty && amount.allSatisfy { $0.isNumber || $0 == "." }
+    }
+
+    /// Words that mark the number after them as a time.
+    ///
+    /// Every one of these is a word about *when*, so requiring one is what keeps the
+    /// scan from reading a headcount or a budget as a clock.
+    private static let timeMarkers: Set<String> = [
+        "after", "from", "before", "by", "till", "until", "between",
+        "starting", "start", "at", "around", "post"
+    ]
+
+    /// Whether the token could be a clock reading: "8", "8pm", "5:30", "20:00", "8.30pm".
+    ///
+    /// At most two leading digits, which is what excludes "1000" — a budget, not
+    /// 10 o'clock followed by midnight.
+    private static func isClockToken(_ token: String) -> Bool {
+        var digits = ""
+        var rest = Substring(token)
+        while let first = rest.first, first.isNumber {
+            digits.append(first)
+            rest = rest.dropFirst()
+        }
+        guard digits.count <= 2, let hour = Int(digits), (0...23).contains(hour) else { return false }
+
+        if let separator = rest.first, separator == ":" || separator == "." {
+            rest = rest.dropFirst()
+            var minuteText = ""
+            while let first = rest.first, first.isNumber {
+                minuteText.append(first)
+                rest = rest.dropFirst()
+            }
+            guard minuteText.count == 2, let minute = Int(minuteText), (0...59).contains(minute)
+            else { return false }
+        }
+
+        return rest.isEmpty || rest == "am" || rest == "pm"
+    }
+
+    /// Whitespace-separated words, lowercased, with the range each occupies in the
+    /// original string.
+    ///
+    /// Split on whitespace rather than on every non-alphanumeric, because a colon
+    /// between digits is part of the word here: tokenizing "5:30" into "5" and "30"
+    /// is what would make it unrecognisable as a clock. Punctuation is trimmed from
+    /// the ends only, so "pm.." is "pm" and "5:30" stays whole.
+    private static func spacedTokens(
+        in raw: String
+    ) -> [(text: String, range: Range<String.Index>)] {
+
+        var tokens: [(text: String, range: Range<String.Index>)] = []
+        var index = raw.startIndex
+
+        while index < raw.endIndex {
+            guard !raw[index].isWhitespace else {
+                index = raw.index(after: index)
+                continue
+            }
+
+            var wordEnd = index
+            while wordEnd < raw.endIndex, !raw[wordEnd].isWhitespace {
+                wordEnd = raw.index(after: wordEnd)
+            }
+
+            var lower = index
+            var upper = wordEnd
+            while lower < upper, !raw[lower].isLetter, !raw[lower].isNumber {
+                lower = raw.index(after: lower)
+            }
+            while upper > lower {
+                let previous = raw.index(before: upper)
+                guard !raw[previous].isLetter, !raw[previous].isNumber else { break }
+                upper = previous
+            }
+
+            if lower < upper {
+                tokens.append((raw[lower..<upper].lowercased(), lower..<upper))
+            }
+            index = wordEnd
+        }
+
+        return tokens
     }
 
     // MARK: - Time window

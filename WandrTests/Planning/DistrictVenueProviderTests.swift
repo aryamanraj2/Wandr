@@ -184,6 +184,72 @@ struct DistrictVenueProviderTests {
         #expect(venues.allSatisfy { $0.area == expected }, "\(spoken) leaked other areas")
     }
 
+    // MARK: - Reading the area out of a sentence
+
+    /// **The invariant: for every area the dataset covers, a sentence containing that
+    /// area's name resolves to that area, whatever words surround it.** Quantified over
+    /// the covered set rather than written once per neighbourhood, so an area added to
+    /// the JSON is covered by this test the moment it lands — and an area whose alias
+    /// key was mistyped fails here instead of becoming quietly unreachable.
+    ///
+    /// This is the guard for the failure that produced a Karol Bagh / Chandni Chowk /
+    /// Dwarka slate for a request that said "a place near saket": the extractor returned
+    /// `area: nil` and swept the neighbourhood into `otherNotes`, so the brief fell back
+    /// to the city-wide default and every area filter was a no-op. Nothing reported it.
+    @Test("Every covered area is readable out of a sentence")
+    func everyCoveredAreaIsReadableInProse() throws {
+        let provider = try makeProvider()
+
+        for area in provider.coveredAreaNames {
+            let sentence = "plan something for 6 of us near \(area) after 7pm, 1500 each"
+
+            let read = try #require(
+                DistrictVenueProvider.areaNamed(inText: sentence),
+                "'\(area)' was not readable out of a sentence"
+            )
+            // The scan's answer has to resolve exactly where the dataset's own name
+            // does — compared against that rather than against a normalized key, so
+            // this asserts agreement instead of reaching for a private spelling rule.
+            #expect(
+                DistrictVenueProvider.coverage(of: read, in: provider.coveredAreaKeys)
+                    == DistrictVenueProvider.coverage(of: area, in: provider.coveredAreaKeys),
+                "'\(area)' read as '\(read)', which resolves elsewhere"
+            )
+            let venues = provider.venues(in: read)
+            #expect(!venues.isEmpty, "'\(area)' read as '\(read)', which matched nothing")
+            #expect(
+                venues.allSatisfy { $0.area == area },
+                "'\(area)' read as '\(read)', which leaked other areas"
+            )
+        }
+    }
+
+    /// A sentence naming no area must read as none — otherwise the scan would invent a
+    /// neighbourhood for every request that mentioned nothing, which is worse than the
+    /// city-wide default it is there to replace.
+    @Test(
+        "A sentence with no area in it reads as no area",
+        arguments: [
+            "plan an outing for 7 people after office, dinner somewhere loud",
+            "just dinner, 2000 each",
+            "birthday for 8 on saturday"
+        ]
+    )
+    func proseWithoutAnAreaReadsAsNone(sentence: String) {
+        #expect(DistrictVenueProvider.areaNamed(inText: sentence) == nil)
+    }
+
+    /// A longer, more specific spelling wins over a shorter one *across* areas, not
+    /// only within one. The table used to be walked area-by-area in key order, so a
+    /// two-letter alias of an alphabetically earlier neighbourhood beat a full name
+    /// later on: "khan market, near cp" resolved to Connaught Place.
+    @Test("The longest matching area name wins, across areas")
+    func longestAreaNameWins() throws {
+        let provider = try makeProvider()
+        #expect(provider.venues(in: "khan market, near cp").allSatisfy { $0.area == "Khan Market" })
+        #expect(provider.venues(in: "hauz khas village").allSatisfy { $0.area == "Hauz Khas" })
+    }
+
     /// A two-letter shorthand is only ever the whole answer. "5 km from CP" is a
     /// distance, not a request for Khan Market.
     @Test("A two-letter alias only matches on its own")

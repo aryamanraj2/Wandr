@@ -556,8 +556,12 @@ nonisolated struct FreeTextSummaryExtractor: Sendable {
             // traps on a case the model invents.
             outingType: outingType(from: extracted.outingType, source: source),
             dateOrDay: cleaned(extracted.dateOrDay),
-            time: cleaned(extracted.time),
-            area: cleaned(extracted.area),
+            // Both of these are the model's answer *or* a deterministic read of the
+            // host's own sentence, for the reason `stops` and `groupSize` already work
+            // that way: they are the two remaining fields whose loss silently changes
+            // the plan rather than reporting anything. See `time(from:source:)`.
+            time: time(from: extracted.time, source: source),
+            area: area(from: extracted.area, source: source),
             // The host's own words first. "for 2" is exact and free to read; the
             // model's answer is the fifth of twelve fields in a single generation and
             // is the thing that put a different number of people on the plan.
@@ -565,7 +569,7 @@ nonisolated struct FreeTextSummaryExtractor: Sendable {
             // absurd.
             groupSize: ChatSummaryBriefMapper.groupSize(inText: source)
                 ?? extracted.groupSize.flatMap { $0 > 0 && $0 <= 1_000 ? $0 : nil },
-            budget: cleaned(extracted.budget),
+            budget: budget(from: extracted.budget, source: source),
             dietary: unechoed(extracted.dietary, source: source),
             accessibility: unechoed(extracted.accessibility, source: source),
             vibe: unechoed(extracted.vibe, source: source),
@@ -583,6 +587,52 @@ nonisolated struct FreeTextSummaryExtractor: Sendable {
             occasionProfile: occasion.flatMap(parsedOccasion),
             otherNotes: cleaned(extracted.otherNotes)
         )
+    }
+
+    /// The area, from the model's answer or the host's own sentence.
+    ///
+    /// The model's answer wins whenever it names an area the dataset recognises —
+    /// it carries the host's phrasing, and over-capture is harmless because
+    /// `DistrictVenueProvider` matches by token run, so "hauz khas for my sister
+    /// birthday" still resolves to Hauz Khas.
+    ///
+    /// The scan is what covers the failure actually observed: the model returning
+    /// **nothing** and sweeping the neighbourhood into `otherNotes`. That left the
+    /// brief on `OutingBrief.defaultArea`, which is city-wide, so a request naming one
+    /// neighbourhood was answered with venues from all sixteen and nothing anywhere
+    /// said the area had been dropped.
+    ///
+    /// A stated area the dataset does *not* hold falls through to the model's answer
+    /// unchanged, so an uncovered request still fails honestly rather than being
+    /// quietly rewritten to somewhere nearby that happens to be in the sentence.
+    static func area(from raw: String?, source: String) -> String? {
+        let stated = cleaned(raw)
+        if let stated, DistrictVenueProvider.areaNamed(inText: stated) != nil { return stated }
+        return DistrictVenueProvider.areaNamed(inText: source) ?? stated
+    }
+
+    /// The money phrase, from the model's answer or the host's own sentence.
+    ///
+    /// "Usable" again, not "present": a stated phrase carrying no readable figure
+    /// yields no ceiling, so it is worth no more than the silence it replaces.
+    static func budget(from raw: String?, source: String) -> String? {
+        let stated = cleaned(raw)
+        if let stated, ChatSummaryBriefMapper.rupees(from: stated) != nil { return stated }
+        return ChatSummaryBriefMapper.moneyPhrase(inText: source) ?? stated
+    }
+
+    /// The time phrase, from the model's answer or the host's own sentence.
+    ///
+    /// "Usable" is the test, not "present": the model's phrase is kept when
+    /// `ChatSummaryBriefMapper` can actually read a bound out of it, because a phrase
+    /// that parses to `.unknown` constrains nothing and is worth no more than the
+    /// absence it is standing in for.
+    static func time(from raw: String?, source: String) -> String? {
+        let stated = cleaned(raw)
+        if let stated, !ChatSummaryBriefMapper.timeWindow(day: nil, time: stated).isUnknown {
+            return stated
+        }
+        return ChatSummaryBriefMapper.timePhrase(inText: source) ?? stated
     }
 
     /// Validates the model's occasion answer into the domain type.

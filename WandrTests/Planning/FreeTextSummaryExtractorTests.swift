@@ -251,6 +251,77 @@ struct FreeTextSummaryExtractorTests {
         #expect(payload.isEmpty)
     }
 
+    // MARK: - Fields the model dropped
+
+    /// The invariant: **a field the host stated plainly does not depend on whether the
+    /// generation happened to emit it.** Already true of `stops` and `groupSize`; these
+    /// pin it for the two fields that were still model-only.
+    ///
+    /// The run this comes from returned `area: nil` and `time: nil` for a sentence
+    /// carrying both, sweeping them into `otherNotes` instead. Downstream, that is not
+    /// an error — it is `OutingBrief.defaultArea` (city-wide, so every area filter
+    /// stops filtering) and an `.unknown` window (so a stated start constrains
+    /// nothing). Both failures are invisible in the UI.
+    @Test("An area the model dropped is recovered from the host's own words")
+    func droppedAreaIsRecovered() {
+        let source = "after office, dinner near saket for 7 with a loud setting"
+        var extracted = empty()
+        extracted.otherNotes = "near saket"   // where the model actually put it
+
+        let payload = FreeTextSummaryExtractor.payload(from: extracted, source: source)
+        #expect(payload.area?.lowercased() == "saket")
+    }
+
+    @Test("A time the model dropped is recovered from the host's own words")
+    func droppedTimeIsRecovered() {
+        let source = "after office after 5:30 pm, dinner somewhere loud for 7"
+
+        let payload = FreeTextSummaryExtractor.payload(from: empty(), source: source)
+        let window = ChatSummaryBriefMapper.timeWindow(day: nil, time: payload.time)
+
+        #expect(window.earliestStartMinute == 17 * 60 + 30)
+    }
+
+    /// The model's answer keeps priority whenever it is usable, so the recovery cannot
+    /// flatten a richer phrasing into a bare match.
+    @Test("The model's own answer wins when it names a real area")
+    func statedAreaWins() {
+        var extracted = empty()
+        extracted.area = "Hauz Khas Village"
+
+        let payload = FreeTextSummaryExtractor.payload(
+            from: extracted, source: "dinner in hauz khas village, near saket-ish"
+        )
+        #expect(payload.area == "Hauz Khas Village")
+    }
+
+    /// Over-capture is harmless and must stay so: area matching is by token run, so the
+    /// neighbourhood is still found inside whatever clause the model swallowed.
+    @Test("An over-captured area still carries the neighbourhood")
+    func overCapturedAreaStillResolves() {
+        var extracted = empty()
+        extracted.area = "hauz khas for my sister birthday"
+
+        let payload = FreeTextSummaryExtractor.payload(
+            from: extracted, source: "Dinner in hauz khas for my sister birthday budget around 2000"
+        )
+        #expect(payload.area == "hauz khas for my sister birthday")
+    }
+
+    /// An area Wandr genuinely does not cover must reach the provider unchanged, so the
+    /// run still fails honestly. Rewriting it to a covered area that happened to appear
+    /// elsewhere in the sentence would answer a question nobody asked.
+    @Test("An uncovered area is not quietly replaced")
+    func uncoveredAreaSurvives() {
+        var extracted = empty()
+        extracted.area = "Faridabad"
+
+        let payload = FreeTextSummaryExtractor.payload(
+            from: extracted, source: "dinner in Faridabad for 4"
+        )
+        #expect(payload.area == "Faridabad")
+    }
+
     // MARK: - A realistic answer
 
     @Test("A typical spoken plan maps to a usable payload")

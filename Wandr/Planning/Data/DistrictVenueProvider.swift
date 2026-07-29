@@ -278,10 +278,8 @@ nonisolated struct DistrictVenueProvider: VenueResearching, Sendable {
 
         // Specific neighbourhoods win over city-wide words, so "Khan Market, New
         // Delhi" is Khan Market rather than all of Delhi.
-        for (key, aliases) in aliasesByLength {
-            for alias in aliases where matches(alias, tokens: tokens) {
-                return covered.contains(key) ? .covered(key) : .notCovered
-            }
+        if let key = matchedKey(tokens: tokens) {
+            return covered.contains(key) ? .covered(key) : .notCovered
         }
 
         if cityWide.contains(where: { matches($0, tokens: tokens) }) {
@@ -289,6 +287,51 @@ nonisolated struct DistrictVenueProvider: VenueResearching, Sendable {
         }
 
         return .notCovered
+    }
+
+    /// The area a sentence names, in the host's own words, or `nil` when it names none.
+    ///
+    /// This exists because `area` is the one high-consequence field with nothing but
+    /// the model reading it. When a request's area is dropped — swept into
+    /// `otherNotes`, most often — the brief falls back to `OutingBrief.defaultArea`,
+    /// which is city-wide, so a host who named one neighbourhood silently gets a slate
+    /// drawn from all sixteen. The failure is invisible: there is no error, just the
+    /// wrong city.
+    ///
+    /// A neighbourhood is the one thing here Swift can read *better* than the model,
+    /// because the set of answers is closed and this file already owns it. Scanning is
+    /// the same rule `ChatSummaryBriefMapper.groupSize(inText:)` and
+    /// `bandsNamed(inText:)` run under: a fact the host stated plainly must not depend
+    /// on which fields a particular generation happened to get right.
+    ///
+    /// No new vocabulary — it reuses `aliases` and the same whole-token matching as
+    /// `coverage(of:in:)`, so an area added to the dataset becomes scannable without
+    /// anything here changing. The host's own spelling is returned when it can be
+    /// recovered, so Host Review shows them their word rather than our key.
+    static func areaNamed(inText raw: String) -> String? {
+        let tokens = normalize(raw).split(separator: " ").map(String.init)
+        guard !tokens.isEmpty, let key = matchedKey(tokens: tokens) else { return nil }
+
+        // The alias as they wrote it, so "Hauz Khas Village" is not flattened to
+        // "hauz khas". Falls back to the canonical key when the original spelling
+        // cannot be located — normalization folds punctuation and repeated spaces,
+        // and either answer resolves to the same area.
+        guard let match = aliasesByLength.first(where: { $0.key == key && matches($0.alias, tokens: tokens) }),
+              let range = raw.range(of: match.alias, options: [.caseInsensitive, .diacriticInsensitive])
+        else { return key }
+
+        return String(raw[range])
+    }
+
+    /// The area whose alias the tokens contain, longest alias first.
+    ///
+    /// Longest-first *globally* rather than within one area. Grouping by area and
+    /// walking the groups in key order meant a two-letter alias of an alphabetically
+    /// earlier neighbourhood beat a full name later in the table: "khan market, near
+    /// cp" resolved to Connaught Place, because `connaught place` sorts before
+    /// `khan market` and `cp` was tried before `khan market` was reached.
+    private static func matchedKey(tokens: [String]) -> String? {
+        aliasesByLength.first { matches($0.alias, tokens: tokens) }?.key
     }
 
     /// Whether `alias` appears as a contiguous run of whole tokens.
@@ -354,11 +397,17 @@ nonisolated struct DistrictVenueProvider: VenueResearching, Sendable {
         "chattarpur":      ["chattarpur", "chhatarpur"]
     ]
 
-    /// Aliases longest-first inside each area, so "hauz khas village" is tried before
-    /// "hauz khas" and a longer, more specific spelling always wins.
-    private static let aliasesByLength: [(String, [String])] = aliases
-        .map { ($0.key, $0.value.sorted { $0.count > $1.count }) }
-        .sorted { $0.0 < $1.0 }
+    /// Every alias paired with its area, longest-first across the whole table, so a
+    /// longer and more specific spelling always wins — "hauz khas village" before
+    /// "hauz khas", and "khan market" before another area's "cp".
+    ///
+    /// Flat rather than grouped by area: see `matchedKey(tokens:)`. Ties break on the
+    /// alias then the key so the order is total, and repeated calls cannot disagree.
+    private static let aliasesByLength: [(alias: String, key: String)] = aliases
+        .flatMap { key, spellings in spellings.map { (alias: $0, key: key) } }
+        .sorted {
+            ($0.alias.count, $0.alias, $0.key) > ($1.alias.count, $1.alias, $1.key)
+        }
 
     // MARK: Ranking
 
