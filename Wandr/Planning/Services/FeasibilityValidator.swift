@@ -290,7 +290,14 @@ nonisolated struct FeasibilityValidator: ItineraryValidating, Sendable {
         // Only once they have named something. An unspecified request has no span to
         // exceed, and proposing a full day for it is the feature, not a violation.
         let requested = brief.requestedStops
-        if !requested.isEmpty {
+        // Only when the request was actually satisfiable. A host who asks for lunch and
+        // says they are free 8 to 9 pm has contradicted themselves; `SlotSchedule`
+        // drops the stop and falls back to the default shape, `requestHonoured` reports
+        // it, and the host is told. Applying the span to that fallback would call
+        // Wandr's own recovery a violation and fail the run outright — the plan is
+        // *entirely* outside a span it was never able to honour.
+        let honoured = slots.contains { requested.contains($0.band) }
+        if !requested.isEmpty, honoured {
             let order = SlotBand.allCases
             let namedPositions = order.indices.filter { requested.contains(order[$0]) }
 

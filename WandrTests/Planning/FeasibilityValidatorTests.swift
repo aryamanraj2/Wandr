@@ -607,6 +607,35 @@ struct FeasibilityValidatorTests {
         #expect(!found.contains { if case .grewBeyondRequest = $0 { return true }; return false })
     }
 
+    /// The hole the evaluation suite found the day it was written.
+    ///
+    /// A host who asks for lunch and says they are free 8 to 9 pm has contradicted
+    /// themselves. `SlotSchedule` drops the stop, falls back to the default shape and
+    /// reports it unhonoured so the host is told — and the fallback plan then lies
+    /// *entirely* outside the lunch span. The span rule, applied naively, called that
+    /// recovery a violation and failed the whole run, so the one case designed to
+    /// never dead-end became the one case that always did.
+    @Test("An unsatisfiable request is recovered from, not treated as growth")
+    func anUnsatisfiableRequestIsNotGrowth() {
+        let eveningOnly = OutingTimeWindow(earliestStartMinute: 20 * 60, latestEndMinute: 21 * 60)
+        let brief = OutingBrief(
+            timeWindow: .host(eveningOnly),
+            area: .safeDefault(OutingBrief.defaultArea),
+            groupSize: .safeDefault(OutingBrief.defaultGroupSize),
+            budget: .safeDefault(.unspecified),
+            requestedStops: [.lunch]
+        )
+
+        // What the schedule actually falls back to for that window.
+        #expect(!brief.schedule.requestHonoured, "The premise: lunch could not be honoured")
+        #expect(!brief.schedule.slots.map(\.band).contains(.lunch))
+
+        let found = violations(brief: brief, slots: [Fixtures.slot(.dinner, ["food-1", "food-2"])])
+
+        #expect(!found.contains { if case .grewBeyondRequest = $0 { return true }; return false },
+                "Falling back is how a contradicted host still gets a plan")
+    }
+
     @Test("A plan that matches the request exactly passes")
     func anExactRequestPasses() {
         let found = violations(
