@@ -1,11 +1,4 @@
-//
-//  RecoveryView.swift
-//  Wandr
-//
-//  Docs recovery state: the only fallback when a summary can't be supplied. There is no
-//  mock chat, no transcript import, no in-app summarizer — the host is simply invited to
-//  ask Siri to send the summary again.
-//
+// RecoveryView.swift Wandr Docs recovery state: the only fallback when a summary can't be supplied. There is no mock chat, no transcript import, no in-app summarizer — the host is simply invited to ask Siri to send the summary again.
 
 import SwiftUI
 

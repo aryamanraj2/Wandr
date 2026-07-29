@@ -1,19 +1,4 @@
-//
-//  ChatSummaryBriefMapper.swift
-//  Wandr
-//
-//  Deterministic bridge: the group-booking summary (`ChatSummaryPayload`) → the
-//  planning core's uncertain draft (`OutingBriefDraft`).
-//
-//  The group booking already arrives structured, so turning it into a brief needs
-//  no model — this is pure parsing. It is the JSON-first replacement for the
-//  free-text `FakeBriefExtractor`: loose strings ("₹1,500", "vegetarian", "free
-//  only 8–9pm") become typed fields the pipeline can reason about.
-//
-//  Foundation only. Every value it emits is a *suggestion* — `BriefNormalizer`
-//  still decides what is `.host` vs `.safeDefault`, and the host still reviews it.
-//  Prompt-like text in any field is data: it is copied into the draft, never acted on.
-//
+// ChatSummaryBriefMapper.swift Wandr Deterministic bridge: the group-booking summary (`ChatSummaryPayload`) → the planning core's uncertain draft (`OutingBriefDraft`). The group booking already arrives structured, so turning it into a brief needs no model — this is pure parsing. It is the JSON-first replacement for the free-text `FakeBriefExtractor`: loose strings ("₹1,500", "vegetarian", "free only 8–9pm") become typed fields the pipeline can reason about. Foundation only. Every value it emits is a *suggestion* — `BriefNormalizer` still decides what is `.host` vs `.safeDefault`, and the host still reviews it. Prompt-like text in any field is data: it is copied into the draft, never acted on.
 
 import Foundation
 
@@ -35,21 +20,13 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
             setting: Self.setting(from: payload.indoorOutdoor),
             requestedStops: Self.requestedStops(from: payload),
             stopsAreExclusive: Self.stopsAreExclusive(from: payload),
-            // No fallback reading of the words here, deliberately. Every other field on
-            // this mapper has a keyword scan behind it because the model drops fields;
-            // an occasion cannot have one, because the whole point of these four values
-            // is that they describe nights nobody enumerated. A missing profile is an
-            // unspecified one, and an unspecified one still plans.
+            // No fallback reading of the words here, deliberately. Every other field on this mapper has a keyword scan behind it because the model drops fields; an occasion cannot have one, because the whole point of these four values is that they describe nights nobody enumerated. A missing profile is an unspecified one, and an unspecified one still plans.
             occasionProfile: payload.occasionProfile ?? .unspecified,
             notes: payload.otherNotes?.trimmed.nonEmpty.map { [$0] } ?? []
         )
     }
 
-    /// Whether the host said these are the *only* stops they want.
-    ///
-    /// The model's own answer when it gave one, or the deterministic scan — the same
-    /// "either source is enough" rule `stops(classified:inText:)` runs under, and for
-    /// the same reason: a flag the model dropped must not silently become `false`.
+    /// Whether the host said these are the *only* stops they want. The model's own answer when it gave one, or the deterministic scan — the same "either source is enough" rule `stops(classified:inText:)` runs under, and for the same reason: a flag the model dropped must not silently become `false`.
     static func stopsAreExclusive(from payload: ChatSummaryPayload) -> Bool {
         payload.onlyTheseStops == true || statesExclusiveStops(inText: haystack(of: payload))
     }
@@ -61,56 +38,13 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
         stops(classified: payload.stops, inText: haystack(of: payload))
     }
 
-    /// The stops a request names, from the model's classification *and* the words
-    /// themselves.
-    ///
-    /// Two sources, unioned — neither may override the other:
-    ///
-    /// 1. **The model's classification**, validated against `SlotBand` so an invented
-    ///    token is dropped rather than trusted. This is the path that handles
-    ///    "something to eat before the movie" — a phrase no keyword list will contain.
-    /// 2. **Band words the host actually typed.** A host who writes "dinner" has said
-    ///    the stop in Wandr's own vocabulary; treating that as a mere backup meant a run
-    ///    where the model dropped the field lost the word entirely, and the same
-    ///    sentence planned a different night depending on how the generation went.
-    ///    Deterministic evidence should never lose to a probabilistic one that says
-    ///    nothing.
-    ///
-    /// There used to be a third source: a 63-word table mapping "drinks", "arcade",
-    /// "biryani" and the like onto categories. It is gone, and its absence is the point.
-    /// It worked exactly as far as the list went and failed silently past it — "ramen",
-    /// "brewery", "escape room", "listening bar" were all things a host would plausibly
-    /// say and none were in it, so every miss became a new entry and the list only grew.
-    ///
-    /// What replaced it is not a longer list. Which *stops* exist now comes from the
-    /// model, constrained token-by-token to this vocabulary by `.anyOf`; what goes
-    /// *inside* each stop comes from `SemanticVenueRanker`, which scores a written query
-    /// against the words the dataset already carries. Neither side enumerates anything.
-    ///
-    /// `bandKeywords` survives, and is not the same kind of thing: it is three meals and
-    /// their synonyms. There will not be a fourth meal.
-    ///
-    /// - Parameters:
-    ///   - classified: the model's own tokens, if it produced any.
-    ///   - text: what the host wrote — their raw words on the capture path, the
-    ///     settled summary fields on the Siri one.
+    /// The stops a request names, from the model's classification *and* the words themselves. Two sources, unioned — neither may override the other: 1. **The model's classification**, validated against `SlotBand` so an invented token is dropped rather than trusted. This is the path that handles "something to eat before the movie" — a phrase no keyword list will contain. 2. **Band words the host actually typed.** A host who writes "dinner" has said the stop in Wandr's own vocabulary; treating that as a mere backup meant a run where the model dropped the field lost the word entirely, and the same sentence planned a different night depending on how the generation went. Deterministic evidence should never lose to a probabilistic one that says nothing. There used to be a third source: a 63-word table mapping "drinks", "arcade", "biryani" and the like onto categories. It is gone, and its absence is the point. It worked exactly as far as the list went and failed silently past it — "ramen", "brewery", "escape room", "listening bar" were all things a host would plausibly say and none were in it, so every miss became a new entry and the list only grew. What replaced it is not a longer list. Which *stops* exist now comes from the model, constrained token-by-token to this vocabulary by `.anyOf`; what goes *inside* each stop comes from `SemanticVenueRanker`, which scores a written query against the words the dataset already carries. Neither side enumerates anything. `bandKeywords` survives, and is not the same kind of thing: it is three meals and their synonyms. There will not be a fourth meal. Parameters: classified: the model's own tokens, if it produced any. text: what the host wrote — their raw words on the capture path, the settled summary fields on the Siri one.
     static func stops(classified: [String]?, inText text: String) -> Set<SlotBand> {
         let fromModel = Set((classified ?? []).compactMap(band(named:)))
         return fromModel.union(bandsNamed(inText: text))
     }
 
-    /// Whether the host said these are the *only* stops they want.
-    ///
-    /// Proximity, not mere presence: "just" and "only" are among the commonest words
-    /// in a sentence about plans, and `"just 2 of us for dinner"` is not a request for
-    /// a one-stop night. The word has to sit beside a stop word to mean exclusivity.
-    ///
-    /// Two tokens either side, which is tight on purpose. Three caught `"only 1500
-    /// each, dinner somewhere"` — an exclusivity word doing its job on the *budget*,
-    /// three tokens away from a stop it had nothing to do with — and reading that as
-    /// "dinner and nothing else" would have thrown away most of their night. Two still
-    /// covers "just dinner", "just the breakfast plan", "only doing lunch", "we just
-    /// want lunch", and "dinner and nothing else".
+    /// Whether the host said these are the *only* stops they want. Proximity, not mere presence: "just" and "only" are among the commonest words in a sentence about plans, and `"just 2 of us for dinner"` is not a request for a one-stop night. The word has to sit beside a stop word to mean exclusivity. Two tokens either side, which is tight on purpose. Three caught `"only 1500 each, dinner somewhere"` — an exclusivity word doing its job on the *budget*, three tokens away from a stop it had nothing to do with — and reading that as "dinner and nothing else" would have thrown away most of their night. Two still covers "just dinner", "just the breakfast plan", "only doing lunch", "we just want lunch", and "dinner and nothing else".
     static func statesExclusiveStops(inText raw: String) -> Bool {
         let tokens = raw.lowercased()
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
@@ -131,30 +65,18 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
         "just", "only", "nothing", "solely", "merely", "simply"
     ]
 
-    /// Every word that names a stop, of either kind. Used only by the exclusivity
-    /// scan, which cares that a stop was mentioned, not which one.
+    /// Every word that names a stop, of either kind. Used only by the exclusivity scan, which cares that a stop was mentioned, not which one.
     private static let allStopWords: Set<String> = Set(
         bandKeywords.values.flatMap { $0 }
     )
 
-    /// One model-emitted token resolved to a band, or `nil` if it is not one of ours.
-    ///
-    /// Case- and whitespace-tolerant, because a model told to answer "somethingNew"
-    /// will sometimes answer "Something New" and that is not a different request.
+    /// One model-emitted token resolved to a band, or `nil` if it is not one of ours. Case- and whitespace-tolerant, because a model told to answer "somethingNew" will sometimes answer "Something New" and that is not a different request.
     static func band(named raw: String) -> SlotBand? {
         let squashed = raw.lowercased().filter(\.isLetter)
         return SlotBand.allCases.first { $0.rawValue.lowercased() == squashed }
     }
 
-    /// The fields a stop word could have landed in, joined for scanning.
-    ///
-    /// Deliberately several fields rather than only `plannedStops`: the word that
-    /// matters ("lunch", "drinks") lands wherever the extractor decided to put it, and
-    /// missing it costs the host the one stop they actually asked for. Area is
-    /// excluded — half the neighbourhoods in Delhi have "Market" in the name.
-    ///
-    /// This is the Siri path's substitute for the host's raw words, which are gone by
-    /// the time a summary reaches the mapper. The capture path passes the real text.
+    /// The fields a stop word could have landed in, joined for scanning. Deliberately several fields rather than only `plannedStops`: the word that matters ("lunch", "drinks") lands wherever the extractor decided to put it, and missing it costs the host the one stop they actually asked for. Area is excluded — half the neighbourhoods in Delhi have "Market" in the name. This is the Siri path's substitute for the host's raw words, which are gone by the time a summary reaches the mapper. The capture path passes the real text.
     static func haystack(of payload: ChatSummaryPayload) -> String {
         [
             payload.plannedStops,
@@ -167,11 +89,7 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
         .joined(separator: " ")
     }
 
-    /// Stops named outright — words that fix the kind of stop *and* when it happens.
-    ///
-    /// Whole-word matched, and every entry is a noun that names a stop, never a mood
-    /// or an adjective: this set seeds the plan's shape, so a false positive here
-    /// invents a stop the host never asked for.
+    /// Stops named outright — words that fix the kind of stop *and* when it happens. Whole-word matched, and every entry is a noun that names a stop, never a mood or an adjective: this set seeds the plan's shape, so a false positive here invents a stop the host never asked for.
     static func bandsNamed(inText raw: String) -> Set<SlotBand> {
         guard !raw.isEmpty else { return [] }
         let haystack = raw.lowercased()
@@ -182,35 +100,17 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
         )
     }
 
-    /// Words that name a stop *and* when it happens. Whole-word matched.
-    ///
-    /// `breakfast` has its own band now. It used to be listed under `.lunch`, because
-    /// the band table began at noon and there was nowhere else to put it — which meant
-    /// a host asking for breakfast was scheduled a 12 o'clock meal.
+    /// Words that name a stop *and* when it happens. Whole-word matched. `breakfast` has its own band now. It used to be listed under `.lunch`, because the band table began at noon and there was nowhere else to put it — which meant a host asking for breakfast was scheduled a 12 o'clock meal.
     private static let bandKeywords: [SlotBand: [String]] = [
         .breakfast: ["breakfast", "brekkie"],
-        // Brunch sits across both bands; lunch is the safer of the two, and a stated
-        // morning window still moves it since the band has to fit the window anyway.
+        // Brunch sits across both bands; lunch is the safer of the two, and a stated morning window still moves it since the band has to fit the window anyway.
         .lunch: ["lunch", "brunch"],
         .dinner: ["dinner", "supper"]
     ]
 
     // MARK: - Group size
 
-    /// How many people are going, read straight out of what the host wrote.
-    ///
-    /// A headcount is a small number sitting next to a word that says it counts
-    /// people — something Swift reads exactly and a twelve-field generation cannot be
-    /// relied on to. It is the same argument as `stops(classified:inText:)`: a fact the
-    /// host stated plainly should not depend on which fields a particular run happened
-    /// to get right.
-    ///
-    /// Deliberately narrow, because a sentence about an outing is full of numbers that
-    /// are not people. It fires only on a value in `GroupSize.supportedRange` that is
-    /// *marked* as a headcount — by a following noun ("4 people", "6 of us") or a
-    /// preceding preposition ("for 2", "table of 8") — and never when the next word
-    /// makes it a time or an amount: "only 3 hours" is not a party of three, and
-    /// "2000 each" is out of range before the question is even asked.
+    /// How many people are going, read straight out of what the host wrote. A headcount is a small number sitting next to a word that says it counts people — something Swift reads exactly and a twelve-field generation cannot be relied on to. It is the same argument as `stops(classified:inText:)`: a fact the host stated plainly should not depend on which fields a particular run happened to get right. Deliberately narrow, because a sentence about an outing is full of numbers that are not people. It fires only on a value in `GroupSize.supportedRange` that is *marked* as a headcount — by a following noun ("4 people", "6 of us") or a preceding preposition ("for 2", "table of 8") — and never when the next word makes it a time or an amount: "only 3 hours" is not a party of three, and "2000 each" is out of range before the question is even asked.
     static func groupSize(inText raw: String) -> Int? {
         let tokens = raw.lowercased()
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
@@ -245,15 +145,13 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
     /// Words that make the number *after* them a headcount — "for 2", "party of 8".
     private static let headcountMarkers: Set<String> = ["for", "of"]
 
-    /// Units that prove the number counts something other than people. Without these,
-    /// "we've only got 3 hours" reads as a group of three.
+    /// Units that prove the number counts something other than people. Without these, "we've only got 3 hours" reads as a group of three.
     private static let nonHeadcountUnits: Set<String> = [
         "hour", "hours", "hr", "hrs", "minute", "minutes", "min", "mins",
         "am", "pm", "oclock", "k", "rs", "rupees", "inr", "each", "pp", "ph"
     ]
 
-    /// "Just the two of us" is the commonest way to say a group of two and carries no
-    /// digit at all.
+    /// "Just the two of us" is the commonest way to say a group of two and carries no digit at all.
     private static let wordedNumbers: [String: Int] = [
         "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
         "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12
@@ -261,36 +159,13 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
 
     // MARK: - Budget
 
-    /// The ceiling the host named, in the basis they named it in.
-    ///
-    /// The basis is read from their own words and never assumed. An unqualified
-    /// "2000" is the group's *total*, because that is the weaker of the two
-    /// readings and the only one they actually said — reading it as ₹2000 each
-    /// invents a budget four times larger for a group of four, and then compares
-    /// it against a per-head venue price. That mismatch is what told two people
-    /// with ₹2000 between them that an ordinary dinner was over their limit.
+    /// The ceiling the host named, in the basis they named it in. The basis is read from their own words and never assumed. An unqualified "2000" is the group's *total*, because that is the weaker of the two readings and the only one they actually said — reading it as ₹2000 each invents a budget four times larger for a group of four, and then compares it against a per-head venue price. That mismatch is what told two people with ₹2000 between them that an ordinary dinner was over their limit.
     static func budget(from raw: String?) -> Budget? {
         guard let raw, let rupees = rupees(from: raw) else { return nil }
         return .clamping(rupees: rupees, perHead: statesPerHead(raw))
     }
 
-    /// Whether the phrase says the number is *each*.
-    ///
-    /// Read as a marker *word* beside a unit word, not as a literal string. The list
-    /// this replaced was written with single spaces — `"per head"`, `"per person"` —
-    /// so it recognised exactly one spelling of each phrase and silently missed every
-    /// other. `"around 1000 perhead"` for seven people therefore came back as a ₹1000
-    /// *group total*: a ₹142 ceiling, which ranked a ₹120 chaat counter above every
-    /// restaurant in the deck and reported nothing wrong anywhere.
-    ///
-    /// Extending the list would have fixed that one spelling and left "per-head" and
-    /// "per  head" broken, so the spacing is normalized away instead. One entry per
-    /// *concept*; how the host punctuated it is not their problem.
-    ///
-    /// Two kinds of marker, and the distinction is load-bearing: `per` may be written
-    /// closed onto the unit, because "perhead" is a real spelling of "per head". `a`
-    /// may not, because "ahead" is a different word — reading "planning ahead" as a
-    /// per-head budget would quadruple a group's ceiling.
+    /// Whether the phrase says the number is *each*. Read as a marker *word* beside a unit word, not as a literal string. The list this replaced was written with single spaces — `"per head"`, `"per person"` — so it recognised exactly one spelling of each phrase and silently missed every other. `"around 1000 perhead"` for seven people therefore came back as a ₹1000 *group total*: a ₹142 ceiling, which ranked a ₹120 chaat counter above every restaurant in the deck and reported nothing wrong anywhere. Extending the list would have fixed that one spelling and left "per-head" and "per head" broken, so the spacing is normalized away instead. One entry per *concept*; how the host punctuated it is not their problem. Two kinds of marker, and the distinction is load-bearing: `per` may be written closed onto the unit, because "perhead" is a real spelling of "per head". `a` may not, because "ahead" is a different word — reading "planning ahead" as a per-head budget would quadruple a group's ceiling.
     static func statesPerHead(_ raw: String) -> Bool {
         let tokens = raw.lowercased()
             // "1000/head" says "each" with punctuation where the word would be.
@@ -298,9 +173,7 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .filter { !$0.isEmpty }
 
-        // Whole words that mean "each" with no unit after them. Whole-word matched, so
-        // "shopping" is not "pp" and — the case the old `contains` got wrong — "we'll
-        // reach by 8" is not "each".
+        // Whole words that mean "each" with no unit after them. Whole-word matched, so "shopping" is not "pp" and — the case the old `contains` got wrong — "we'll reach by 8" is not "each".
         if tokens.contains(where: perHeadWords.contains) { return true }
 
         for (index, token) in tokens.enumerated() {
@@ -322,15 +195,13 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
     /// Markers that may be written closed onto the unit — "per head" or "perhead".
     private static let closablePerHeadMarkers: [String] = ["per"]
 
-    /// Markers that must keep their separator, because the closed form is another
-    /// word: "a head", never "ahead".
+    /// Markers that must keep their separator, because the closed form is another word: "a head", never "ahead".
     private static let openPerHeadMarkers: Set<String> = ["a"]
 
     /// The unit a per-head marker attaches to.
     private static let perHeadUnits: Set<String> = ["head", "heads", "person", "pax", "plate"]
 
-    /// First monetary figure in the string. Tolerates "₹", commas, "per head", and a
-    /// trailing "k" (1.5k → 1500). Absent or unparseable → `nil` (normalizer defaults it).
+    /// First monetary figure in the string. Tolerates "₹", commas, "per head", and a trailing "k" (1.5k → 1500). Absent or unparseable → `nil` (normalizer defaults it).
     static func rupees(from raw: String?) -> Int? {
         guard let raw else { return nil }
         let scalars = Array(raw.lowercased().replacingOccurrences(of: ",", with: ""))
@@ -400,9 +271,7 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
         }
     }
 
-    /// Shared shape for both hard-constraint fields: absent/blank → `.unknown`,
-    /// an explicit "none"/"no restrictions" → `.noneStated`, matched keywords →
-    /// `.required`, and a present-but-unrecognised value → `.unknown` (never invented).
+    /// Shared shape for both hard-constraint fields: absent/blank → `.unknown`, an explicit "none"/"no restrictions" → `.noneStated`, matched keywords → `.required`, and a present-but-unrecognised value → `.unknown` (never invented).
     private static func constraint<R: Sendable & Hashable & Comparable>(
         from raw: String?,
         match: (String) -> Set<R>
@@ -433,34 +302,12 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
 
     // MARK: - Time phrase
 
-    /// The time phrase a sentence states, in the host's own words, or `nil`.
-    ///
-    /// The third field with nothing but the model reading it, and the third to be
-    /// lost the same way: `"after office after 5:30 pm"` came back with `time: nil` and
-    /// the whole clause swept into `otherNotes`, so the brief's window was `.unknown`
-    /// and a stated 5:30 start constrained nothing at all.
-    ///
-    /// Deliberately *not* the whole sentence handed to `timeWindow(day:time:)`. That
-    /// parser reads a phrase the extractor already isolated, and over raw prose its
-    /// range rule ("two clock tokens means a range") misfires badly: this very sentence
-    /// yields 7 — from "7 people" — and 10:00 and 00:00 — from "1000" — which pairs
-    /// into a window that finishes before it starts.
-    ///
-    /// So the scan is narrow in the same way `groupSize(inText:)` is narrow. A number
-    /// counts only when it is *marked* as a time by a word in front of it, and never
-    /// when the word after it says it counts something else. "for 7 people" is not a
-    /// 7 o'clock start, and "around 1000 perhead" is not a clock at all.
-    ///
-    /// Returns the host's own span so the existing parser reads the bound — "after"
-    /// versus "by" — from the same words they wrote, rather than this having to decide
-    /// what kind of bound it found.
+    /// The time phrase a sentence states, in the host's own words, or `nil`. The third field with nothing but the model reading it, and the third to be lost the same way: `"after office after 5:30 pm"` came back with `time: nil` and the whole clause swept into `otherNotes`, so the brief's window was `.unknown` and a stated 5:30 start constrained nothing at all. Deliberately *not* the whole sentence handed to `timeWindow(day:time:)`. That parser reads a phrase the extractor already isolated, and over raw prose its range rule ("two clock tokens means a range") misfires badly: this very sentence yields 7 — from "7 people" — and 10:00 and 00:00 — from "1000" — which pairs into a window that finishes before it starts. So the scan is narrow in the same way `groupSize(inText:)` is narrow. A number counts only when it is *marked* as a time by a word in front of it, and never when the word after it says it counts something else. "for 7 people" is not a 7 o'clock start, and "around 1000 perhead" is not a clock at all. Returns the host's own span so the existing parser reads the bound — "after" versus "by" — from the same words they wrote, rather than this having to decide what kind of bound it found.
     static func timePhrase(inText raw: String) -> String? {
         let tokens = spacedTokens(in: raw)
 
         for (index, token) in tokens.enumerated() where timeMarkers.contains(token.text) {
-            // The clock this marker refers to, within the next two words: far enough
-            // for "from about 8", tight enough that the "after" in "after office"
-            // cannot reach across to a clock in the next clause.
+            // The clock this marker refers to, within the next two words: far enough for "from about 8", tight enough that the "after" in "after office" cannot reach across to a clock in the next clause.
             for offset in 1...2 where index + offset < tokens.count {
                 let clock = tokens[index + offset]
                 guard isClockToken(clock.text) else { continue }
@@ -471,8 +318,7 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
                     continue
                 }
 
-                // A trailing meridiem belongs to the phrase — without it "after 5:30"
-                // loses the "pm" the host actually said.
+                // A trailing meridiem belongs to the phrase — without it "after 5:30" loses the "pm" the host actually said.
                 var end = clock.range.upperBound
                 if let following, ["am", "pm"].contains(following.text) {
                     end = following.range.upperBound
@@ -483,20 +329,7 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
         return nil
     }
 
-    /// The money phrase a sentence states, in the host's own words, or `nil`.
-    ///
-    /// Observed being dropped by the same 12-field generation that dropped `area` and
-    /// `time`, on a different run — the losses are not stable, which is the whole
-    /// argument for reading the host's own words. A lost budget becomes
-    /// `Budget.unspecified`, so *no* ceiling applies and a ₹4,000 table can be
-    /// proposed to a group who said ₹1,000; like the others, nothing reports it.
-    ///
-    /// The tightest of the three scans, because the failure mode here is worse than
-    /// silence: an invented amount does not merely widen the search, it marks real
-    /// venues as over budget. So an amount counts only when something *says* it is
-    /// money — a currency symbol or word, a "k" suffix, an adjacent "budget", or a
-    /// per-head marker right after it — and never when it is a clock reading or a
-    /// headcount. "for 7 people, after 5:30 pm" contains no amount.
+    /// The money phrase a sentence states, in the host's own words, or `nil`. Observed being dropped by the same 12-field generation that dropped `area` and `time`, on a different run — the losses are not stable, which is the whole argument for reading the host's own words. A lost budget becomes `Budget.unspecified`, so *no* ceiling applies and a ₹4,000 table can be proposed to a group who said ₹1,000; like the others, nothing reports it. The tightest of the three scans, because the failure mode here is worse than silence: an invented amount does not merely widen the search, it marks real venues as over budget. So an amount counts only when something *says* it is money — a currency symbol or word, a "k" suffix, an adjacent "budget", or a per-head marker right after it — and never when it is a clock reading or a headcount. "for 7 people, after 5:30 pm" contains no amount.
     static func moneyPhrase(inText raw: String) -> String? {
         let tokens = spacedTokens(in: raw)
 
@@ -512,15 +345,11 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
             if let following,
                headcountNouns.contains(following) || nonHeadcountUnits.contains(following)
                    || following == "of" {
-                // "each" and "pp" are in `nonHeadcountUnits` because they rule a number
-                // out as a headcount — but they are exactly what marks one as money.
+                // "each" and "pp" are in `nonHeadcountUnits` because they rule a number out as a headcount — but they are exactly what marks one as money.
                 if !statesPerHead(following) { continue }
             }
 
-            // A symbol attached to the front of the amount. Read off the original
-            // string rather than the token, because `spacedTokens` trims punctuation
-            // from the ends — which is what "pm.." needs and what would otherwise
-            // throw away the ₹ that makes "₹1500" an amount at all.
+            // A symbol attached to the front of the amount. Read off the original string rather than the token, because `spacedTokens` trims punctuation from the ends — which is what "pm.." needs and what would otherwise throw away the ₹ that makes "₹1500" an amount at all.
             let symbolBefore = token.range.lowerBound > raw.startIndex
                 && currencySymbols.contains(raw[raw.index(before: token.range.lowerBound)])
 
@@ -531,8 +360,7 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
 
             guard symbolBefore || markedBefore || markedAfter || markedWithin else { continue }
 
-            // Reach forward over a per-head marker so the *basis* travels with the
-            // amount — the number alone would read as the group's total.
+            // Reach forward over a per-head marker so the *basis* travels with the amount — the number alone would read as the group's total.
             var end = token.range.upperBound
             if let following, statesPerHead(following) || currencyWords.contains(following) {
                 end = tokens[index + 1].range.upperBound
@@ -563,19 +391,13 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
         return !amount.isEmpty && amount.allSatisfy { $0.isNumber || $0 == "." }
     }
 
-    /// Words that mark the number after them as a time.
-    ///
-    /// Every one of these is a word about *when*, so requiring one is what keeps the
-    /// scan from reading a headcount or a budget as a clock.
+    /// Words that mark the number after them as a time. Every one of these is a word about *when*, so requiring one is what keeps the scan from reading a headcount or a budget as a clock.
     private static let timeMarkers: Set<String> = [
         "after", "from", "before", "by", "till", "until", "between",
         "starting", "start", "at", "around", "post"
     ]
 
-    /// Whether the token could be a clock reading: "8", "8pm", "5:30", "20:00", "8.30pm".
-    ///
-    /// At most two leading digits, which is what excludes "1000" — a budget, not
-    /// 10 o'clock followed by midnight.
+    /// Whether the token could be a clock reading: "8", "8pm", "5:30", "20:00", "8.30pm". At most two leading digits, which is what excludes "1000" — a budget, not 10 o'clock followed by midnight.
     private static func isClockToken(_ token: String) -> Bool {
         var digits = ""
         var rest = Substring(token)
@@ -599,13 +421,7 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
         return rest.isEmpty || rest == "am" || rest == "pm"
     }
 
-    /// Whitespace-separated words, lowercased, with the range each occupies in the
-    /// original string.
-    ///
-    /// Split on whitespace rather than on every non-alphanumeric, because a colon
-    /// between digits is part of the word here: tokenizing "5:30" into "5" and "30"
-    /// is what would make it unrecognisable as a clock. Punctuation is trimmed from
-    /// the ends only, so "pm.." is "pm" and "5:30" stays whole.
+    /// Whitespace-separated words, lowercased, with the range each occupies in the original string. Split on whitespace rather than on every non-alphanumeric, because a colon between digits is part of the word here: tokenizing "5:30" into "5" and "30" is what would make it unrecognisable as a clock. Punctuation is trimmed from the ends only, so "pm.." is "pm" and "5:30" stays whole.
     private static func spacedTokens(
         in raw: String
     ) -> [(text: String, range: Range<String.Index>)] {
@@ -646,17 +462,7 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
 
     // MARK: - Time window
 
-    /// Parses a day label plus a loose time phrase into an `OutingTimeWindow`.
-    ///
-    /// Understands ranges ("8–9pm", "8 to 9"), lower bounds ("after 8", "from 8pm"),
-    /// upper bounds ("finish by 9", "till 9", "before 9pm"), and durations ("3 hours",
-    /// "a couple of hours", "90 mins"). Meridiem is inferred: a stated am/pm on any
-    /// token applies to the others, and an unqualified evening hour defaults to pm.
-    ///
-    /// - Important: durations are consumed *first* and cut out of the phrase before
-    ///   any clock token is read. "3 hours" shares its digits with "3 o'clock", and
-    ///   leaving them in is what used to turn "we've only got 3 hours" into a 3 pm
-    ///   start with no end — a window that constrained nothing and planned a full day.
+    /// Parses a day label plus a loose time phrase into an `OutingTimeWindow`. Understands ranges ("8–9pm", "8 to 9"), lower bounds ("after 8", "from 8pm"), upper bounds ("finish by 9", "till 9", "before 9pm"), and durations ("3 hours", "a couple of hours", "90 mins"). Meridiem is inferred: a stated am/pm on any token applies to the others, and an unqualified evening hour defaults to pm. Important: durations are consumed *first* and cut out of the phrase before any clock token is read. "3 hours" shares its digits with "3 o'clock", and leaving them in is what used to turn "we've only got 3 hours" into a 3 pm start with no end — a window that constrained nothing and planned a full day.
     static func timeWindow(day: String?, time: String?) -> OutingTimeWindow {
         let dayLabel = day?.trimmed.nonEmpty
         guard let raw = time?.trimmed.nonEmpty?.lowercased() else {
@@ -700,31 +506,23 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
 
     // MARK: - Duration
 
-    /// The longest outing the phrase allows, plus the phrase with that text removed.
-    ///
-    /// Returns `(nil, phrase)` unchanged when no duration is stated, so a pure clock
-    /// phrase takes exactly the path it always did.
+    /// The longest outing the phrase allows, plus the phrase with that text removed. Returns `(nil, phrase)` unchanged when no duration is stated, so a pure clock phrase takes exactly the path it always did.
     static func extractDuration(from phrase: String) -> (minutes: Int?, remainder: String) {
         var remainder = phrase
         var minutes: Int?
 
-        /// Cuts the first match out of `remainder` so its digits cannot be re-read
-        /// as a clock time, and records the duration if this is the first one found.
+        /// Cuts the first match out of `remainder` so its digits cannot be re-read as a clock time, and records the duration if this is the first one found.
         func take(_ range: Range<String.Index>, _ value: Int) {
             if minutes == nil { minutes = value }
             remainder.replaceSubrange(range, with: " ")
         }
 
-        // Worded amounts first: they carry no digits, so a later numeric scan would
-        // miss them entirely ("a couple of hours" has nothing for `clockTokens`).
+        // Worded amounts first: they carry no digits, so a later numeric scan would miss them entirely ("a couple of hours" has nothing for `clockTokens`).
         for (words, value) in wordedDurations {
             if let range = remainder.range(of: words) { take(range, value) }
         }
 
-        // Then "<number> <unit>", left to right. The unit decides the scale, so
-        // "90 mins" and "1.5 hours" both land on the same axis. Every match is cut,
-        // not just the first — a second duration's digits would otherwise be read
-        // as a clock time by the scan that follows.
+        // Then "<number> <unit>", left to right. The unit decides the scale, so "90 mins" and "1.5 hours" both land on the same axis. Every match is cut, not just the first — a second duration's digits would otherwise be read as a clock time by the scan that follows.
         while let match = numericDuration(in: remainder) {
             take(match.range, match.minutes)
         }
@@ -738,8 +536,7 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
     private static let minimumDurationMinutes = 30
     private static let maximumDurationMinutes = 18 * 60
 
-    /// Phrasings with no digits to scan. Longest first, so "half an hour" is not
-    /// matched as the "an hour" inside it.
+    /// Phrasings with no digits to scan. Longest first, so "half an hour" is not matched as the "an hour" inside it.
     private static let wordedDurations: [(String, Int)] = [
         ("hour and a half", 90),
         ("couple of hours", 120),
@@ -756,11 +553,7 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
         ("six hours", 360)
     ]
 
-    /// The first "<number> <unit>" in `text`, as minutes plus the range it occupied.
-    /// `nil` when the text holds no numeric duration.
-    ///
-    /// The caller cuts the returned range out before asking again, which is what
-    /// makes repeated calls terminate.
+    /// The first "<number> <unit>" in `text`, as minutes plus the range it occupied. `nil` when the text holds no numeric duration. The caller cuts the returned range out before asking again, which is what makes repeated calls terminate.
     private static func numericDuration(
         in text: String
     ) -> (minutes: Int, range: Range<String.Index>)? {
@@ -795,11 +588,9 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
                 guard tail.hasPrefix(unit) else { continue }
 
                 var after = text.index(unitStart, offsetBy: unit.count)
-                // A bare unit letter must not be the head of a longer word: "3 monday"
-                // is a day, not three minutes.
+                // A bare unit letter must not be the head of a longer word: "3 monday" is a day, not three minutes.
                 if unit.count == 1, after < text.endIndex, text[after].isLetter { break }
-                // Swallow the rest of the word ("hour" → "hours") so no stray letters
-                // survive into the clock scan.
+                // Swallow the rest of the word ("hour" → "hours") so no stray letters survive into the clock scan.
                 while after < text.endIndex, text[after].isLetter {
                     after = text.index(after: after)
                 }
@@ -811,9 +602,7 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
         return nil
     }
 
-    /// Every "h", "h:mm", "hpm", "h:mm am" token in the phrase, resolved to minutes
-    /// from midnight in reading order. Meridiem stated on any token is applied to
-    /// the ones without it.
+    /// Every "h", "h:mm", "hpm", "h:mm am" token in the phrase, resolved to minutes from midnight in reading order. Meridiem stated on any token is applied to the ones without it.
     private static func clockTokens(in phrase: String) -> [Int] {
         struct Raw { let hour: Int; let minute: Int; var meridiem: Meridiem? }
         enum Meridiem { case am, pm }
@@ -829,15 +618,7 @@ nonisolated struct ChatSummaryBriefMapper: Sendable {
             while i < chars.count, chars[i].isNumber, hourText.count < 2 { hourText.append(chars[i]); i += 1 }
             guard let hour = Int(hourText), (0...23).contains(hour) else { continue }
 
-            // "8:30" and "8.30" are the same time. A dot counts only when a digit
-            // follows it, which is what separates a minute separator from a sentence
-            // ending in an hour ("we're free from 8. Anywhere is fine").
-            //
-            // Without this, "12.00" split into *two* tokens — hour 12, then hour 00 —
-            // and the second inherited the phrase's trailing meridiem to become a
-            // second 12:00 pm. In a range that made the finish equal the start.
-            // Durations are cut out of the phrase before this runs, so "1.5 hours"
-            // never reaches here and cannot be misread as 1:05.
+            // "8:30" and "8.30" are the same time. A dot counts only when a digit follows it, which is what separates a minute separator from a sentence ending in an hour ("we're free from 8. Anywhere is fine"). Without this, "12.00" split into *two* tokens — hour 12, then hour 00 — and the second inherited the phrase's trailing meridiem to become a second 12:00 pm. In a range that made the finish equal the start. Durations are cut out of the phrase before this runs, so "1.5 hours" never reaches here and cannot be misread as 1:05.
             var minute = 0
             let separatesMinutes = i < chars.count
                 && (chars[i] == ":" || (chars[i] == "." && i + 1 < chars.count && chars[i + 1].isNumber))

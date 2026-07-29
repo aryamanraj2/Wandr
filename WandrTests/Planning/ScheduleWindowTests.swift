@@ -1,11 +1,4 @@
-//
-//  ScheduleWindowTests.swift
-//  WandrTests
-//
-//  Two seams the time window touches downstream: the schedule drafter clamping a
-//  block into the group's hour, and the grounded→UI mapping that carries the
-//  model's rationale and the validator's caveats onto the card.
-//
+// ScheduleWindowTests.swift WandrTests Two seams the time window touches downstream: the schedule drafter clamping a block into the group's hour, and the grounded→UI mapping that carries the model's rationale and the validator's caveats onto the card.
 
 import Foundation
 import Testing

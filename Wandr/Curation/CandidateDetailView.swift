@@ -1,16 +1,4 @@
-//
-//  CandidateDetailView.swift
-//  Wandr
-//
-//  The expanded card. A long press on a card in the deck grows it into this —
-//  same gradient, same caption, same shape, just larger and with the copy the
-//  deck deliberately withholds.
-//
-//  The deck is a snap judgement: name, look, price, one line. Everything here
-//  is the second look. The hero is literally `CandidateCardFace`, the same view
-//  the card was drawing a frame earlier, so the zoom reads as one object
-//  growing rather than one view dissolving into another.
-//
+// CandidateDetailView.swift Wandr The expanded card. A long press on a card in the deck grows it into this — same gradient, same caption, same shape, just larger and with the copy the deck deliberately withholds. The deck is a snap judgement: name, look, price, one line. Everything here is the second look. The hero is literally `CandidateCardFace`, the same view the card was drawing a frame earlier, so the zoom reads as one object growing rather than one view dissolving into another.
 
 import SwiftUI
 
@@ -38,9 +26,7 @@ struct CandidateDetailView: View {
 
     // MARK: Hero
 
-    /// Sized to the same share of the screen the deck card occupied, so the
-    /// growth is a scale rather than a reshape — the caption lands where the
-    /// eye left it instead of jumping up the page.
+    /// Sized to the same share of the screen the deck card occupied, so the growth is a scale rather than a reshape — the caption lands where the eye left it instead of jumping up the page.
     private var hero: some View {
         CandidateCardFace(candidate: candidate, isHero: true)
             .containerRelativeFrame(.vertical) { height, _ in
@@ -69,9 +55,7 @@ struct CandidateDetailView: View {
                 insiderTip(tip)
             }
 
-            // Model prose, clearly attributed. On the card this is a two-line
-            // aside; here it gets room and a label, because at this size an
-            // unattributed italic line would start to read as a fact.
+            // Model prose, clearly attributed. On the card this is a two-line aside; here it gets room and a label, because at this size an unattributed italic line would start to read as a fact.
             if let rationale = candidate.rationale {
                 section("Why Wandr picked this") {
                     Text(rationale)
@@ -110,8 +94,7 @@ struct CandidateDetailView: View {
                     Circle()
                         .fill(accent)
                         .frame(width: 5, height: 5)
-                        // Baseline-aligned text puts a bare circle slightly high;
-                        // this drops it onto the x-height where it reads as a bullet.
+                        // Baseline-aligned text puts a bare circle slightly high; this drops it onto the x-height where it reads as a bullet.
                         .offset(y: -1)
 
                     Text(line)
@@ -124,8 +107,7 @@ struct CandidateDetailView: View {
         }
     }
 
-    /// The one block that earns a surface of its own — it is the piece of the
-    /// expanded card a reader would actually screenshot.
+    /// The one block that earns a surface of its own — it is the piece of the expanded card a reader would actually screenshot.
     private func insiderTip(_ tip: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "lightbulb.max")
@@ -232,8 +214,7 @@ struct CandidateDetailView: View {
         .accessibilityLabel("Close")
     }
 
-    /// The same two outcomes the swipe offers, named — opening a card should
-    /// never be a dead end you can only back out of.
+    /// The same two outcomes the swipe offers, named — opening a card should never be a dead end you can only back out of.
     private var actionBar: some View {
         GlassEffectContainer(spacing: 12) {
             HStack(spacing: 12) {

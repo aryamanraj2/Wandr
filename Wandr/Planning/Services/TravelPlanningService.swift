@@ -1,29 +1,10 @@
-//
-//  TravelPlanningService.swift
-//  Wandr
-//
-//  The single owner of a planning run.
-//
-//  Nothing else in the app mutates a `PlanningRun`. Every phase change here goes
-//  through `PlanningRun.transition(to:)`, which means an illegal phase change is a
-//  thrown `IllegalPlanningTransition` rather than a possibility this file has to
-//  remember to prevent. That throw is treated as a programmer error — it means the
-//  coordinator is wired wrong, not that the host did anything invalid.
-//
-//  Foundation only. This file must never learn whether a brief came from a live
-//  Foundation Models session or from `FakeBriefExtractor`.
-//
-//  Privacy: `PlanningInput.text` reaches exactly one dependency — the extractor —
-//  and is never recorded. Every event title and detail in this file is a fixed
-//  string authored here, with no interpolation of input or of any service's output.
-//
+// TravelPlanningService.swift Wandr The single owner of a planning run. Nothing else in the app mutates a `PlanningRun`. Every phase change here goes through `PlanningRun.transition(to:)`, which means an illegal phase change is a thrown `IllegalPlanningTransition` rather than a possibility this file has to remember to prevent. That throw is treated as a programmer error — it means the coordinator is wired wrong, not that the host did anything invalid. Foundation only. This file must never learn whether a brief came from a live Foundation Models session or from `FakeBriefExtractor`. Privacy: `PlanningInput.text` reaches exactly one dependency — the extractor — and is never recorded. Every event title and detail in this file is a fixed string authored here, with no interpolation of input or of any service's output.
 
 import Foundation
 
 // MARK: - Storage stub
 
-/// The no-op store this slice specifies. SwiftData is much later, and nothing in
-/// the planning core may depend on it existing.
+/// The no-op store this slice specifies. SwiftData is much later, and nothing in the planning core may depend on it existing.
 nonisolated struct NoOpPlanningRunStore: PlanningRunStoring, Sendable {
     init() {}
     func store(_ plan: WandrPlan) async throws {}
@@ -31,11 +12,7 @@ nonisolated struct NoOpPlanningRunStore: PlanningRunStoring, Sendable {
 
 // MARK: - Coordinator
 
-/// Drives one `PlanningRun` through the state table by calling six injected
-/// services in a fixed order.
-///
-/// An `actor` because cancellation races the run even when every dependency in
-/// this step is synchronous or fake.
+/// Drives one `PlanningRun` through the state table by calling six injected services in a fixed order. An `actor` because cancellation races the run even when every dependency in this step is synchronous or fake.
 actor TravelPlanningService {
 
     // MARK: Dependencies
@@ -48,9 +25,7 @@ actor TravelPlanningService {
     private let scheduler: any ScheduleDrafting
     private let store: any PlanningRunStoring
 
-    /// Decides what the model is allowed to see, and what had to be given up to
-    /// leave it anything. Deterministic, so it is a concrete type rather than a
-    /// seam — there is nothing here a test would want to fake.
+    /// Decides what the model is allowed to see, and what had to be given up to leave it anything. Deterministic, so it is a concrete type rather than a seam — there is nothing here a test would want to fake.
     private let resolver = EvidenceResolver()
 
     /// Injected so tests get a fixed clock.
@@ -60,8 +35,7 @@ actor TravelPlanningService {
 
     /// Runs the host has asked to stop. Checked between phases, never mid-phase.
     private var cancellationRequests: Set<PlanningRunID> = []
-    /// Schedules produced by finished runs. `PlanningRun` has no schedule field —
-    /// it is Step 1's and closed — so the draft is held here and fetched by ID.
+    /// Schedules produced by finished runs. `PlanningRun` has no schedule field — it is Step 1's and closed — so the draft is held here and fetched by ID.
     private var schedules: [PlanningRunID: ScheduleDraft] = [:]
 
     init(
@@ -86,20 +60,7 @@ actor TravelPlanningService {
 
     // MARK: - Entry point
 
-    /// Runs one plan from start to finish.
-    ///
-    /// - Parameters:
-    ///   - input: the volatile request. Its text reaches the extractor and nothing else.
-    ///   - runID: supplied by the caller so cancellation can be requested for a run
-    ///     that has not returned yet.
-    /// - Returns: the finished run, in `.ready`, `.failed`, or `.cancelled`.
-    ///   (`.needsDetails` is also possible in principle, but no live configuration
-    ///   produces it — see `BriefNormalizer`.)
-    /// - Throws: `PlanningFailure(.inputEmpty)`, and *only* that. It is raised by
-    ///   `PlanningInput.validated()` before a run ever leaves `.idle`, which is why
-    ///   it cannot be reported as a `.failed` run: the state table has no
-    ///   `idle → failed` edge. Every failure a dependency throws after that point is
-    ///   caught here and attached to the returned run instead of propagating.
+    /// Runs one plan from start to finish. Parameters: input: the volatile request. Its text reaches the extractor and nothing else. runID: supplied by the caller so cancellation can be requested for a run that has not returned yet. Returns: the finished run, in `.ready`, `.failed`, or `.cancelled`. (`.needsDetails` is also possible in principle, but no live configuration produces it — see `BriefNormalizer`.) Throws: `PlanningFailure(.inputEmpty)`, and *only* that. It is raised by `PlanningInput.validated()` before a run ever leaves `.idle`, which is why it cannot be reported as a `.failed` run: the state table has no `idle → failed` edge. Every failure a dependency throws after that point is caught here and attached to the returned run instead of propagating.
     @discardableResult
     func plan(
         _ input: PlanningInput,
@@ -118,18 +79,14 @@ actor TravelPlanningService {
             attemptFail(&run, failure)
             return run
         } catch {
-            // No dependency in this slice throws anything else. If one ever does,
-            // it is a wiring bug, not a host-actionable failure.
+            // No dependency in this slice throws anything else. If one ever does, it is a wiring bug, not a host-actionable failure.
             assertionFailure("Non-PlanningFailure escaped a dependency: \(error)")
             attemptFail(&run, PlanningFailure(.structuredOutputDecodingFailed))
             return run
         }
     }
 
-    /// Requests cancellation of a run that may not have returned yet.
-    ///
-    /// Honored between phases. Nothing is interrupted mid-phase — none of this
-    /// step's dependencies is long-running enough to need preemption.
+    /// Requests cancellation of a run that may not have returned yet. Honored between phases. Nothing is interrupted mid-phase — none of this step's dependencies is long-running enough to need preemption.
     func requestCancellation(of runID: PlanningRunID) {
         cancellationRequests.insert(runID)
     }
@@ -185,27 +142,17 @@ actor TravelPlanningService {
             }
 
             // MARK: Resolution
-            //
-            // Deterministic, and the reason a tight budget or a small neighbourhood
-            // no longer ends the run: constraints are given up one at a time, least
-            // important first, until the plan is possible — and every one given up
-            // is disclosed rather than quietly applied.
+            // Deterministic, and the reason a tight budget or a small neighbourhood no longer ends the run: constraints are given up one at a time, least important first, until the plan is possible — and every one given up is disclosed rather than quietly applied.
             let resolution = resolver.resolve(brief: brief, evidence: research.venues)
 
             guard !resolution.eligible.isEmpty else {
-                // The ladder is exhausted and there is still nothing. This is now the
-                // *only* thing "not enough places" can mean, which is what finally
-                // makes the message true.
+                // The ladder is exhausted and there is still nothing. This is now the *only* thing "not enough places" can mean, which is what finally makes the message true.
                 throw PlanningFailure.insufficientEvidence(
                     shortfalls(brief: brief, evidence: research.venues)
                 )
             }
 
-            // Two kinds of compromise, and they come from different places. The
-            // resolver gives up constraints that decide which *venues* are eligible;
-            // the schedule gives up stops that will not fit the *hours*. Only the
-            // first was ever disclosed, so "lunch, but we're free 8 to 9" silently
-            // became dinner.
+            // Two kinds of compromise, and they come from different places. The resolver gives up constraints that decide which *venues* are eligible; the schedule gives up stops that will not fit the *hours*. Only the first was ever disclosed, so "lunch, but we're free 8 to 9" silently became dinner.
             var relaxations = resolution.relaxations
             if !brief.schedule.requestHonoured {
                 relaxations.append(.stopsDidNotFit)
@@ -223,11 +170,7 @@ actor TravelPlanningService {
             if let cancelled = honorCancellation(&run) { return cancelled }
 
             // MARK: Curation, then validation of what curation proposed
-            //
-            // Order matters and is not the order of the state names. The validator
-            // takes `slots:`, so curation must already have happened before the
-            // `.validating` phase means anything. Getting this backwards would
-            // validate Step 4's curator against evidence it was never shown.
+            // Order matters and is not the order of the state names. The validator takes `slots:`, so curation must already have happened before the `.validating` phase means anything. Getting this backwards would validate Step 4's curator against evidence it was never shown.
 
             let slots = try await curator.curate(brief: brief, evidence: resolution.eligible)
 
@@ -267,11 +210,7 @@ actor TravelPlanningService {
         }
     }
 
-    /// What the host is told when even a fully relaxed search found nothing.
-    ///
-    /// Counted per category the host actually asked for, so "we only found 1 food
-    /// option" names the thing they wanted rather than whichever category happened
-    /// to be thinnest.
+    /// What the host is told when even a fully relaxed search found nothing. Counted per category the host actually asked for, so "we only found 1 food option" names the thing they wanted rather than whichever category happened to be thinnest.
     private func shortfalls(
         brief: OutingBrief,
         evidence: [GroundedVenue]
@@ -292,10 +231,7 @@ actor TravelPlanningService {
 
     // MARK: - Cancellation
 
-    /// Cancels the run if the host asked, returning the cancelled run.
-    ///
-    /// `PlanningRun.cancel()` already guarantees the brief and plan are discarded;
-    /// this method's only job is to call it promptly and at a phase boundary.
+    /// Cancels the run if the host asked, returning the cancelled run. `PlanningRun.cancel()` already guarantees the brief and plan are discarded; this method's only job is to call it promptly and at a phase boundary.
     private func honorCancellation(_ run: inout PlanningRun) -> PlanningRun? {
         guard cancellationRequests.contains(run.id) || run.isCancellationRequested else {
             return nil
@@ -305,8 +241,7 @@ actor TravelPlanningService {
         do {
             try run.cancel()
         } catch {
-            // `.cancelled` is reachable from every active phase, so this is a
-            // wiring bug if it ever fires.
+            // `.cancelled` is reachable from every active phase, so this is a wiring bug if it ever fires.
             preconditionFailure("Could not cancel from \(run.state): \(error)")
         }
         run.record("Planning stopped", at: now())
@@ -315,10 +250,7 @@ actor TravelPlanningService {
     }
 
     // MARK: - Transitions
-    //
-    // `IllegalPlanningTransition` is a programmer error: it means this file walks
-    // the state table wrongly. It is deliberately not converted into a
-    // `PlanningFailure`, because there is nothing the host could do about it.
+    // `IllegalPlanningTransition` is a programmer error: it means this file walks the state table wrongly. It is deliberately not converted into a `PlanningFailure`, because there is nothing the host could do about it.
 
     private func advance(_ run: inout PlanningRun, to state: PlanningState) {
         do {
@@ -336,11 +268,7 @@ actor TravelPlanningService {
         }
     }
 
-    /// Moves the run to `.failed`.
-    ///
-    /// A run that has already reached a terminal state cannot fail again — the
-    /// table has no such edge — so a late failure on a cancelled run is dropped
-    /// rather than crashing.
+    /// Moves the run to `.failed`. A run that has already reached a terminal state cannot fail again — the table has no such edge — so a late failure on a cancelled run is dropped rather than crashing.
     private func attemptFail(_ run: inout PlanningRun, _ failure: PlanningFailure) {
         guard run.state.canTransition(to: .failed) else { return }
         do {

@@ -1,12 +1,4 @@
-//
-//  IntakeState.swift
-//  Wandr
-//
-//  The trimmed, intake-only slice of the Docs `PlanningRun` state machine
-//  (`Docs/AI-Orchestration-Flow.md`). This covers only the doorway: onboarding →
-//  awaiting a Siri/Shortcut summary → host review → confirm/recover. The full
-//  12-state coordinator (researching, validating, curating, …) is a later milestone.
-//
+// IntakeState.swift Wandr The trimmed, intake-only slice of the Docs `PlanningRun` state machine (`Docs/AI-Orchestration-Flow.md`). This covers only the doorway: onboarding → awaiting a Siri/Shortcut summary → host review → confirm/recover. The full 12-state coordinator (researching, validating, curating, …) is a later milestone.
 
 import Foundation
 
@@ -27,24 +19,17 @@ enum RecoveryReason: Sendable, Equatable {
     }
 }
 
-/// The single source of truth for the intake surface. `IntakeInbox` owns and mutates it;
-/// SwiftUI renders it.
+/// The single source of truth for the intake surface. `IntakeInbox` owns and mutates it; SwiftUI renders it.
 enum IntakeState: Sendable, Equatable {
     /// First launch, before the host has set up the chat-import Shortcut.
     case onboarding
     /// Resting state: waiting for a summary to arrive through the intent.
     case awaitingSummary
-    /// The host is describing the outing themselves — speaking or typing — because
-    /// there is no group chat to summarise. Volatile: nothing is held but the text
-    /// in `PlanDictation`, and leaving discards it.
+    /// The host is describing the outing themselves — speaking or typing — because there is no group chat to summarise. Volatile: nothing is held but the text in `PlanDictation`, and leaving discards it.
     case capturing
-    /// The on-device model is turning what the host said into a structured summary.
-    /// Transient and never persisted; `rawText` is held only so the host still
-    /// reaches Host Review with their own words if extraction comes back empty.
+    /// The on-device model is turning what the host said into a structured summary. Transient and never persisted; `rawText` is held only so the host still reaches Host Review with their own words if extraction comes back empty.
     case extracting(rawText: String)
-    /// A summary arrived. Shown to the host for review before anything else happens.
-    /// `payload` is present when the text decoded into the structured schema; `rawText`
-    /// is always the exact volatile content, held only for this screen.
+    /// A summary arrived. Shown to the host for review before anything else happens. `payload` is present when the text decoded into the structured schema; `rawText` is always the exact volatile content, held only for this screen.
     case hostReview(payload: ChatSummaryPayload?, rawText: String)
     /// Nothing usable arrived. Host is invited to try the handoff again.
     case recovery(RecoveryReason)

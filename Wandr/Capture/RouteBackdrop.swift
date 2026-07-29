@@ -1,18 +1,4 @@
-//
-//  RouteBackdrop.swift
-//  Wandr
-//
-//  The one piece of expressive motion in the app: dashed routes tracing
-//  themselves across the page as it opens.
-//
-//  It earns the exception because launch is rare, it orients rather than
-//  decorates (this is a planning app; the routes say "journeys" before a word
-//  is read), and it never blocks input — the mic is tappable on frame one.
-//
-//  The dashes are deliberately the same stroke as `WandrDashedRule`, which
-//  already separates decks in curation. Same vocabulary, larger gesture, so it
-//  reads as the app's own language rather than an intro sequence bolted on.
-//
+// RouteBackdrop.swift Wandr The one piece of expressive motion in the app: dashed routes tracing themselves across the page as it opens. It earns the exception because launch is rare, it orients rather than decorates (this is a planning app; the routes say "journeys" before a word is read), and it never blocks input — the mic is tappable on frame one. The dashes are deliberately the same stroke as `WandrDashedRule`, which already separates decks in curation. Same vocabulary, larger gesture, so it reads as the app's own language rather than an intro sequence bolted on.
 
 import SwiftUI
 
@@ -20,8 +6,7 @@ struct RouteBackdrop: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// Drives every trim. One value, so the whole field is a single animation
-    /// with per-route delays rather than a dozen to keep in sync.
+    /// Drives every trim. One value, so the whole field is a single animation with per-route delays rather than a dozen to keep in sync.
     @State private var drawn = false
 
     var body: some View {
@@ -38,8 +23,7 @@ struct RouteBackdrop: View {
                             dash: [5, 9]
                         )
                     )
-                    // Ease-out: each route leaves fast and settles, the way a
-                    // line being drawn does. Linear would read mechanical.
+                    // Ease-out: each route leaves fast and settles, the way a line being drawn does. Linear would read mechanical.
                     .animation(
                         reduceMotion
                             ? .easeOut(duration: 0.3)
@@ -48,8 +32,7 @@ struct RouteBackdrop: View {
                     )
             }
         }
-        // Texture, never a participant. It sits under everything and takes no
-        // touches, so the mic stays hittable through it.
+        // Texture, never a participant. It sits under everything and takes no touches, so the mic stays hittable through it.
         .allowsHitTesting(false)
         .accessibilityHidden(true)
         .onAppear { drawn = true }
@@ -57,9 +40,7 @@ struct RouteBackdrop: View {
 
     // MARK: Geometry
 
-    /// A route of straight runs joined by rounded elbows — a road on a map,
-    /// not a flowing arc. The corner is what carries the character here, so
-    /// the turns stay tight rather than being smoothed into a curve.
+    /// A route of straight runs joined by rounded elbows — a road on a map, not a flowing arc. The corner is what carries the character here, so the turns stay tight rather than being smoothed into a curve.
     private struct Route: Shape {
         var points: [CGPoint]
         var corner: CGFloat = 18
@@ -86,8 +67,7 @@ struct RouteBackdrop: View {
                 let incoming = vector(from: vertex, to: previous)
                 let outgoing = vector(from: vertex, to: next)
 
-                // Never eat more than half of either leg, or short segments
-                // would collapse into each other.
+                // Never eat more than half of either leg, or short segments would collapse into each other.
                 let radius = min(
                     corner,
                     length(from: vertex, to: previous) / 2,
@@ -127,10 +107,7 @@ struct RouteBackdrop: View {
         let weight: Double
     }
 
-    /// Traced off the sketch: routes run down the margins rather than across
-    /// the page, in fragments of varying length — including a few two-dash
-    /// stubs, which are what stop the field from looking like a diagram.
-    /// The orb's band stays empty by construction.
+    /// Traced off the sketch: routes run down the margins rather than across the page, in fragments of varying length — including a few two-dash stubs, which are what stop the field from looking like a diagram. The orb's band stays empty by construction.
     private static let routes: [Line] = [
         // Left descent, top third
         Line(points: [CGPoint(x: 0.06, y: 0.13), CGPoint(x: 0.11, y: 0.13),

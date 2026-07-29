@@ -1,10 +1,4 @@
-//
-//  WandrTheme.swift
-//  Wandr
-//
-//  The palette, type ramp, and motion vocabulary for the whole app.
-//  Content layer carries the brand; the UI layer stays native.
-//
+// WandrTheme.swift Wandr The palette, type ramp, and motion vocabulary for the whole app; content layer carries the brand, UI layer stays native.
 
 import SwiftUI
 
@@ -46,8 +40,7 @@ enum Wandr {
 
 extension Font {
 
-    /// Display masthead. SF Pro throughout — hierarchy comes from weight,
-    /// tracking, and placement rather than a second typeface.
+    /// Display masthead. SF Pro throughout — hierarchy comes from weight, tracking, and placement, not a second typeface.
     static func wandrDisplay(_ size: CGFloat = 44) -> Font {
         .system(size: size, weight: .bold)
     }
@@ -70,8 +63,7 @@ extension Font {
 
 extension Animation {
 
-    /// Default for user-driven, retargetable movement. Critically damped —
-    /// no decorative overshoot on something a finger is holding.
+    /// Default for user-driven, retargetable movement. Critically damped — no decorative overshoot on something a finger is holding.
     static let wandrInteractive = Animation.interactiveSpring(response: 0.32, dampingFraction: 1.0)
 
     /// Settling after a release that carried real momentum. Slight bounce is earned here.
@@ -80,20 +72,16 @@ extension Animation {
     /// Short state response: press, lift, chip selection.
     static let wandrResponse = Animation.easeOut(duration: 0.18)
 
-    /// The grab. Loose enough to overshoot slightly, so a block being picked up
-    /// reads as squeezed in the hand rather than merely resized.
+    /// The grab. Loose enough to overshoot slightly, so a block being picked up reads as squeezed in the hand rather than merely resized.
     static let wandrLift = Animation.spring(response: 0.26, dampingFraction: 0.58)
 
     /// Occasional structural transitions: deck advance, sheet content swap.
     static let wandrTransition = Animation.spring(response: 0.45, dampingFraction: 0.9)
 
-    /// Whole-screen handoff, outgoing half. Leaves briskly and on its own —
-    /// a screen that lingers while the next one arrives reads as two screens.
+    /// Whole-screen handoff, outgoing half. Leaves briskly and on its own — a screen that lingers while the next arrives reads as two screens.
     static let wandrStageOut = Animation.easeOut(duration: 0.24)
 
-    /// Whole-screen handoff, incoming half. Held back just past the outgoing
-    /// screen's midpoint so the two never share the frame at full strength;
-    /// without the offset the chrome of both is briefly legible at once.
+    /// Whole-screen handoff, incoming half. Held back just past the outgoing screen's midpoint so the two never share the frame at full strength.
     static let wandrStageIn = Animation.easeInOut(duration: 0.32).delay(0.14)
 }
 
@@ -104,22 +92,19 @@ enum Metrics {
     static let blockCorner: CGFloat = 18
     static let gutter: CGFloat = 20
 
-    /// Timeline scale. One minute of plan time = this many points.
-    /// 1.15 keeps a 12-hour day readable without runaway scroll length.
+    /// Timeline scale: one minute of plan time = this many points. 1.15 keeps a 12-hour day readable without runaway scroll length.
     static let pointsPerMinute: CGFloat = 1.15
 
     /// Reschedule snaps to this grain.
     static let snapMinutes: Int = 15
 
-    /// How far a page scrolls before its display header hands off to the
-    /// short title in the navigation bar.
+    /// How far a page scrolls before its display header hands off to the short title in the navigation bar.
     static let headerCollapse: CGFloat = 44
 }
 
 // MARK: - Reusable surfaces
 
-/// A raised content card. Uses `ConcentricRectangle` so corners resolve against
-/// whatever container it lands in (sheet, glass container, plain page).
+/// A raised content card. Uses `ConcentricRectangle` so corners resolve against whatever container it lands in (sheet, glass container, plain page).
 struct WandrCardBackground: View {
     var fill: Color = Wandr.cardSurface
     var corner: CGFloat = Metrics.cardCorner
@@ -130,9 +115,7 @@ struct WandrCardBackground: View {
     }
 }
 
-/// Separates one deck from the next. Weight does the work — a heavy stroke in
-/// a low-contrast sand keeps it present without competing with the cards, which
-/// a thin hairline at higher contrast would not manage.
+/// Separates one deck from the next. Weight does the work — a heavy stroke in low-contrast sand stays present without competing with the cards.
 struct WandrDashedRule: View {
     var body: some View {
         Rule()

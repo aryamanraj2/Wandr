@@ -1,10 +1,4 @@
-//
-//  BriefNormalizerTests.swift
-//  WandrTests
-//
-//  The first place Step 1's fixture briefs are exercised as *expected outputs* of
-//  a real function rather than as hand-authored constants.
-//
+// BriefNormalizerTests.swift WandrTests The first place Step 1's fixture briefs are exercised as *expected outputs* of a real function rather than as hand-authored constants.
 
 import Foundation
 import Testing
@@ -16,16 +10,7 @@ struct BriefNormalizerTests {
     private let normalizer = BriefNormalizer()
 
     // MARK: - Comparison
-    //
-    // `OutingBriefDraft` carries no per-field provenance — it has `occasion: String?`
-    // and nothing that says whether the host stated the occasion or the extractor
-    // inferred it. So the normalizer cannot reproduce `afterWorkBrief`'s
-    // `.modelSuggestion` occasion marker: it marks every stated value `.host`.
-    //
-    // This helper therefore asserts the occasion *value* but not its `ValueSource`.
-    // Every other field, source markers included, must match exactly. Closing this
-    // gap is Step 3's job — a real extractor can genuinely distinguish stated from
-    // inferred, and the draft type will need a provenance field when it does.
+    // `OutingBriefDraft` carries no per-field provenance — it has `occasion: String?` and nothing that says whether the host stated the occasion or the extractor inferred it. So the normalizer cannot reproduce `afterWorkBrief`'s `.modelSuggestion` occasion marker: it marks every stated value `.host`. This helper therefore asserts the occasion *value* but not its `ValueSource`. Every other field, source markers included, must match exactly. Closing this gap is Step 3's job — a real extractor can genuinely distinguish stated from inferred, and the draft type will need a provenance field when it does.
 
     private func expectMatches(
         _ actual: OutingBrief,
@@ -117,9 +102,7 @@ struct BriefNormalizerTests {
     }
 
     // MARK: - Clamping
-    //
-    // §13.2's order-of-operations rule: a stated value is clamped *and* stays
-    // `.host`. Clamping must never demote a stated value to a guess.
+    // §13.2's order-of-operations rule: a stated value is clamped *and* stays `.host`. Clamping must never demote a stated value to a guess.
 
     @Test("An absurd group size is clamped but stays host-stated")
     func groupSizeIsClampedNotDefaulted() throws {
@@ -150,9 +133,7 @@ struct BriefNormalizerTests {
         #expect(!brief.safeDefaults.contains(.budget))
     }
 
-    /// The basis survives normalization untouched. Reading an unqualified number as
-    /// per head is the invention this axis exists to prevent, and the normalizer is
-    /// the last place it could quietly creep back in.
+    /// The basis survives normalization untouched. Reading an unqualified number as per head is the invention this axis exists to prevent, and the normalizer is the last place it could quietly creep back in.
     @Test("The stated basis is carried through, never reinterpreted")
     func budgetBasisSurvives() throws {
         let total = try normalized(OutingBriefDraft(groupSize: 2, budget: .total(rupees: 2_000)))
@@ -192,11 +173,7 @@ struct BriefNormalizerTests {
     }
 
     // MARK: - The needsDetails branch
-    //
-    // Reachable and tested, but no live path produces it: the demo normalizer is
-    // built with an empty `constraintsRequiringHost`, and every `MissingConstraint`
-    // has a safe default in `OutingBrief`. There is no UI screen for this state —
-    // that is Step 5's work (§16).
+    // Reachable and tested, but no live path produces it: the demo normalizer is built with an empty `constraintsRequiringHost`, and every `MissingConstraint` has a safe default in `OutingBrief`. There is no UI screen for this state — that is Step 5's work (§16).
 
     @Test("A constraint the normalizer refuses to default produces needsDetails")
     func needsDetailsIsReachable() throws {

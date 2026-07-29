@@ -1,24 +1,17 @@
-//
-//  ItinerarySummaryView.swift
-//  Wandr
-//
-//  The last surface: the plan, finished.
-//
-//  Everything before this is a working screen — decks are swiped, blocks are
-//  dragged. This one is a document. Nothing here moves under a finger, so the
-//  layout can afford the things a manipulable timeline cannot: a real masthead,
-//  a spine that connects the night into one line, and the gaps between stops
-//  named out loud rather than left as empty space.
-//
-//  Positions are stated, not measured. The schedule renders against a clock
-//  because you edit it there; here each stop is simply the next one, so the
-//  spine spaces them evenly and the times are read as labels.
-//
+// ItinerarySummaryView.swift Wandr The last surface: the plan, finished. Everything before this is a working screen — decks are swiped, blocks are dragged. This one is a document. Nothing here moves under a finger, so the layout can afford the things a manipulable timeline cannot: a real masthead, a spine that connects the night into one line, and the gaps between stops named out loud rather than left as empty space. Positions are stated, not measured. The schedule renders against a clock because you edit it there; here each stop is simply the next one, so the spine spaces them evenly and the times are read as labels.
 
 import SwiftUI
 
 struct ItinerarySummaryView: View {
     let blocks: [ScheduleBlock]
+
+    // The document's one column grid. Every row on the page — each stop and the closing cap — is built from these three, so the clock gutter, the spine, and the cards can never drift out of line with each other the way they do when a row hand-rolls its own spacing.
+
+    /// Wide enough for the longest clock the day can produce ("12:30"), which a tighter gutter silently squeezes.
+    private static let clockGutter: CGFloat = 58
+    /// The spine's axis. Nodes are centred on it regardless of their own diameter.
+    private static let spineWidth: CGFloat = 9
+    private static let rowSpacing: CGFloat = 12
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -26,12 +19,10 @@ struct ItinerarySummaryView: View {
     /// Flipped once on appear to run the staggered reveal down the spine.
     @State private var revealed = false
 
-    /// True once the masthead has cleared the navigation bar and the short
-    /// title takes over up there.
+    /// True once the masthead has cleared the navigation bar and the short title takes over up there.
     @State private var headerCollapsed = false
 
-    /// Every stop in order. A summary has no day picker — a multi-day plan
-    /// reads top to bottom, sectioned, rather than one day at a time.
+    /// Every stop in order. A summary has no day picker — a multi-day plan reads top to bottom, sectioned, rather than one day at a time.
     private var stops: [ScheduleBlock] {
         blocks.sorted { $0.startMinute < $1.startMinute }
     }
@@ -58,8 +49,7 @@ struct ItinerarySummaryView: View {
                 .padding(.bottom, 32)
             }
             .background(Wandr.pageBackground)
-            // Threshold rather than raw offset: state changes on the two frames
-            // where the masthead crosses the bar, not on every scroll tick.
+            // Threshold rather than raw offset: state changes on the two frames where the masthead crosses the bar, not on every scroll tick.
             .onScrollGeometryChange(for: Bool.self) { geometry in
                 geometry.contentOffset.y + geometry.contentInsets.top > Metrics.headerCollapse
             } action: { _, collapsed in
@@ -91,8 +81,7 @@ struct ItinerarySummaryView: View {
 
     // MARK: Masthead
 
-    /// Fades out as the bar title fades in, so the two read as one title moving
-    /// up rather than two titles briefly sharing the screen.
+    /// Fades out as the bar title fades in, so the two read as one title moving up rather than two titles briefly sharing the screen.
     private var masthead: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(dateLine)
@@ -124,15 +113,22 @@ struct ItinerarySummaryView: View {
 
     // MARK: Ledger
 
-    /// Three figures, set as a row of columns divided by hairlines. This is the
-    /// whole plan in one glance — everything below it is the detail.
+    /// Three figures, set as a row of columns divided by hairlines. This is the whole plan in one glance — everything below it is the detail.
+    ///
+    /// The columns take their natural widths and the *gaps* are what get distributed evenly, rather than the other way round. Splitting the card into equal thirds looks orderly in the abstract but these three figures are nothing like equal in length: a stop count is one glyph and a window is a pair of clock times, so equal thirds truncate the window to make room for whitespace beside the count, and push the longest figure hard against a hairline. Even gaps read as balanced and, more importantly, hold for any values the night produces.
     private var ledger: some View {
         HStack(alignment: .center, spacing: 0) {
+            Spacer(minLength: 10)
             ledgerColumn(value: "\(stops.count)", label: stops.count == 1 ? "Stop" : "Stops")
+            Spacer(minLength: 10)
             ledgerDivider
+            Spacer(minLength: 10)
             ledgerColumn(value: spanValue, label: "Window")
+            Spacer(minLength: 10)
             ledgerDivider
+            Spacer(minLength: 10)
             ledgerColumn(value: bookedValue, label: "Booked")
+            Spacer(minLength: 10)
         }
         .padding(.vertical, 18)
         .background { WandrCardBackground() }
@@ -144,33 +140,42 @@ struct ItinerarySummaryView: View {
     private func ledgerColumn(value: String, label: String) -> some View {
         VStack(spacing: 5) {
             Text(value)
-                .font(.wandrTitle(21))
+                .font(.wandrTitle(20))
                 .monospacedDigit()
                 .foregroundStyle(Wandr.primaryText)
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .minimumScaleFactor(0.75)
 
             Text(label)
                 .wandrLabelStyle()
+                .lineLimit(1)
         }
-        .frame(maxWidth: .infinity)
+        // Ahead of the spacers, so a column states the width it needs before any of them take their share.
+        .layoutPriority(1)
     }
 
     private var ledgerDivider: some View {
         Rectangle()
             .fill(Wandr.hairline)
-            .frame(width: 1, height: 30)
+            .frame(width: 1, height: 32)
     }
 
     /// First door to last — the outer bounds of the night.
     private var spanValue: String {
         guard let start = stops.first?.startMinute,
               let end = stops.map(\.endMinute).max() else { return "—" }
-        return "\(compactClock(start))–\(compactClock(end))"
+        return timeRange(start, end)
     }
 
-    /// Time actually spoken for, which is not the same as the span. The
-    /// difference between the two is the slack, and it is worth showing.
+    /// A span set the way it would be written rather than the way it is stored. When both ends fall in the same half of the day the first meridiem is redundant — "9:45pm–11:15pm" says "pm" twice to no one's benefit — but across midnight both are load-bearing, so the rule is conditional, not a blanket trim.
+    private func timeRange(_ start: Int, _ end: Int) -> String {
+        let opening = meridiem(start) == meridiem(end)
+            ? hourMinute(start)
+            : compactClock(start)
+        return "\(opening)–\(compactClock(end))"
+    }
+
+    /// Time actually spoken for, which is not the same as the span. The difference between the two is the slack, and it is worth showing.
     private var bookedValue: String {
         duration(stops.reduce(0) { $0 + $1.durationMinutes })
     }
@@ -186,13 +191,15 @@ struct ItinerarySummaryView: View {
                 }
 
                 let dayStops = stops(on: day)
+                // Where this day's stops fall in the document, not in the day. The stagger is one cascade down the whole page — restarting it per day makes the second morning arrive at the same instant as the first evening.
+                let dayOffset = stops.prefix { $0.dayID != day.id }.count
+
                 ForEach(Array(dayStops.enumerated()), id: \.element.id) { index, stop in
                     stopRow(
                         stop,
                         number: index + 1,
                         next: index + 1 < dayStops.count ? dayStops[index + 1] : nil,
-                        isLast: index == dayStops.count - 1 && dayIndex == days.count - 1,
-                        revealIndex: index
+                        revealIndex: dayOffset + index
                     )
                 }
             }
@@ -210,66 +217,71 @@ struct ItinerarySummaryView: View {
         .padding(.bottom, 18)
     }
 
-    /// One stop: the clock in the gutter, a node on the spine, the card, and —
-    /// when there is dead time before the next stop — the gap named beneath it.
+    /// One stop: the clock in the gutter, a node on the spine, the card, and — when there is dead time before the next stop — the gap named beneath it.
+    ///
+    /// Every row draws its connector, including the last: the spine is terminated by the closing cap rather than by running out of stops. A final segment that simply stops short leaves the checkmark below it reading as a stray mark rather than the end of a line.
     private func stopRow(
         _ stop: ScheduleBlock,
         number: Int,
         next: ScheduleBlock?,
-        isLast: Bool,
         revealIndex: Int
     ) -> some View {
         let gap = next.map { $0.startMinute - stop.endMinute } ?? 0
         let accent = Wandr.accent(for: stop.category)
 
-        return HStack(alignment: .top, spacing: 12) {
+        return HStack(alignment: .top, spacing: Self.rowSpacing) {
             clockGutter(stop)
 
-            spine(accent: accent, drawsConnector: !isLast)
+            spine(accent: accent, drawsConnector: true)
 
             VStack(alignment: .leading, spacing: 0) {
                 stopCard(stop, number: number, accent: accent)
 
                 if let next, gap > 0 {
                     gapNote(minutes: gap, arriving: next)
-                } else if next != nil {
-                    // Back to back — the spine still needs breathing room.
+                } else {
+                    // Back to back, or the last stop running into the closing cap — either way the spine still needs breathing room to travel through.
                     Color.clear.frame(height: 22)
                 }
             }
         }
-        // Each stop arrives just after the one above it, so the eye is walked
-        // down the spine in the order the night happens.
+        // Each stop arrives just after the one above it, so the eye is walked down the spine in the order the night happens. The slight scale is what makes a row *arrive* rather than merely fade up in place.
         .opacity(revealed ? 1 : 0)
         .offset(y: revealed ? 0 : 14)
+        .scaleEffect(revealed ? 1 : 0.98, anchor: .topLeading)
         .animation(
             reduceMotion ? nil : .wandrTransition.delay(Double(revealIndex) * 0.06),
             value: revealed
         )
     }
 
+    /// The clock, hung on the right edge of the gutter so every stop's time aligns into a single column running down the page.
+    ///
+    /// The meridiem deliberately skips `wandrLabelStyle`. That treatment adds letter tracking, which is applied *after* the final glyph as well as between glyphs — so a right-aligned label carries an invisible trailing space and sits a hair left of the clock above it. Everywhere else that is imperceptible; in a two-line stack whose entire job is to line up, it is the misalignment.
     private func clockGutter(_ stop: ScheduleBlock) -> some View {
         VStack(alignment: .trailing, spacing: 1) {
             Text(hourMinute(stop.startMinute))
                 .font(.wandrClock(17))
                 .monospacedDigit()
                 .foregroundStyle(Wandr.primaryText)
+                .frame(maxWidth: .infinity, alignment: .trailing)
 
-            Text(meridiem(stop.startMinute))
-                .wandrLabelStyle()
+            Text(meridiem(stop.startMinute).uppercased())
+                .font(.wandrLabel)
+                .foregroundStyle(Wandr.secondaryText)
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .frame(width: 54, alignment: .trailing)
+        .frame(width: Self.clockGutter, alignment: .trailing)
         // The card carries the spoken time; this is the same fact, set twice.
         .accessibilityHidden(true)
     }
 
-    /// The through-line. A filled node per stop, dashed between them, so the
-    /// night reads as one continuous thing rather than a list of four cards.
+    /// The through-line. A filled node per stop, dashed between them, so the night reads as one continuous thing rather than a list of four cards.
     private func spine(accent: Color, drawsConnector: Bool) -> some View {
         VStack(spacing: 5) {
             Circle()
                 .fill(accent)
-                .frame(width: 9, height: 9)
+                .frame(width: Self.spineWidth, height: Self.spineWidth)
                 .padding(.top, 17)
 
             if drawsConnector {
@@ -280,7 +292,7 @@ struct ItinerarySummaryView: View {
                     .frame(maxHeight: .infinity)
             }
         }
-        .frame(width: 9)
+        .frame(width: Self.spineWidth)
         .accessibilityHidden(true)
     }
 
@@ -304,9 +316,12 @@ struct ItinerarySummaryView: View {
                     .foregroundStyle(Wandr.primaryText)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Text("\(stop.startLabel) – \(stop.endLabel) · \(duration(stop.durationMinutes))")
+                // One line, always. Wrapped onto two it stops reading as a caption under the venue and starts reading as a second fact about it.
+                Text("\(timeRange(stop.startMinute, stop.endMinute)) · \(duration(stop.durationMinutes))")
                     .font(.footnote.monospacedDigit())
                     .foregroundStyle(Wandr.secondaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
 
             Spacer(minLength: 0)
@@ -325,8 +340,7 @@ struct ItinerarySummaryView: View {
         .accessibilityValue("\(stop.startLabel) to \(stop.endLabel)")
     }
 
-    /// Unplanned time, stated. Left as blank space it reads as a layout gap;
-    /// named, it reads as room in the evening.
+    /// Unplanned time, stated. Left as blank space it reads as a layout gap; named, it reads as room in the evening.
     private func gapNote(minutes: Int, arriving: ScheduleBlock) -> some View {
         Text("\(duration(minutes)) free · then \(arriving.title)")
             .font(.caption)
@@ -338,28 +352,28 @@ struct ItinerarySummaryView: View {
 
     // MARK: Closing
 
-    /// A terminal cap on the spine. Without it the last dashed segment stops in
-    /// mid-air and the plan reads as truncated rather than finished.
+    /// A terminal cap on the spine. Without it the last dashed segment stops in mid-air and the plan reads as truncated rather than finished.
+    ///
+    /// Built from the same three measurements as `stopRow`, so its text starts on exactly the same vertical as the stop cards above it. It previously carried its own leading padding on top of a node wider than the axis it sat on, which pushed the line right of the column it was supposed to close.
     private var closing: some View {
-        HStack(spacing: 12) {
-            Color.clear.frame(width: 54)
+        HStack(alignment: .center, spacing: Self.rowSpacing) {
+            Color.clear.frame(width: Self.clockGutter, height: 1)
 
+            // Larger than a spine node — it is a cap, not another stop — but still centred on the axis, and small enough that its overflow stays inside the row's gap.
             Image(systemName: "checkmark")
-                .font(.system(size: 9, weight: .bold))
+                .font(.system(size: 8, weight: .bold))
                 .foregroundStyle(Wandr.cream)
-                .frame(width: 20, height: 20)
+                .frame(width: 16, height: 16)
                 .background { Circle().fill(Wandr.ink) }
-                .frame(width: 9)
+                .frame(width: Self.spineWidth)
 
             Text(stops.map(\.endMinute).max().map { "Night ends \(ScheduleBlock.clock($0))" } ?? "")
                 .font(.footnote.weight(.medium))
                 .foregroundStyle(Wandr.secondaryText)
-                .padding(.leading, 6)
 
             Spacer(minLength: 0)
         }
         .padding(.horizontal, Metrics.gutter)
-        .padding(.top, 20)
         .opacity(revealed ? 1 : 0)
         .animation(
             reduceMotion ? nil : .wandrTransition.delay(Double(stops.count) * 0.06),
@@ -422,8 +436,7 @@ struct ItinerarySummaryView: View {
         ((minute / 60) % 24) < 12 ? "am" : "pm"
     }
 
-    /// Bare clock for the ledger, where two of them sit side by side and the
-    /// full "10:00 pm" twice over is more punctuation than information.
+    /// Bare clock for the ledger, where two of them sit side by side and the full "10:00 pm" twice over is more punctuation than information.
     private func compactClock(_ minute: Int) -> String {
         "\(hourMinute(minute))\(meridiem(minute))"
     }

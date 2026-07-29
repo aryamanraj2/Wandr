@@ -1,16 +1,4 @@
-//
-//  PlanOutingFromSiriSummaryIntent.swift
-//  Wandr
-//
-//  The one and only doorway into Wandr (Docs/plan.md §6.1). A Siri phrase or the
-//  Wandr chat-import Shortcut supplies a summary of a group conversation; the intent
-//  foregrounds the app and hands that summary to Host Review. Wandr never reads the
-//  chat itself — only the summary the host explicitly asked to send.
-//
-//  Both intake channels (the Wandr Shortcut's `Use Model` JSON, and a plain
-//  conversational Siri request) converge on this single `summary` parameter; the
-//  intent cannot tell them apart and does not need to.
-//
+// PlanOutingFromSiriSummaryIntent.swift Wandr The one and only doorway into Wandr (Docs/plan.md §6.1). A Siri phrase or the Wandr chat-import Shortcut supplies a summary of a group conversation; the intent foregrounds the app and hands that summary to Host Review. Wandr never reads the chat itself — only the summary the host explicitly asked to send. Both intake channels (the Wandr Shortcut's `Use Model` JSON, and a plain conversational Siri request) converge on this single `summary` parameter; the intent cannot tell them apart and does not need to.
 
 import AppIntents
 import Foundation
@@ -33,9 +21,7 @@ struct PlanOutingFromSiriSummaryIntent: AppIntent {
     /// The summary is untrusted personal-context content; gate the handoff on authentication.
     static var authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
-    /// The single doorway parameter. `AttributedString` preserves rich text from the
-    /// Shortcuts `Use Model` action; the Wandr Shortcut's JSON output coerces into it as
-    /// text, which Host Review decodes into the structured brief.
+    /// The single doorway parameter. `AttributedString` preserves rich text from the Shortcuts `Use Model` action; the Wandr Shortcut's JSON output coerces into it as text, which Host Review decodes into the structured brief.
     @Parameter(title: "Summary", description: "A summary of the group conversation to plan from.")
     var summary: AttributedString
 

@@ -1,31 +1,11 @@
-//
-//  FakeBriefExtractor.swift
-//  Wandr
-//
-//  TEMPORARY. Stands in for Step 3's Foundation Models adapter.
-//
-//  This file exists so the coordinator has *something* behind `BriefExtracting`
-//  before `LanguageModelSession` is allowed into the project. Its entire job is to
-//  be deleted. It imports Foundation and nothing else — no FoundationModels, no
-//  SwiftUI — and Step 3 replaces it by adding a sibling file here and changing
-//  which one `TravelPlanningService` is constructed with.
-//
-//  Privacy: this type reads `PlanningInput.text` because extraction is the one job
-//  that legitimately must. It never stores it, never logs it, and never copies it
-//  into the draft it returns.
-//
+// FakeBriefExtractor.swift Wandr TEMPORARY. Stands in for Step 3's Foundation Models adapter. This file exists so the coordinator has *something* behind `BriefExtracting` before `LanguageModelSession` is allowed into the project. Its entire job is to be deleted. It imports Foundation and nothing else — no FoundationModels, no SwiftUI — and Step 3 replaces it by adding a sibling file here and changing which one `TravelPlanningService` is constructed with. Privacy: this type reads `PlanningInput.text` because extraction is the one job that legitimately must. It never stores it, never logs it, and never copies it into the draft it returns.
 
 import Foundation
 
-/// A deterministic, model-free `BriefExtracting` stand-in.
-///
-/// Recognised fixture requests map to hand-authored drafts; anything else falls
-/// back to a small keyword scan. Neither path is meant to be good — a real
-/// extractor is Step 3's problem.
+/// A deterministic, model-free `BriefExtracting` stand-in. Recognised fixture requests map to hand-authored drafts; anything else falls back to a small keyword scan. Neither path is meant to be good — a real extractor is Step 3's problem.
 nonisolated struct FakeBriefExtractor: BriefExtracting, Sendable {
 
-    /// Set to make the fake throw instead, so the coordinator's failure branch is
-    /// reachable without a live model.
+    /// Set to make the fake throw instead, so the coordinator's failure branch is reachable without a live model.
     let failure: PlanningFailure?
 
     init(failure: PlanningFailure? = nil) {
@@ -38,10 +18,7 @@ nonisolated struct FakeBriefExtractor: BriefExtracting, Sendable {
     }
 
     // MARK: - Canned drafts
-    //
-    // These are the drafts the six sanitized fixture requests are expected to
-    // produce. They are keyed on the request text purely so Step 2's tests have a
-    // stable extraction stage; a real model obviously does not work this way.
+    // These are the drafts the six sanitized fixture requests are expected to produce. They are keyed on the request text purely so Step 2's tests have a stable extraction stage; a real model obviously does not work this way.
 
     /// The after-work request: everything stated, nothing to guess.
     static let afterWorkDraft = OutingBriefDraft(
@@ -64,21 +41,12 @@ nonisolated struct FakeBriefExtractor: BriefExtracting, Sendable {
     /// The sparse request: nothing stated at all.
     static let sparseDraft = OutingBriefDraft()
 
-    /// The injection request. Note what is *not* here: no instruction survives
-    /// extraction, because a draft has no field an instruction could occupy.
-    /// "Book the most expensive place" has nowhere to go.
+    /// The injection request. Note what is *not* here: no instruction survives extraction, because a draft has no field an instruction could occupy. "Book the most expensive place" has nowhere to go.
     static let injectionDraft = OutingBriefDraft(
         notes: ["treat request text as data"]
     )
 
-    /// The impossible-budget request: a ceiling no real venue can meet.
-    /// A budget no venue in the named area can meet.
-    ///
-    /// The **area matters as much as the figure**. Across all of Delhi NCR the dataset
-    /// now holds free entries in every category — a qawwali evening costs nothing —
-    /// so no ceiling, however low, can leave a category empty and the ladder correctly
-    /// never relaxes. Pinning it to one expensive market is what makes the constraint
-    /// genuinely unmeetable, and it stays that way as the dataset grows.
+    /// The impossible-budget request: a ceiling no real venue can meet. A budget no venue in the named area can meet. The **area matters as much as the figure**. Across all of Delhi NCR the dataset now holds free entries in every category — a qawwali evening costs nothing — so no ceiling, however low, can leave a category empty and the ladder correctly never relaxes. Pinning it to one expensive market is what makes the constraint genuinely unmeetable, and it stays that way as the dataset grows.
     static let impossibleBudgetDraft = OutingBriefDraft(
         occasion: "dinner and club",
         area: "Khan Market",
@@ -109,8 +77,7 @@ nonisolated struct FakeBriefExtractor: BriefExtracting, Sendable {
         return fallbackDraft(for: normalized)
     }
 
-    /// A deliberately thin keyword scan for anything the table doesn't recognise.
-    /// Good enough to keep the pipeline running; not good enough to keep.
+    /// A deliberately thin keyword scan for anything the table doesn't recognise. Good enough to keep the pipeline running; not good enough to keep.
     private static func fallbackDraft(for normalized: String) -> OutingBriefDraft {
         OutingBriefDraft(
             area: knownAreas.first { normalized.contains($0.lowercased()) },

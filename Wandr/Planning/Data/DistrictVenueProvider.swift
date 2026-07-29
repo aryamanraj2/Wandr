@@ -1,31 +1,10 @@
-//
-//  DistrictVenueProvider.swift
-//  Wandr
-//
-//  The only evidence source in this slice: a bundled Delhi NCR dataset.
-//
-//  Foundation only. Reading the bundled resource is the single piece of I/O the
-//  planning core permits, and it is local and synchronous.
-//
-//  Two rules this file exists to enforce:
-//
-//  1. `source` and `retrievedAt` are assigned *here*, at load time. They are never
-//     read from the JSON, so a stale or hand-edited dataset cannot claim a false
-//     retrieval time.
-//  2. A field the JSON never mentions decodes to the domain's "unknown" state, not
-//     to an empty-but-known one. `EvidenceTags.known([])` means "we surveyed this
-//     venue and it has no such tags" — a real, failing state. `.unknown` merely
-//     warns. Collapsing the two would silently downgrade every hard-constraint
-//     violation in the app to a warning.
-//
+// DistrictVenueProvider.swift Wandr The only evidence source in this slice: a bundled Delhi NCR dataset. Foundation only. Reading the bundled resource is the single piece of I/O the planning core permits, and it is local and synchronous. Two rules this file exists to enforce: 1. `source` and `retrievedAt` are assigned *here*, at load time. They are never read from the JSON, so a stale or hand-edited dataset cannot claim a false retrieval time. 2. A field the JSON never mentions decodes to the domain's "unknown" state, not to an empty-but-known one. `EvidenceTags.known([])` means "we surveyed this venue and it has no such tags" — a real, failing state. `.unknown` merely warns. Collapsing the two would silently downgrade every hard-constraint violation in the app to a warning.
 
 import Foundation
 
 // MARK: - Decoding
 
-/// The on-disk shape. Deliberately separate from `GroundedVenue` so the domain
-/// type never gains a `Decodable` conformance that could be pointed at untrusted
-/// data, and so provenance stays un-decodable by construction.
+/// The on-disk shape. Deliberately separate from `GroundedVenue` so the domain type never gains a `Decodable` conformance that could be pointed at untrusted data, and so provenance stays un-decodable by construction.
 nonisolated private struct VenueDatasetFile: Decodable {
     let version: String
     let venues: [VenueRecord]
@@ -53,8 +32,7 @@ nonisolated private struct VenueRecord: Decodable {
     let limitations: [String]?
     let imageSeed: Int?
 
-    /// Builds the domain snapshot, stamping provenance from the caller rather
-    /// than from the file.
+    /// Builds the domain snapshot, stamping provenance from the caller rather than from the file.
     func groundedVenue(source: EvidenceSource, retrievedAt: Date) -> GroundedVenue {
         GroundedVenue(
             venueID: VenueID(id),
@@ -78,15 +56,13 @@ nonisolated private struct VenueRecord: Decodable {
         )
     }
 
-    /// An absent price is `.unknown`, never a guessed number. A list price without
-    /// a per-head price is meaningless on its own and is dropped.
+    /// An absent price is `.unknown`, never a guessed number. A list price without a per-head price is meaningless on its own and is dropped.
     private static func cost(perHead: Int?, listPrice: Int?) -> VenueCost {
         guard let perHead else { return .unknown }
         return .known(perHeadRupees: perHead, listPriceRupees: listPrice)
     }
 
-    /// **Absent → `.unknown`. Present (even empty) → `.known`.** The distinction is
-    /// the whole point of `EvidenceTags`; see this file's header.
+    /// **Absent → `.unknown`. Present (even empty) → `.known`.** The distinction is the whole point of `EvidenceTags`; see this file's header.
     private static func tags<Tag: RawRepresentable & Hashable & Comparable & Sendable>(
         _ raw: [String]?
     ) -> EvidenceTags<Tag> where Tag.RawValue == String {
@@ -108,8 +84,7 @@ extension VenueSetting: Decodable {}
 
 // MARK: - Errors
 
-/// A dataset that cannot be read is a build/packaging fault, not a planning
-/// failure the host can act on — so it is deliberately not a `PlanningFailure`.
+/// A dataset that cannot be read is a build/packaging fault, not a planning failure the host can act on — so it is deliberately not a `PlanningFailure`.
 nonisolated enum VenueDatasetError: Error, CustomStringConvertible {
     case resourceMissing(name: String)
     case undecodable(underlying: String)
@@ -126,21 +101,16 @@ nonisolated enum VenueDatasetError: Error, CustomStringConvertible {
 
 // MARK: - Provider
 
-/// Reads the bundled Delhi NCR dataset once and answers briefs from it.
-///
-/// Loading is eager and synchronous in `init` — the file is small, local, and the
-/// alternative (lazy loading behind an actor) would buy nothing but complexity.
+/// Reads the bundled Delhi NCR dataset once and answers briefs from it. Loading is eager and synchronous in `init` — the file is small, local, and the alternative (lazy loading behind an actor) would buy nothing but complexity.
 nonisolated struct DistrictVenueProvider: VenueResearching, Sendable {
 
     static let resourceName = "district-venues-delhi"
 
-    /// Every venue in the dataset, already stamped with provenance and sorted by
-    /// `venueID` so the unfiltered snapshot is itself deterministic.
+    /// Every venue in the dataset, already stamped with provenance and sorted by `venueID` so the unfiltered snapshot is itself deterministic.
     let allVenues: [GroundedVenue]
     let source: EvidenceSource
 
-    /// - Parameter retrievedAt: when this snapshot was taken. Injected so tests
-    ///   get a fixed clock; production passes the current date.
+    /// Parameter retrievedAt: when this snapshot was taken. Injected so tests get a fixed clock; production passes the current date.
     init(
         bundle: Bundle = .main,
         resourceName: String = DistrictVenueProvider.resourceName,
@@ -166,20 +136,10 @@ nonisolated struct DistrictVenueProvider: VenueResearching, Sendable {
 
     // MARK: Research
 
-    /// Returns the venues worth considering for this brief.
-    ///
-    /// Area is a *filter* — a host who named a neighbourhood gets that neighbourhood,
-    /// and a thin one legitimately produces thin evidence for the validator to reject.
-    /// Budget is only a *sort*: nothing is ever dropped for price, because the
-    /// validator is the one component allowed to rule a venue out, and it says so
-    /// with a named violation rather than a silent omission.
+    /// Returns the venues worth considering for this brief. Area is a *filter* — a host who named a neighbourhood gets that neighbourhood, and a thin one legitimately produces thin evidence for the validator to reject. Budget is only a *sort*: nothing is ever dropped for price, because the validator is the one component allowed to rule a venue out, and it says so with a named violation rather than a silent omission.
     func research(for brief: OutingBrief) async throws -> VenueResearchResult {
 
-        // A named area this dataset has never heard of is reported, not absorbed.
-        // Widening to the whole city here is what produced the worst failure this
-        // provider had: a host who asked for one neighbourhood got a slate drawn
-        // from every *other* neighbourhood, ranked by price, with nothing anywhere
-        // in the app saying the area had been dropped.
+        // A named area this dataset has never heard of is reported, not absorbed. Widening to the whole city here is what produced the worst failure this provider had: a host who asked for one neighbourhood got a slate drawn from every *other* neighbourhood, ranked by price, with nothing anywhere in the app saying the area had been dropped.
         let coverage = Self.coverage(of: brief.area.value, in: coveredAreaKeys)
         guard coverage != .notCovered else {
             throw PlanningFailure(.areaNotCovered(covered: coveredAreaNames))
@@ -193,15 +153,13 @@ nonisolated struct DistrictVenueProvider: VenueResearching, Sendable {
                 timestamp: allVenues.first?.retrievedAt ?? Date(),
                 phase: .researching,
                 title: "Searched the bundled Delhi NCR dataset",
-                // Counts and category names only. The brief's area is host-derived
-                // text, so it deliberately does not appear in an event.
+                // Counts and category names only. The brief's area is host-derived text, so it deliberately does not appear in an event.
                 detail: "\(ranked.count) grounded option\(ranked.count == 1 ? "" : "s") found.",
                 severity: .info
             )
         ]
 
-        // Naming a thin category here — before the validator runs — is what makes
-        // the eventual failure message specific rather than "something went wrong".
+        // Naming a thin category here — before the validator runs — is what makes the eventual failure message specific rather than "something went wrong".
         let thin = SlotCategory.allCases
             .filter { category in ranked.count { $0.category == category } < 3 }
             .map(\.rawValue)
@@ -238,17 +196,12 @@ nonisolated struct DistrictVenueProvider: VenueResearching, Sendable {
         Set(allVenues.map { Self.normalize($0.area) })
     }
 
-    /// Those areas as the host would read them, alphabetically. Dataset-owned text,
-    /// so it is safe to put in a failure message.
+    /// Those areas as the host would read them, alphabetically. Dataset-owned text, so it is safe to put in a failure message.
     var coveredAreaNames: [String] {
         Set(allVenues.map(\.area)).sorted()
     }
 
-    /// Venues in the named area, or everything when the area covers the whole city.
-    ///
-    /// Empty for an area the dataset does not hold. `research(for:)` turns that into
-    /// a named failure — callers that use this directly get the honest empty answer
-    /// rather than a silent city-wide substitution.
+    /// Venues in the named area, or everything when the area covers the whole city. Empty for an area the dataset does not hold. `research(for:)` turns that into a named failure — callers that use this directly get the honest empty answer rather than a silent city-wide substitution.
     func venues(in area: String) -> [GroundedVenue] {
         venues(for: Self.coverage(of: area, in: coveredAreaKeys))
     }
@@ -264,20 +217,14 @@ nonisolated struct DistrictVenueProvider: VenueResearching, Sendable {
         }
     }
 
-    /// Resolves a host-written area onto the dataset.
-    ///
-    /// Matching is by *token run*, not whole-string equality. The extractor rarely
-    /// returns a bare "CP" — it returns what the host said, so "Connaught Place, New
-    /// Delhi" and "the CP area" have to land on the same key. Whole-string equality
-    /// missed every one of those and fell through to the city-wide branch.
+    /// Resolves a host-written area onto the dataset. Matching is by *token run*, not whole-string equality. The extractor rarely returns a bare "CP" — it returns what the host said, so "Connaught Place, New Delhi" and "the CP area" have to land on the same key. Whole-string equality missed every one of those and fell through to the city-wide branch.
     static func coverage(of raw: String, in covered: Set<String>) -> AreaCoverage {
         let normalized = normalize(raw)
         guard !normalized.isEmpty else { return .everywhere }
 
         let tokens = normalized.split(separator: " ").map(String.init)
 
-        // Specific neighbourhoods win over city-wide words, so "Khan Market, New
-        // Delhi" is Khan Market rather than all of Delhi.
+        // Specific neighbourhoods win over city-wide words, so "Khan Market, New Delhi" is Khan Market rather than all of Delhi.
         if let key = matchedKey(tokens: tokens) {
             return covered.contains(key) ? .covered(key) : .notCovered
         }
@@ -289,33 +236,12 @@ nonisolated struct DistrictVenueProvider: VenueResearching, Sendable {
         return .notCovered
     }
 
-    /// The area a sentence names, in the host's own words, or `nil` when it names none.
-    ///
-    /// This exists because `area` is the one high-consequence field with nothing but
-    /// the model reading it. When a request's area is dropped — swept into
-    /// `otherNotes`, most often — the brief falls back to `OutingBrief.defaultArea`,
-    /// which is city-wide, so a host who named one neighbourhood silently gets a slate
-    /// drawn from all sixteen. The failure is invisible: there is no error, just the
-    /// wrong city.
-    ///
-    /// A neighbourhood is the one thing here Swift can read *better* than the model,
-    /// because the set of answers is closed and this file already owns it. Scanning is
-    /// the same rule `ChatSummaryBriefMapper.groupSize(inText:)` and
-    /// `bandsNamed(inText:)` run under: a fact the host stated plainly must not depend
-    /// on which fields a particular generation happened to get right.
-    ///
-    /// No new vocabulary — it reuses `aliases` and the same whole-token matching as
-    /// `coverage(of:in:)`, so an area added to the dataset becomes scannable without
-    /// anything here changing. The host's own spelling is returned when it can be
-    /// recovered, so Host Review shows them their word rather than our key.
+    /// The area a sentence names, in the host's own words, or `nil` when it names none. This exists because `area` is the one high-consequence field with nothing but the model reading it. When a request's area is dropped — swept into `otherNotes`, most often — the brief falls back to `OutingBrief.defaultArea`, which is city-wide, so a host who named one neighbourhood silently gets a slate drawn from all sixteen. The failure is invisible: there is no error, just the wrong city. A neighbourhood is the one thing here Swift can read *better* than the model, because the set of answers is closed and this file already owns it. Scanning is the same rule `ChatSummaryBriefMapper.groupSize(inText:)` and `bandsNamed(inText:)` run under: a fact the host stated plainly must not depend on which fields a particular generation happened to get right. No new vocabulary — it reuses `aliases` and the same whole-token matching as `coverage(of:in:)`, so an area added to the dataset becomes scannable without anything here changing. The host's own spelling is returned when it can be recovered, so Host Review shows them their word rather than our key.
     static func areaNamed(inText raw: String) -> String? {
         let tokens = normalize(raw).split(separator: " ").map(String.init)
         guard !tokens.isEmpty, let key = matchedKey(tokens: tokens) else { return nil }
 
-        // The alias as they wrote it, so "Hauz Khas Village" is not flattened to
-        // "hauz khas". Falls back to the canonical key when the original spelling
-        // cannot be located — normalization folds punctuation and repeated spaces,
-        // and either answer resolves to the same area.
+        // The alias as they wrote it, so "Hauz Khas Village" is not flattened to "hauz khas". Falls back to the canonical key when the original spelling cannot be located — normalization folds punctuation and repeated spaces, and either answer resolves to the same area.
         guard let match = aliasesByLength.first(where: { $0.key == key && matches($0.alias, tokens: tokens) }),
               let range = raw.range(of: match.alias, options: [.caseInsensitive, .diacriticInsensitive])
         else { return key }
@@ -323,23 +249,12 @@ nonisolated struct DistrictVenueProvider: VenueResearching, Sendable {
         return String(raw[range])
     }
 
-    /// The area whose alias the tokens contain, longest alias first.
-    ///
-    /// Longest-first *globally* rather than within one area. Grouping by area and
-    /// walking the groups in key order meant a two-letter alias of an alphabetically
-    /// earlier neighbourhood beat a full name later in the table: "khan market, near
-    /// cp" resolved to Connaught Place, because `connaught place` sorts before
-    /// `khan market` and `cp` was tried before `khan market` was reached.
+    /// The area whose alias the tokens contain, longest alias first. Longest-first *globally* rather than within one area. Grouping by area and walking the groups in key order meant a two-letter alias of an alphabetically earlier neighbourhood beat a full name later in the table: "khan market, near cp" resolved to Connaught Place, because `connaught place` sorts before `khan market` and `cp` was tried before `khan market` was reached.
     private static func matchedKey(tokens: [String]) -> String? {
         aliasesByLength.first { matches($0.alias, tokens: tokens) }?.key
     }
 
-    /// Whether `alias` appears as a contiguous run of whole tokens.
-    ///
-    /// Whole tokens, never substrings — "cp" must not match inside "campus". A short
-    /// alias is additionally rejected when a number sits in front of it, because that
-    /// is the one way these collide with something else the host might mean: "km" is
-    /// Khan Market on its own and kilometres in "5 km from CP".
+    /// Whether `alias` appears as a contiguous run of whole tokens. Whole tokens, never substrings — "cp" must not match inside "campus". A short alias is additionally rejected when a number sits in front of it, because that is the one way these collide with something else the host might mean: "km" is Khan Market on its own and kilometres in "5 km from CP".
     private static func matches(_ alias: String, tokens: [String]) -> Bool {
         let aliasTokens = alias.split(separator: " ").map(String.init)
         guard !aliasTokens.isEmpty, aliasTokens.count <= tokens.count else { return false }
@@ -371,9 +286,7 @@ nonisolated struct DistrictVenueProvider: VenueResearching, Sendable {
         "anywhere", "any area", "no preference", "flexible"
     ]
 
-    /// Spellings that fold onto one dataset area. The key is the normalized form of
-    /// the `area` string in the JSON, so adding a neighbourhood to the dataset only
-    /// needs an entry here if the host might spell it differently.
+    /// Spellings that fold onto one dataset area. The key is the normalized form of the `area` string in the JSON, so adding a neighbourhood to the dataset only needs an entry here if the host might spell it differently.
     private static let aliases: [String: [String]] = [
         "connaught place": ["connaught place", "cannaught place", "canaught place",
                             "connaught", "rajiv chowk", "cp"],
@@ -397,12 +310,7 @@ nonisolated struct DistrictVenueProvider: VenueResearching, Sendable {
         "chattarpur":      ["chattarpur", "chhatarpur"]
     ]
 
-    /// Every alias paired with its area, longest-first across the whole table, so a
-    /// longer and more specific spelling always wins — "hauz khas village" before
-    /// "hauz khas", and "khan market" before another area's "cp".
-    ///
-    /// Flat rather than grouped by area: see `matchedKey(tokens:)`. Ties break on the
-    /// alias then the key so the order is total, and repeated calls cannot disagree.
+    /// Every alias paired with its area, longest-first across the whole table, so a longer and more specific spelling always wins — "hauz khas village" before "hauz khas", and "khan market" before another area's "cp". Flat rather than grouped by area: see `matchedKey(tokens:)`. Ties break on the alias then the key so the order is total, and repeated calls cannot disagree.
     private static let aliasesByLength: [(alias: String, key: String)] = aliases
         .flatMap { key, spellings in spellings.map { (alias: $0, key: key) } }
         .sorted {
@@ -411,9 +319,7 @@ nonisolated struct DistrictVenueProvider: VenueResearching, Sendable {
 
     // MARK: Ranking
 
-    /// Deterministic total order: in-budget before over-budget, then cheaper first,
-    /// unknown-cost last within its group, and `venueID` as the final tiebreak so
-    /// repeated calls with the same brief never reorder.
+    /// Deterministic total order: in-budget before over-budget, then cheaper first, unknown-cost last within its group, and `venueID` as the final tiebreak so repeated calls with the same brief never reorder.
     private func rank(_ venue: GroundedVenue, for brief: OutingBrief) -> RankKey {
         let perHead = venue.cost.knownPerHeadRupees
         let overBudget: Bool = {

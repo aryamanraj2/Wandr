@@ -1,10 +1,4 @@
-//
-//  SlotScheduleTests.swift
-//  WandrTests
-//
-//  The deterministic gate that makes "free only 8–9 pm" a different night from an
-//  open one. These are the assertions the two demo scenarios rest on.
-//
+// SlotScheduleTests.swift WandrTests The deterministic gate that makes "free only 8–9 pm" a different night from an open one. These are the assertions the two demo scenarios rest on.
 
 import Foundation
 import Testing
@@ -42,11 +36,7 @@ struct SlotScheduleTests {
     }
 
     // MARK: - Duration caps
-    //
-    // The reported bug: a host who said "3 hours" got a whole day out. A duration
-    // had nowhere to live on `OutingTimeWindow`, so the clock parser read the bare
-    // "3" as 3 pm and produced a *start* with no end — which keeps all four bands
-    // and is strictly worse than saying nothing at all.
+    // The reported bug: a host who said "3 hours" got a whole day out. A duration had nowhere to live on `OutingTimeWindow`, so the clock parser read the bare "3" as 3 pm and produced a *start* with no end — which keeps all four bands and is strictly worse than saying nothing at all.
 
     @Test("Three hours with no stated start plans an evening, not a whole day")
     func threeHoursIsNotAWholeDay() throws {
@@ -99,20 +89,16 @@ struct SlotScheduleTests {
         #expect(schedule.feasibleCategories == [.food])
     }
 
-    /// A cap longer than an evening is a day out, so it anchors at the top of the
-    /// day. Anchoring it at 8 pm would push most of the host's time past midnight.
+    /// A cap longer than an evening is a day out, so it anchors at the top of the day. Anchoring it at 8 pm would push most of the host's time past midnight.
     @Test("A cap longer than an evening starts in the afternoon")
     func longCapStartsEarly() throws {
         let schedule = SlotSchedule.compute(for: OutingTimeWindow(maximumDurationMinutes: 8 * 60))
 
         let first = try #require(schedule.slots.first)
-        // Lunch, not sightseeing: a day starting at half twelve starts with a meal.
-        // The dinner band is past the cap, so `food` falls back to its lunch band —
-        // which is the whole point of a category owning more than one band.
+        // Lunch, not sightseeing: a day starting at half twelve starts with a meal. The dinner band is past the cap, so `food` falls back to its lunch band — which is the whole point of a category owning more than one band.
         #expect(first.category == .food)
         #expect(first.title == "Lunch")
-        // `defaultDayStartMinute`, not `dayStartMinute`: the breakfast band moved the
-        // table's literal minimum to 8 am, but an unanchored plan still opens at noon.
+        // `defaultDayStartMinute`, not `dayStartMinute`: the breakfast band moved the table's literal minimum to 8 am, but an unanchored plan still opens at noon.
         #expect(first.startMinute == SlotSchedule.defaultDayStartMinute)
         #expect(!schedule.feasibleCategories.contains(.nightlife))
         // Stops are laid end to end, never stacked on the same hour.
@@ -126,11 +112,7 @@ struct SlotScheduleTests {
     }
 
     // MARK: - Lunch
-    //
-    // The reported bug: "outing, 12:30 to 2, lunch" came back with a monument. The
-    // `food` category existed only from 8 pm, so a midday window touched exactly one
-    // band — `sights` — and the model was never shown a restaurant to choose. It had
-    // not misunderstood "lunch"; it had never been offered lunch.
+    // The reported bug: "outing, 12:30 to 2, lunch" came back with a monument. The `food` category existed only from 8 pm, so a midday window touched exactly one band — `sights` — and the model was never shown a restaurant to choose. It had not misunderstood "lunch"; it had never been offered lunch.
 
     @Test("A midday window can contain a meal")
     func middayWindowReachesFood() throws {
@@ -163,8 +145,7 @@ struct SlotScheduleTests {
         #expect(schedule.feasibleCategories == [.sights])
     }
 
-    /// "Somewhere to eat" names no hour, so it asks for both meal bands and the
-    /// window picks. An open evening is dinner.
+    /// "Somewhere to eat" names no hour, so it asks for both meal bands and the window picks. An open evening is dinner.
     @Test("An evening window still means dinner, not lunch")
     func eveningStillMeansDinner() throws {
         let schedule = SlotSchedule.compute(for: eightToNine, requesting: [.lunch, .dinner])
@@ -175,31 +156,7 @@ struct SlotScheduleTests {
     }
 
     // MARK: - A named stop is the request, not a seed
-    //
-    // Three reports, and the first two pull in opposite directions:
-    //
-    //   1. "still i just said lunch" — the plan came back with a 10 pm nightlife deck.
-    //      The named stop was only ever a tiebreak, so an open window ignored it and
-    //      the word did nothing.
-    //   2. "dinner at saket ... only showing me dinner options instead of the whole
-    //      list from afternoon to late" — fixing (1) by making the request a hard
-    //      filter over-corrected: one word became the entire plan.
-    //   3. "12.00 to 5:00 pm outing with lunch and snacks ... it will plan till the
-    //      dinner" — and this is the one that settles it.
-    //
-    // (2) was answered with *seeded growth*: a single named stop was treated as a seed
-    // and the plan grown outward from it to a target count. It reads well and it is
-    // wrong, because it performs inference on top of something the host stated
-    // explicitly. Report (3) is that inference running: "lunch and snacks" recognised
-    // only `lunch`, one recognised stop took the growth branch, and the plan extended
-    // forward to an 8 pm dinner — past a stated 5 pm finish.
-    //
-    // So growth is gone, and the rule is: **whatever they named is the plan**. The
-    // real answer to (2) is not to grow a request but to fill the gaps *between* two
-    // named stops, which is bounded on both sides by something the host actually said.
-    //
-    // These tests therefore assert properties, not shapes: what the host named is
-    // present, and nothing outside their span ever is.
+    // Three reports, and the first two pull in opposite directions: 1. "still i just said lunch" — the plan came back with a 10 pm nightlife deck. The named stop was only ever a tiebreak, so an open window ignored it and the word did nothing. 2. "dinner at saket ... only showing me dinner options instead of the whole list from afternoon to late" — fixing (1) by making the request a hard filter over-corrected: one word became the entire plan. 3. "12.00 to 5:00 pm outing with lunch and snacks ... it will plan till the dinner" — and this is the one that settles it. (2) was answered with *seeded growth*: a single named stop was treated as a seed and the plan grown outward from it to a target count. It reads well and it is wrong, because it performs inference on top of something the host stated explicitly. Report (3) is that inference running: "lunch and snacks" recognised only `lunch`, one recognised stop took the growth branch, and the plan extended forward to an 8 pm dinner — past a stated 5 pm finish. So growth is gone, and the rule is: **whatever they named is the plan**. The real answer to (2) is not to grow a request but to fill the gaps *between* two named stops, which is bounded on both sides by something the host actually said. These tests therefore assert properties, not shapes: what the host named is present, and nothing outside their span ever is.
 
     @Test("A named stop is honoured without inventing a day around it")
     func oneNamedStopIsTheWholePlan() {
@@ -221,10 +178,7 @@ struct SlotScheduleTests {
                 "A bare `food` would have resolved to dinner")
     }
 
-    /// The invariant, over every request the vocabulary can express: a plan never
-    /// reaches earlier than the first stop named or later than the last. Written as a
-    /// property because each time this was fixed for one sentence it returned in
-    /// another.
+    /// The invariant, over every request the vocabulary can express: a plan never reaches earlier than the first stop named or later than the last. Written as a property because each time this was fixed for one sentence it returned in another.
     @Test("No request is ever grown past the span the host named")
     func namedStopsBoundThePlan() {
         let order = SlotBand.allCases
@@ -263,16 +217,14 @@ struct SlotScheduleTests {
 
     @Test("A named stop outranks anything Wandr added when time is short")
     func theNamedStopSurvivesTheCapacityTrim() {
-        // 12:30–2 holds one stop. Lunch starts earlier than afternoon, so a trim that
-        // simply took stops in time order would hand them lunch instead.
+        // 12:30–2 holds one stop. Lunch starts earlier than afternoon, so a trim that simply took stops in time order would hand them lunch instead.
         let window = OutingTimeWindow(earliestStartMinute: 12 * 60 + 30, latestEndMinute: 14 * 60)
         let schedule = SlotSchedule.compute(for: window, requesting: [.afternoon])
 
         #expect(schedule.slots.map(\.band) == [.afternoon])
     }
 
-    /// The reported sentence, at the layer that produced it. Both halves matter: the
-    /// stop they named is there, and the 8 pm dinner is not.
+    /// The reported sentence, at the layer that produced it. Both halves matter: the stop they named is there, and the 8 pm dinner is not.
     @Test("A stated finish is never overrun by stops nobody asked for")
     func aStatedFinishIsNeverOverrun() {
         let noonToFive = OutingTimeWindow(earliestStartMinute: 12 * 60, latestEndMinute: 17 * 60)
@@ -286,9 +238,7 @@ struct SlotScheduleTests {
     }
 
     // MARK: - Breakfast
-    //
-    // There was no breakfast band at all: the table opened at noon and "breakfast" was
-    // a keyword for `.lunch`, so a host asking for one was scheduled a 12 o'clock meal.
+    // There was no breakfast band at all: the table opened at noon and "breakfast" was a keyword for `.lunch`, so a host asking for one was scheduled a 12 o'clock meal.
 
     @Test("A morning plan is now representable")
     func breakfastIsReachable() throws {
@@ -314,9 +264,7 @@ struct SlotScheduleTests {
         #expect(SlotBand.all(in: .food) == [.lunch, .dinner])
     }
 
-    /// The reported case: "breakfast in khan market" came back as breakfast, lunch and
-    /// an activity. It needed a `seedsAnOuting` exemption when growth existed; now it
-    /// is simply the general rule, which is why that exemption is gone.
+    /// The reported case: "breakfast in khan market" came back as breakfast, lunch and an activity. It needed a `seedsAnOuting` exemption when growth existed; now it is simply the general rule, which is why that exemption is gone.
     @Test("Breakfast names a whole outing, so it does not grow one")
     func breakfastDoesNotBuildADay() {
         let schedule = SlotSchedule.compute(for: .unknown, requesting: [.breakfast])
@@ -345,8 +293,7 @@ struct SlotScheduleTests {
         #expect(schedule.slots.map(\.title) == ["Dinner", "Late"])
     }
 
-    /// The host contradicted themselves: lunch, but free only from 8 pm. An
-    /// unsatisfiable request is dropped rather than used to empty the plan.
+    /// The host contradicted themselves: lunch, but free only from 8 pm. An unsatisfiable request is dropped rather than used to empty the plan.
     @Test("A request the window cannot hold falls back rather than planning nothing")
     func impossibleRequestFallsBack() throws {
         let schedule = SlotSchedule.compute(for: eightToNine, requesting: [.lunch])
@@ -364,17 +311,7 @@ struct SlotScheduleTests {
     }
 
     // MARK: - Two stops of one category
-    //
-    // "if a user mentions a lunch and a dinner no in between fine — just show them
-    // lunch and a dinner". Impossible until slots stopped being keyed by category:
-    // both are `.food`, so one overwrote the other in the curator, the squad poll,
-    // and the schedule alike. That half is what these still pin.
-    //
-    // The "no in between" half has since been asked for the other way round: "if i
-    // say lunch and dinner it schedules lunch and dinner respectively and ... suggest
-    // some outing in between". Both meals still appear and still cannot collide; what
-    // changed is that the eight hours between them are no longer left empty. Saying
-    // "nothing else" is what turns that off — see `exclusiveTwoStopsStayTwo`.
+    // "if a user mentions a lunch and a dinner no in between fine — just show them lunch and a dinner". Impossible until slots stopped being keyed by category: both are `.food`, so one overwrote the other in the curator, the squad poll, and the schedule alike. That half is what these still pin. The "no in between" half has since been asked for the other way round: "if i say lunch and dinner it schedules lunch and dinner respectively and ... suggest some outing in between". Both meals still appear and still cannot collide; what changed is that the eight hours between them are no longer left empty. Saying "nothing else" is what turns that off — see `exclusiveTwoStopsStayTwo`.
 
     @Test("Lunch and dinner are both stops, and neither overwrites the other")
     func lunchAndDinnerAreBothStops() throws {
@@ -406,11 +343,7 @@ struct SlotScheduleTests {
     }
 
     // MARK: - How many stops fill a gap
-    //
-    // The count is arithmetic, never a written-down number. Two stops between lunch and
-    // dinner is the right answer for *that* gap at an ordinary pace, and the wrong one
-    // for a ninety-minute gap or a group in a hurry — so it is divided out of the gap
-    // rather than chosen.
+    // The count is arithmetic, never a written-down number. Two stops between lunch and dinner is the right answer for *that* gap at an ordinary pace, and the wrong one for a ninety-minute gap or a group in a hurry — so it is divided out of the gap rather than chosen.
 
     @Test("A gap holds more stops the faster the group wants to move")
     func paceDecidesHowManyStopsFillAGap() {
@@ -440,8 +373,7 @@ struct SlotScheduleTests {
         }
     }
 
-    /// The property that makes filling safe where growth was not: a filler is only ever
-    /// placed between two stops the host named, so it cannot extend their day.
+    /// The property that makes filling safe where growth was not: a filler is only ever placed between two stops the host named, so it cannot extend their day.
     @Test("Filling never reaches outside the stops the host named")
     func fillingStaysInsideTheRequest() {
         let order = SlotBand.allCases
@@ -462,8 +394,7 @@ struct SlotScheduleTests {
         }
     }
 
-    /// `slot(for:)` answers "the first food stop", which is the wrong question once a
-    /// plan holds two of them.
+    /// `slot(for:)` answers "the first food stop", which is the wrong question once a plan holds two of them.
     @Test("A specific stop is reachable by band, not by category")
     func bandLookupDisambiguates() throws {
         let schedule = SlotSchedule.compute(for: .unknown, requesting: [.lunch, .dinner])
@@ -482,9 +413,7 @@ struct SlotScheduleTests {
         #expect(SlotSchedule.compute(for: .unknown, requesting: []).requestHonoured)
     }
 
-    /// Bands used to be intersected with the window one at a time, so three of them
-    /// could each claim the same ninety minutes and the schedule would promise three
-    /// stops that all started at once.
+    /// Bands used to be intersected with the window one at a time, so three of them could each claim the same ninety minutes and the schedule would promise three stops that all started at once.
     @Test("Stops never overlap each other", arguments: [
         OutingTimeWindow(earliestStartMinute: 12 * 60, latestEndMinute: 22 * 60),
         OutingTimeWindow(earliestStartMinute: 12 * 60 + 30, latestEndMinute: 14 * 60),

@@ -1,10 +1,4 @@
-//
-//  PlanningRunStateTests.swift
-//  WandrTests
-//
-//  The state machine from `nonuistuff/plan.md` §6, and the privacy property that
-//  makes the run safe to keep around.
-//
+// PlanningRunStateTests.swift WandrTests The state machine from `nonuistuff/plan.md` §6, and the privacy property that makes the run safe to keep around.
 
 import Foundation
 import Testing
@@ -13,8 +7,7 @@ import Testing
 @Suite("PlanningRun state machine")
 struct PlanningRunStateTests {
 
-    /// The transition table, transcribed straight from the plan document.
-    /// If the doc and the code disagree, this test is the thing that says so.
+    /// The transition table, transcribed straight from the plan document. If the doc and the code disagree, this test is the thing that says so.
     static let table: [PlanningState: Set<PlanningState>] = [
         .idle:         [.extracting],
         .extracting:   [.needsDetails, .researching, .failed, .cancelled],
@@ -335,14 +328,12 @@ struct PlanningInputVolatilityTests {
 
     @Test("The injection request has no action, booking, or price-maximizing path to reach")
     func injectionRequestHasNowhereToGo() throws {
-        // The request is data. It becomes a brief with safe defaults and notes —
-        // never an instruction, because the domain models no executable action.
+        // The request is data. It becomes a brief with safe defaults and notes — never an instruction, because the domain models no executable action.
         let brief = Fixtures.injectionBrief
         #expect(brief.budget.value == .unspecified)
         #expect(brief.safeDefaults.contains(.budget))
 
-        // Validation with that brief still refuses an ungrounded pick, so
-        // "book the most expensive place" cannot conjure a venue.
+        // Validation with that brief still refuses an ungrounded pick, so "book the most expensive place" cannot conjure a venue.
         let slots = [
             Fixtures.slot(.dinner, ["food-1", "food-2", "the-most-expensive-place"])
         ]

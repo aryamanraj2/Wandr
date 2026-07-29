@@ -1,9 +1,4 @@
-//
-//  ScheduleDrafterTests.swift
-//  WandrTests
-//
-//  Every number on a block must be traceable to a disclosed assumption.
-//
+// ScheduleDrafterTests.swift WandrTests Every number on a block must be traceable to a disclosed assumption.
 
 import Foundation
 import Testing
@@ -15,8 +10,7 @@ struct ScheduleDrafterTests {
     private let drafter = ScheduleDrafter()
     private let validator = FeasibilityValidator()
 
-    /// A real plan, produced by the unchanged Step 1 validator rather than
-    /// hand-built — the drafter must work on what validation actually emits.
+    /// A real plan, produced by the unchanged Step 1 validator rather than hand-built — the drafter must work on what validation actually emits.
     private func validatedPlan(
         brief: OutingBrief = Fixtures.afterWorkBrief,
         evidence: [GroundedVenue] = Fixtures.evidence,
@@ -80,7 +74,6 @@ struct ScheduleDrafterTests {
     }
 
     // MARK: - Disclosure
-    //
     // The centrepiece: no silent numbers.
 
     @Test("Every block's start and duration is explainable by a disclosed assumption")
@@ -239,13 +232,7 @@ struct ScheduleDrafterTests {
 
 private extension ScheduleDraft {
 
-    /// Whether both of `block`'s numbers are accounted for by some assumption.
-    ///
-    /// The drafter discloses a stop two different ways depending on where its
-    /// numbers came from: `.defaultStartMinute` + `.defaultDuration` for a template
-    /// default, or a single `.windowConstrained` when the host's own time window
-    /// decided them. Both are disclosures — the rule these tests defend is "no
-    /// silent numbers", not "one particular assumption case".
+    /// Whether both of `block`'s numbers are accounted for by some assumption. The drafter discloses a stop two different ways depending on where its numbers came from: `.defaultStartMinute` + `.defaultDuration` for a template default, or a single `.windowConstrained` when the host's own time window decided them. Both are disclosures — the rule these tests defend is "no silent numbers", not "one particular assumption case".
     func discloses(_ block: ScheduleDraftBlock) -> Bool {
         let windowConstrained = assumptions.contains(
             .windowConstrained(

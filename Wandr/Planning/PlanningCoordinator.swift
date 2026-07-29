@@ -1,16 +1,4 @@
-//
-//  PlanningCoordinator.swift
-//  Wandr
-//
-//  The MainActor bridge between the confirmed group summary and the swipe UI.
-//
-//  `RootView` hands it the reviewed `ChatSummaryPayload`; it runs the grounded
-//  pipeline (deterministic JSON→brief, dataset research, on-device model curation,
-//  deterministic validation) off the main actor, then publishes one of three
-//  phases the UI renders: planning, ready (decks + banner), or a failure the host
-//  can act on. Nothing here decides *what* to show — the model and validator do —
-//  it only sequences the async work and maps the result for display.
-//
+// PlanningCoordinator.swift Wandr The MainActor bridge between the confirmed group summary and the swipe UI. `RootView` hands it the reviewed `ChatSummaryPayload`; it runs the grounded pipeline (deterministic JSON→brief, dataset research, on-device model curation, deterministic validation) off the main actor, then publishes one of three phases the UI renders: planning, ready (decks + banner), or a failure the host can act on. Nothing here decides *what* to show — the model and validator do — it only sequences the async work and maps the result for display.
 
 import Foundation
 import Observation
@@ -32,10 +20,7 @@ final class PlanningCoordinator {
 
     private(set) var phase: Phase = .idle
 
-    /// Runs one plan for a confirmed summary and publishes the outcome.
-    ///
-    /// Never throws: every failure becomes a `.failed` phase carrying a
-    /// `PlanningFailure`, so the UI always has a message and a next step.
+    /// Runs one plan for a confirmed summary and publishes the outcome. Never throws: every failure becomes a `.failed` phase carrying a `PlanningFailure`, so the UI always has a message and a next step.
     func run(payload: ChatSummaryPayload) async {
         phase = .planning
 
@@ -49,8 +34,7 @@ final class PlanningCoordinator {
                 curator: FoundationModelsCurator()
             )
 
-            // The confirmed summary travels as its own JSON — a structured summary,
-            // never the raw chat — which the extractor decodes straight back.
+            // The confirmed summary travels as its own JSON — a structured summary, never the raw chat — which the extractor decodes straight back.
             let input = PlanningInput(text: Self.json(from: payload))
             let run = try await service.plan(input)
 
@@ -60,15 +44,13 @@ final class PlanningCoordinator {
                     phase = .failed(PlanningFailure(.structuredOutputDecodingFailed))
                     return
                 }
-                // The full dataset resolves every plan venue ID (a plan's IDs are a
-                // subset of it), so it is a safe evidence source for display.
+                // The full dataset resolves every plan venue ID (a plan's IDs are a subset of it), so it is a safe evidence source for display.
                 let output = GroundedPlanMapper.map(plan: plan, evidence: researcher.allVenues)
                 guard !output.decks.isEmpty else {
                     phase = .failed(PlanningFailure(.insufficientEvidence(details: [])))
                     return
                 }
-                // Preserve "unspecified" group size so the poll can fall back to the
-                // slate's implied size rather than a defaulted head-count.
+                // Preserve "unspecified" group size so the poll can fall back to the slate's implied size rather than a defaulted head-count.
                 phase = .ready(output: output, groupSize: payload.groupSize)
 
             case .failed, .needsDetails:

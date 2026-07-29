@@ -1,34 +1,4 @@
-//
-//  PlanShapeEvaluation.swift
-//  WandrTests
-//
-//  The golden set, rebuilt as an evaluation — data plus invariants, instead of a
-//  hand-written answer per case.
-//
-//  ## What changed and why
-//
-//  `PlanShapeEvaluationTests` carries a list of `GoldenCase`s, each with an
-//  `expectedBands` array someone typed. That shape has a specific failure mode, and
-//  this project has lived through it: when a case fails, the cheapest way to make it
-//  pass is to edit the expectation, and the second cheapest is a branch keyed to that
-//  case. Both leave the suite green and the product wrong. An oracle you can read is
-//  an oracle you can satisfy without fixing anything.
-//
-//  Invariants cannot be satisfied that way. "No block ends after a stated finish" is
-//  either true of every plan or false of one, and there is no per-sentence edit that
-//  makes a violation acceptable. So the dataset here carries **no expected output at
-//  all** — `SampleProtocol.expected` is optional and every sample leaves it nil. New
-//  phrasings are added as data; they either hold the properties or they have found a
-//  real defect.
-//
-//  ## What it does not do yet
-//
-//  `subject(from:)` runs the deterministic half — payload → brief → schedule. Running
-//  the *live extractor* here is possible (the Simulator does execute Foundation Models
-//  against the host Mac's model) and is the obvious next step; it is left out of this
-//  pass so that adopting the framework and changing what is measured do not land in
-//  one change.
-//
+// PlanShapeEvaluation.swift WandrTests The golden set, rebuilt as an evaluation — data plus invariants, instead of a hand-written answer per case. ## What changed and why `PlanShapeEvaluationTests` carries a list of `GoldenCase`s, each with an `expectedBands` array someone typed. That shape has a specific failure mode, and this project has lived through it: when a case fails, the cheapest way to make it pass is to edit the expectation, and the second cheapest is a branch keyed to that case. Both leave the suite green and the product wrong. An oracle you can read is an oracle you can satisfy without fixing anything. Invariants cannot be satisfied that way. "No block ends after a stated finish" is either true of every plan or false of one, and there is no per-sentence edit that makes a violation acceptable. So the dataset here carries **no expected output at all** — `SampleProtocol.expected` is optional and every sample leaves it nil. New phrasings are added as data; they either hold the properties or they have found a real defect. ## What it does not do yet `subject(from:)` runs the deterministic half — payload → brief → schedule. Running the *live extractor* here is possible (the Simulator does execute Foundation Models against the host Mac's model) and is the obvious next step; it is left out of this pass so that adopting the framework and changing what is measured do not land in one change.
 
 import Evaluations
 import Foundation
@@ -43,8 +13,7 @@ import Testing
 nonisolated struct PlanRequestSample: SampleProtocol {
     /// What the host said, verbatim.
     var said: String
-    /// What a faithful extraction of that sentence yields. Fields the sentence does
-    /// not mention are absent.
+    /// What a faithful extraction of that sentence yields. Fields the sentence does not mention are absent.
     var stops: [String]?
     var onlyTheseStops: Bool?
     var time: String?
@@ -52,8 +21,7 @@ nonisolated struct PlanRequestSample: SampleProtocol {
     var groupSize: Int?
     var area: String?
     var vibe: String?
-    /// Which slice of the dataset this belongs to, so a failure can be traced to a
-    /// whole *category* of request rather than to one sentence.
+    /// Which slice of the dataset this belongs to, so a failure can be traced to a whole *category* of request rather than to one sentence.
     var group: String
 
     var input: String { said }
@@ -75,13 +43,7 @@ nonisolated struct PlanRequestSample: SampleProtocol {
     }
 }
 
-/// What the pipeline produced for one sample.
-///
-/// Carries `failure` rather than throwing out of `subject(from:)`. A throwing subject
-/// does not fail a sample — the runner marks every metric `.ignore`, and `.ignore` is
-/// excluded from aggregation, so the sample leaves the denominator and the pass rate
-/// goes **up** as the feature breaks for more people. The `produced` guardrail below
-/// is what makes that impossible.
+/// What the pipeline produced for one sample. Carries `failure` rather than throwing out of `subject(from:)`. A throwing subject does not fail a sample — the runner marks every metric `.ignore`, and `.ignore` is excluded from aggregation, so the sample leaves the denominator and the pass rate goes **up** as the feature breaks for more people. The `produced` guardrail below is what makes that impossible.
 nonisolated struct PlanOutcome: Codable, Sendable, Equatable {
     var bands: [String] = []
     var startMinutes: [Int] = []
@@ -96,8 +58,7 @@ nonisolated struct PlanOutcome: Codable, Sendable, Equatable {
 @available(iOS 27.0, macOS 27.0, *)
 nonisolated struct PlanShapeEvaluation: Evaluation {
 
-    // Declared once as properties: a `Metric` is a name token, and an inline
-    // `Metric("…")` cannot be referenced from `aggregateMetrics`.
+    // Declared once as properties: a `Metric` is a name token, and an inline `Metric("…")` cannot be referenced from `aggregateMetrics`.
     let produced = Metric("Produced")
     let withinStatedEnd = Metric("WithinStatedEnd")
     let withinRequestSpan = Metric("WithinRequestSpan")
@@ -108,9 +69,7 @@ nonisolated struct PlanShapeEvaluation: Evaluation {
     var dataset: ArrayLoader<PlanRequestSample> { ArrayLoader(samples: Self.samples) }
 
     func subject(from sample: PlanRequestSample) async throws -> ModelSubject<PlanOutcome> {
-        // Bare `catch`, not `catch let e as SomeError`: a typed catch rethrows the
-        // very cases most worth trapping, and a rethrow here silently deletes the
-        // sample from the aggregate.
+        // Bare `catch`, not `catch let e as SomeError`: a typed catch rethrows the very cases most worth trapping, and a rethrow here silently deletes the sample from the aggregate.
         do {
             let draft = ChatSummaryBriefMapper().draft(from: sample.payload)
             guard case .normalized(let brief) = try BriefNormalizer().normalize(draft) else {
@@ -129,9 +88,7 @@ nonisolated struct PlanShapeEvaluation: Evaluation {
         }
     }
 
-    // Spelling the concrete types rather than the `Evaluators` typealias: the alias
-    // compiles in isolation and then fails with "unsupported recursion for reference
-    // to type alias 'Evaluators'" the moment anything touches `inputColumn`.
+    // Spelling the concrete types rather than the `Evaluators` typealias: the alias compiles in isolation and then fails with "unsupported recursion for reference to type alias 'Evaluators'" the moment anything touches `inputColumn`.
     @EvaluatorsBuilder<PlanRequestSample, ModelSubject<PlanOutcome>>
     var evaluators: [any EvaluatorProtocol<PlanRequestSample, ModelSubject<PlanOutcome>>] {
         // Guardrail. Without it, a sample the pipeline cannot handle simply vanishes.
@@ -157,9 +114,7 @@ nonisolated struct PlanShapeEvaluation: Evaluation {
             guard let first = named.min(), let last = named.max() else {
                 return withinRequestSpan.ignore(rationale: "nothing named")
             }
-            // An unsatisfiable request — "lunch, but we're only free 8 to 9" — is
-            // dropped by the schedule and disclosed. The fallback plan lies wholly
-            // outside the span, legitimately, so there is no span to test.
+            // An unsatisfiable request — "lunch, but we're only free 8 to 9" — is dropped by the schedule and disclosed. The fallback plan lies wholly outside the span, legitimately, so there is no span to test.
             guard subject.value.bands.contains(where: subject.value.requested.contains) else {
                 return withinRequestSpan.ignore(rationale: "request was unsatisfiable")
             }
@@ -178,9 +133,7 @@ nonisolated struct PlanShapeEvaluation: Evaluation {
             return bad.isEmpty ? noOverlap.passing() : noOverlap.failing(rationale: "\(bad.count) overlap(s)")
         }
 
-        // Invariant 4 — every stop the host named survives, unless their own window
-        // made it impossible. A stop dropped for want of time is disclosed elsewhere;
-        // a stop dropped silently is the bug this whole effort started from.
+        // Invariant 4 — every stop the host named survives, unless their own window made it impossible. A stop dropped for want of time is disclosed elsewhere; a stop dropped silently is the bug this whole effort started from.
         Evaluator { _, subject in
             let value = subject.value
             guard !value.requested.isEmpty else {
@@ -195,9 +148,7 @@ nonisolated struct PlanShapeEvaluation: Evaluation {
                 : namedStopsPresent.failing(rationale: "lost \(missing.sorted())")
         }
 
-        // A distribution beside the pass/fail checks. All-green range checks are
-        // satisfiable degenerately — a pipeline that returned one stop every time
-        // would pass every invariant above and be useless.
+        // A distribution beside the pass/fail checks. All-green range checks are satisfiable degenerately — a pipeline that returned one stop every time would pass every invariant above and be useless.
         Evaluator { _, subject in stopCount.scoring(Double(subject.value.bands.count)) }
     }
 
@@ -220,16 +171,7 @@ nonisolated struct PlanShapeEvaluation: Evaluation {
 @available(iOS 27.0, macOS 27.0, *)
 extension PlanShapeEvaluation {
 
-    /// Real phrasings, as JSON.
-    ///
-    /// A document rather than a Swift array of structs, because that is the difference
-    /// the whole change is about: adding a phrasing is adding an object here, and the
-    /// only thing it can do is pass or expose a defect. It cannot bring an expectation
-    /// with it, because there is nowhere to put one.
-    ///
-    /// `group` splits the set into slices that are gated separately. A 95% average that
-    /// is 100% on ordinary requests and 40% on time-bounded ones is not a 95% pipeline;
-    /// it is a broken use case hidden by an average.
+    /// Real phrasings, as JSON. A document rather than a Swift array of structs, because that is the difference the whole change is about: adding a phrasing is adding an object here, and the only thing it can do is pass or expose a defect. It cannot bring an expectation with it, because there is nowhere to put one. `group` splits the set into slices that are gated separately. A 95% average that is 100% on ordinary requests and 40% on time-bounded ones is not a 95% pipeline; it is a broken use case hidden by an average.
     static let samplesJSON = """
     [
       {"said":"dinner at saket for 2 people, around 2000","stops":["dinner"],"budget":"around 2000","groupSize":2,"area":"Saket","group":"named"},
@@ -262,8 +204,7 @@ extension PlanShapeEvaluation {
     """
 
     static let samples: [PlanRequestSample] = {
-        // A malformed dataset must be loud. `JSONLoader` logs and skips bad entries,
-        // which would silently shrink the set and inflate every rate computed from it.
+        // A malformed dataset must be loud. `JSONLoader` logs and skips bad entries, which would silently shrink the set and inflate every rate computed from it.
         do { return try JSONDecoder().decode([PlanRequestSample].self, from: Data(samplesJSON.utf8)) }
         catch { fatalError("plan-shape sample set is malformed: \(error)") }
     }()
@@ -281,11 +222,7 @@ struct PlanShapeInvariantTests {
         let evaluation = PlanShapeEvaluation()
         let result = EvaluationContext.current.result
 
-        // Wiring first, and this ordering is not cosmetic. Both failures below are
-        // *recorded* by the runner rather than thrown, and a recorded failure leaves a
-        // metric column that looks present and healthy while aggregating over an empty
-        // set. Asserting the numbers first would mean reading them off a phantom
-        // denominator.
+        // Wiring first, and this ordering is not cosmetic. Both failures below are *recorded* by the runner rather than thrown, and a recorded failure leaves a metric column that looks present and healthy while aggregating over an empty set. Asserting the numbers first would mean reading them off a phantom denominator.
         #expect(!result.detailed.containsColumn("SubjectInferenceError", SubjectInferenceError.self),
                 "A sample produced no output at all")
         #expect(!result.detailed.containsColumn("EvaluatorErrors", [EvaluatorError].self),
@@ -303,9 +240,7 @@ struct PlanShapeInvariantTests {
         #expect(result.aggregateValue(.mean(of: evaluation.namedStopsPresent)) == 1.0,
                 "A stop the host named may not vanish")
 
-        // The distribution beside the pass/fail checks. A pipeline that returned one
-        // stop for every request would satisfy every invariant above and be useless;
-        // a non-zero spread is what rules that out.
+        // The distribution beside the pass/fail checks. A pipeline that returned one stop for every request would satisfy every invariant above and be useless; a non-zero spread is what rules that out.
         #expect(result.aggregateValue(.minimum(of: evaluation.stopCount)) >= 1,
                 "Every request deserves at least one stop")
         #expect(result.aggregateValue(.standardDeviation(of: evaluation.stopCount)) > 0.3,

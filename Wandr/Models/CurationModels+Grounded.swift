@@ -1,18 +1,4 @@
-//
-//  CurationModels+Grounded.swift
-//  Wandr
-//
-//  The bridge from the grounded planning result to the swipe UI.
-//
-//  `WandrPlan` (validated, ID-only) plus the `GroundedVenue` evidence snapshot plus
-//  the `SlotSchedule` (for window labels) become the `[Deck]` of `[Candidate]` the
-//  existing `CurationView` already knows how to render. This is "how to display it":
-//  the model's ranked picks, resolved back to real venue facts, with its rationale
-//  and the validator's caveats carried through — and nothing invented in between.
-//
-//  Deterministic and pure. Display facts (name, price, hours) come only from the
-//  venue; `rationale` is the only model prose, and it is presented as such.
-//
+// CurationModels+Grounded.swift Wandr The bridge from the grounded planning result to the swipe UI. `WandrPlan` (validated, ID-only) plus the `GroundedVenue` evidence snapshot plus the `SlotSchedule` (for window labels) become the `[Deck]` of `[Candidate]` the existing `CurationView` already knows how to render. This is "how to display it": the model's ranked picks, resolved back to real venue facts, with its rationale and the validator's caveats carried through — and nothing invented in between. Deterministic and pure. Display facts (name, price, hours) come only from the venue; `rationale` is the only model prose, and it is presented as such.
 
 import Foundation
 
@@ -33,8 +19,7 @@ extension StopCategory {
 // MARK: - Candidate from evidence
 
 extension Candidate {
-    /// Resolves one curated pick against its grounded venue. `rationale` is the
-    /// model's; `warnings` are the validator's; every other field is dataset fact.
+    /// Resolves one curated pick against its grounded venue. `rationale` is the model's; `warnings` are the validator's; every other field is dataset fact.
     init(groundedVenue venue: GroundedVenue, rationale: String?, warnings: [String]) {
         self.init(
             name: venue.name,
@@ -46,8 +31,7 @@ extension Candidate {
             offer: venue.offer,
             offerWindow: venue.offerWindow,
             openWindow: venue.openWindow.label ?? "Hours not listed",
-            // Travel time between stops is a deferred rule (no MapKit yet), so we
-            // show nothing rather than a faked distance.
+            // Travel time between stops is a deferred rule (no MapKit yet), so we show nothing rather than a faked distance.
             travelNote: "",
             imageSeed: venue.imageSeed,
             rationale: rationale,
@@ -64,13 +48,9 @@ enum GroundedPlanMapper {
 
     struct Output {
         let decks: [Deck]
-        /// Shown atop "Pick your stops" when the group's time window shaped the plan.
-        /// `nil` for an open-ended plan (no banner).
+        /// Shown atop "Pick your stops" when the group's time window shaped the plan. `nil` for an open-ended plan (no banner).
         let banner: String?
-        /// Per-*slot* window [start...end] in minutes-from-midnight, keyed by
-        /// `Deck.slotID`, so the schedule screen places the squad's winners inside
-        /// the group's real window. Keyed by slot rather than category because a
-        /// plan can hold both lunch and dinner, and those are not the same hour.
+        /// Per-*slot* window [start...end] in minutes-from-midnight, keyed by `Deck.slotID`, so the schedule screen places the squad's winners inside the group's real window. Keyed by slot rather than category because a plan can hold both lunch and dinner, and those are not the same hour.
         let slotWindows: [String: ClosedRange<Int>]
     }
 

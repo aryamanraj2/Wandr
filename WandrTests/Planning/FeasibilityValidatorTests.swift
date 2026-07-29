@@ -1,13 +1,4 @@
-//
-//  FeasibilityValidatorTests.swift
-//  WandrTests
-//
-//  The deterministic rules from `nonuistuff/plan.md` §10, one test per rule.
-//
-//  None of these tests touch a model, the network, the file system, or a UI
-//  framework — which is the point. If this file ever needs a simulator to be
-//  meaningful, the validator has grown a dependency it shouldn't have.
-//
+// FeasibilityValidatorTests.swift WandrTests The deterministic rules from `nonuistuff/plan.md` §10, one test per rule. None of these tests touch a model, the network, the file system, or a UI framework — which is the point. If this file ever needs a simulator to be meaningful, the validator has grown a dependency it shouldn't have.
 
 import Foundation
 import Testing
@@ -166,9 +157,7 @@ struct FeasibilityValidatorTests {
             Fixtures.slot(.late, ["night-1", "night-2", "night-3"])
         ]
 
-        // The whole run used to die here. `EvidenceResolver` only lets an
-        // over-ceiling venue reach a deck when the alternative was an empty one, so
-        // failing on it meant failing exactly the hosts whose budget was tightest.
+        // The whole run used to die here. `EvidenceResolver` only lets an over-ceiling venue reach a deck when the alternative was an empty one, so failing on it meant failing exactly the hosts whose budget was tightest.
         #expect(validationFailure(brief: Fixtures.afterWorkBrief, evidence: evidence, slots: slots) == nil)
 
         let plan = try validatedPlan(brief: Fixtures.afterWorkBrief, evidence: evidence, slots: slots)
@@ -317,10 +306,7 @@ struct FeasibilityValidatorTests {
 
     @Test("A thin snapshot yields a thin deck, never a failure")
     func thinEvidenceStillProducesAPlan() throws {
-        // Only two food venues exist at all — research came up short. That is now a
-        // two-card deck rather than a failure; `insufficientEvidence` has moved to
-        // `TravelPlanningService` and fires only when there is *nothing* to show,
-        // which is the one situation where "widen the area" is true advice.
+        // Only two food venues exist at all — research came up short. That is now a two-card deck rather than a failure; `insufficientEvidence` has moved to `TravelPlanningService` and fires only when there is *nothing* to show, which is the one situation where "widen the area" is true advice.
         let evidence = [
             Fixtures.venue("food-1", category: .food),
             Fixtures.venue("food-2", category: .food)
@@ -450,9 +436,7 @@ struct FeasibilityValidatorTests {
 
     @Test("An impossible budget produces a plan with every price flagged, not a dead end")
     func impossibleBudgetIsDisclosedNotRejected() throws {
-        // Nothing in the snapshot comes in under ₹200 a head. This used to be six
-        // violations and an ended run; a host with a tight budget got no plan at all,
-        // which is the one group least able to do anything about it.
+        // Nothing in the snapshot comes in under ₹200 a head. This used to be six violations and an ended run; a host with a tight budget got no plan at all, which is the one group least able to do anything about it.
         let slots = [
             Fixtures.slot(.dinner, ["food-1", "food-2", "food-3"]),
             Fixtures.slot(.late, ["night-1", "night-2", "night-3"])
@@ -528,13 +512,7 @@ struct FeasibilityValidatorTests {
     }
 
     // MARK: - Rule 9: the host's stops bound the plan
-    //
-    // A plan can be made entirely of legal picks and still be the wrong plan. Every
-    // other rule in this file catches a bad *venue*; this one catches a bad *night*.
-    //
-    // It exists because the failure it describes has been fixed twice as a special
-    // case and returned in a new sentence both times — most recently as "12.00 to
-    // 5:00 pm outing with lunch and snacks", which planned through to an 8 pm dinner.
+    // A plan can be made entirely of legal picks and still be the wrong plan. Every other rule in this file catches a bad *venue*; this one catches a bad *night*. It exists because the failure it describes has been fixed twice as a special case and returned in a new sentence both times — most recently as "12.00 to 5:00 pm outing with lunch and snacks", which planned through to an 8 pm dinner.
 
     /// A brief that names stops, so the span is pinned.
     private func briefRequesting(
@@ -585,8 +563,7 @@ struct FeasibilityValidatorTests {
 
     @Test("Anything between two named stops is legitimate, not growth")
     func fillingBetweenNamedStopsIsAllowed() {
-        // Lunch and dinner were both named, so the afternoon between them is a gap the
-        // host themselves bounded — the one place Wandr may add a stop.
+        // Lunch and dinner were both named, so the afternoon between them is a gap the host themselves bounded — the one place Wandr may add a stop.
         let found = violations(
             brief: briefRequesting([.lunch, .dinner]),
             slots: [
@@ -607,14 +584,7 @@ struct FeasibilityValidatorTests {
         #expect(!found.contains { if case .grewBeyondRequest = $0 { return true }; return false })
     }
 
-    /// The hole the evaluation suite found the day it was written.
-    ///
-    /// A host who asks for lunch and says they are free 8 to 9 pm has contradicted
-    /// themselves. `SlotSchedule` drops the stop, falls back to the default shape and
-    /// reports it unhonoured so the host is told — and the fallback plan then lies
-    /// *entirely* outside the lunch span. The span rule, applied naively, called that
-    /// recovery a violation and failed the whole run, so the one case designed to
-    /// never dead-end became the one case that always did.
+    /// The hole the evaluation suite found the day it was written. A host who asks for lunch and says they are free 8 to 9 pm has contradicted themselves. `SlotSchedule` drops the stop, falls back to the default shape and reports it unhonoured so the host is told — and the fallback plan then lies *entirely* outside the lunch span. The span rule, applied naively, called that recovery a violation and failed the whole run, so the one case designed to never dead-end became the one case that always did.
     @Test("An unsatisfiable request is recovered from, not treated as growth")
     func anUnsatisfiableRequestIsNotGrowth() {
         let eveningOnly = OutingTimeWindow(earliestStartMinute: 20 * 60, latestEndMinute: 21 * 60)

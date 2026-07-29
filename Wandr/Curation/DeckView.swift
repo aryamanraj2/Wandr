@@ -1,48 +1,27 @@
-//
-//  DeckView.swift
-//  Wandr
-//
-//  A stack of candidates for one slot.
-//
-//  Swipe right to add to the squad's slate, left to pass. Both directions
-//  advance — nothing is decided here, the host is only narrowing the field.
-//
-//  Motion follows the card-swipe idiom people already know: the card tracks the
-//  finger in both axes with no damping, tilts proportionally to horizontal
-//  travel around a low anchor, and the card beneath grows in as the top one
-//  leaves. Commit is decided by distance OR velocity, so a flick works.
-//
+// DeckView.swift Wandr A stack of candidates for one slot. Swipe right to add to the squad's slate, left to pass. Both directions advance — nothing is decided here, the host is only narrowing the field. Motion follows the card-swipe idiom people already know: the card tracks the finger in both axes with no damping, tilts proportionally to horizontal travel around a low anchor, and the card beneath grows in as the top one leaves. Commit is decided by distance OR velocity, so a flick works.
 
 import SwiftUI
 
 struct DeckView: View {
     @Binding var deck: Deck
 
-    /// Live drag translation of the top card. Plain `@State` rather than
-    /// `@GestureState` because the fly-off animates this same value after the
-    /// gesture has already ended.
+    /// Live drag translation of the top card. Plain `@State` rather than `@GestureState` because the fly-off animates this same value after the gesture has already ended.
     @State private var drag: CGSize = .zero
     /// True while the exit animation runs, so a second swipe can't race it.
     @State private var isFlying = false
-    /// Decided once per drag from the first meaningful movement. A drag that
-    /// starts vertical belongs to the scroll view and the card ignores it for
-    /// the rest of the gesture — otherwise every scroll attempt nudges a card.
+    /// Decided once per drag from the first meaningful movement. A drag that starts vertical belongs to the scroll view and the card ignores it for the rest of the gesture — otherwise every scroll attempt nudges a card.
     @State private var isHorizontalDrag: Bool?
-    /// True only while a touch is actually held on the card. Unlike `onEnded`,
-    /// `@GestureState` resets when the gesture is *cancelled* — which is exactly
-    /// what happens when the scroll view takes the touch over.
+    /// True only while a touch is actually held on the card. Unlike `onEnded`, `@GestureState` resets when the gesture is *cancelled* — which is exactly what happens when the scroll view takes the touch over.
     @GestureState private var isDragging = false
 
     /// The card being read in full. Non-nil drives the zoom expansion.
     @State private var expanded: Candidate?
-    /// True from touch-down until the long press resolves or the finger moves,
-    /// for the pre-expansion squeeze.
+    /// True from touch-down until the long press resolves or the finger moves, for the pre-expansion squeeze.
     @State private var isPressing = false
     /// A keep/pass chosen from the expanded card, applied on dismissal.
     @State private var pendingVerdict: Bool?
 
-    /// Source geometry for the zoom. Only the top card is ever a source — the
-    /// backdrop cards are decoration and cannot be opened.
+    /// Source geometry for the zoom. Only the top card is ever a source — the backdrop cards are decoration and cannot be opened.
     @Namespace private var cardZoom
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -58,8 +37,7 @@ struct DeckView: View {
         max(-1, min(1, drag.width / Self.commitDistance))
     }
 
-    /// Proportional tilt, capped. Rotating around a low anchor is what makes
-    /// the card read as a held object pivoting rather than a sprite spinning.
+    /// Proportional tilt, capped. Rotating around a low anchor is what makes the card read as a held object pivoting rather than a sprite spinning.
     private var tilt: Angle {
         .degrees(min(Self.maxTilt, max(-Self.maxTilt, Double(drag.width) / 12)))
     }
@@ -73,9 +51,7 @@ struct DeckView: View {
             } else if deck.isReviewed {
                 reviewedState
             } else {
-                // Sized against the visible page rather than a fixed 400, so a
-                // deck fills the same share of an SE as it does a Pro Max, and
-                // the header above it always stays on screen with it.
+                // Sized against the visible page rather than a fixed 400, so a deck fills the same share of an SE as it does a Pro Max, and the header above it always stays on screen with it.
                 cardStack
                     .containerRelativeFrame(.vertical) { height, _ in
                         min(max(height * 0.56, 330), 520)
@@ -133,47 +109,30 @@ struct DeckView: View {
 
             if let top = deck.topCandidate {
                 CandidateCardView(candidate: top, dragProgress: progress)
-                    // The squeeze under the finger. Small enough to read as the
-                    // card taking the pressure rather than as a button press,
-                    // and it gives the expansion something to spring out of.
+                    // The squeeze under the finger. Small enough to read as the card taking the pressure rather than as a button press, and it gives the expansion something to spring out of.
                     .scaleEffect(isPressing && !isFlying ? 0.965 : 1)
                     .animation(.wandrResponse, value: isPressing)
                     .offset(drag)
                     .rotationEffect(tilt, anchor: .bottom)
-                    // Marks this card as where the expansion grows from, so the
-                    // cover scales out of the card's own frame instead of
-                    // arriving from the bottom of the screen.
+                    // Marks this card as where the expansion grows from, so the cover scales out of the card's own frame instead of arriving from the bottom of the screen.
                     .matchedTransitionSource(id: top.id, in: cardZoom)
-                    // A hold, not a tap: the deck's whole vocabulary is the
-                    // swipe, and a tap target here would fire on every aborted
-                    // scroll. `maximumDistance` cancels the press the moment the
-                    // finger commits to travel, so a swipe never opens a card.
+                    // A hold, not a tap: the deck's whole vocabulary is the swipe, and a tap target here would fire on every aborted scroll. `maximumDistance` cancels the press the moment the finger commits to travel, so a swipe never opens a card.
                     .onLongPressGesture(minimumDuration: 0.32, maximumDistance: 14) {
                         guard !isFlying else { return }
                         expanded = top
                     } onPressingChanged: { pressing in
                         isPressing = pressing
                     }
-                    // Fires on the state change rather than inside the gesture,
-                    // so the tap of feedback lands with the expansion it belongs to.
+                    // Fires on the state change rather than inside the gesture, so the tap of feedback lands with the expansion it belongs to.
                     .sensoryFeedback(.impact(weight: .medium), trigger: expanded != nil) { _, open in
                         open
                     }
-                    // Simultaneous, not exclusive: `.gesture` claims the touch the
-                    // moment it recognises, so the scroll view never saw a drag that
-                    // began on a card — which is why the page felt stuck. Sharing the
-                    // touch lets the scroll view own vertical travel while the card
-                    // gates itself to horizontal.
+                    // Simultaneous, not exclusive: `.gesture` claims the touch the moment it recognises, so the scroll view never saw a drag that began on a card — which is why the page felt stuck. Sharing the touch lets the scroll view own vertical travel while the card gates itself to horizontal.
                     .simultaneousGesture(swipeGesture)
-                    // A drag the scroll view takes over is *cancelled*, not ended,
-                    // so `onEnded` never runs and `drag` keeps its last value. The
-                    // card is then parked off-centre — and because `offset` moves a
-                    // view's hit region with it, it leaves a dead band that eats the
-                    // next touch-down instead of letting it scroll.
+                    // A drag the scroll view takes over is *cancelled*, not ended, so `onEnded` never runs and `drag` keeps its last value. The card is then parked off-centre — and because `offset` moves a view's hit region with it, it leaves a dead band that eats the next touch-down instead of letting it scroll.
                     .onChange(of: isDragging) { _, dragging in
                         guard !dragging, !isFlying else { return }
-                        // Also stale after a cancel: a lock left at `false` makes the
-                        // next swipe get ignored for its whole duration.
+                        // Also stale after a cancel: a lock left at `false` makes the next swipe get ignored for its whole duration.
                         isHorizontalDrag = nil
                         guard drag != .zero else { return }
                         withAnimation(.spring(response: 0.34, dampingFraction: 0.68)) {
@@ -181,25 +140,15 @@ struct DeckView: View {
                         }
                     }
                     .allowsHitTesting(!isFlying)
-                    // The swipe is the only visible affordance, so it must also
-                    // exist as a named action for VoiceOver, Voice Control, and
-                    // Switch Control users who cannot perform it.
+                    // The swipe is the only visible affordance, so it must also exist as a named action for VoiceOver, Voice Control, and Switch Control users who cannot perform it.
                     .accessibilityAction(named: "Add to slate") { commit(keep: true) }
                     .accessibilityAction(named: "Pass") { commit(keep: false) }
-                    // The long press is as invisible to assistive tech as the
-                    // swipe was, and the detail copy only exists behind it.
+                    // The long press is as invisible to assistive tech as the swipe was, and the detail copy only exists behind it.
                     .accessibilityAction(named: "Open details") { expanded = top }
             }
         }
         .animation(.wandrTransition, value: deck.cursor)
-        // A cover rather than a sheet: the card grows into the whole screen, and
-        // a sheet's inset card-on-card would fight the illusion that this *is*
-        // the card. The zoom carries its own interactive dismiss — dragging the
-        // expanded card down shrinks it back into the deck.
-        // Deciding from the expanded card can't commit immediately: the zoom
-        // dismissal animates back into the source card, and committing now would
-        // fly that card off mid-transition — the cover would collapse into a hole.
-        // The verdict is held and applied once the card is home.
+        // A cover rather than a sheet: the card grows into the whole screen, and a sheet's inset card-on-card would fight the illusion that this *is* the card. The zoom carries its own interactive dismiss — dragging the expanded card down shrinks it back into the deck. Deciding from the expanded card can't commit immediately: the zoom dismissal animates back into the source card, and committing now would fly that card off mid-transition — the cover would collapse into a hole. The verdict is held and applied once the card is home.
         .fullScreenCover(item: $expanded, onDismiss: {
             guard let verdict = pendingVerdict else { return }
             pendingVerdict = nil
@@ -214,8 +163,7 @@ struct DeckView: View {
         }
     }
 
-    /// The card behind eases up to full size as the top card clears — the stack
-    /// should look like it is resolving, not like a card vanished off one.
+    /// The card behind eases up to full size as the top card clears — the stack should look like it is resolving, not like a card vanished off one.
     private func backdropCard(_ candidate: Candidate, depth: CGFloat) -> some View {
         let advance = min(abs(progress), 1)
         let lift = depth == 1 ? advance : 0
@@ -235,9 +183,7 @@ struct DeckView: View {
                 guard !isFlying else { return }
 
                 if isHorizontalDrag == nil {
-                    // Wait for enough travel to actually have a direction, then
-                    // require a clear horizontal bias. A 2:1 cone leaves the
-                    // diagonal to the scroll view, where a scrolling finger lives.
+                    // Wait for enough travel to actually have a direction, then require a clear horizontal bias. A 2:1 cone leaves the diagonal to the scroll view, where a scrolling finger lives.
                     let dx = abs(value.translation.width)
                     let dy = abs(value.translation.height)
                     guard max(dx, dy) > 10 else { return }
@@ -245,9 +191,7 @@ struct DeckView: View {
                 }
                 guard isHorizontalDrag == true else { return }
 
-                // Horizontal only. Vertical travel belongs to the scroll view now
-                // that the two share the touch — a card that also slid down would
-                // double-count the same finger movement.
+                // Horizontal only. Vertical travel belongs to the scroll view now that the two share the touch — a card that also slid down would double-count the same finger movement.
                 drag = CGSize(width: value.translation.width, height: 0)
             }
             .onEnded { value in
@@ -262,8 +206,7 @@ struct DeckView: View {
                 if abs(travel) > Self.commitDistance || abs(velocity) > Self.commitVelocity {
                     commit(keep: travel > 0)
                 } else {
-                    // Snap back with a touch of overshoot — the card was thrown
-                    // and did not make it, and that should be felt.
+                    // Snap back with a touch of overshoot — the card was thrown and did not make it, and that should be felt.
                     withAnimation(.spring(response: 0.34, dampingFraction: 0.68)) {
                         drag = .zero
                     }
@@ -322,8 +265,7 @@ struct DeckView: View {
             .foregroundStyle(Wandr.secondaryText)
         }
         .padding(20)
-        // Grows with the slate instead of clipping it — a slot with five kept
-        // options used to run past the bottom of a fixed-height panel.
+        // Grows with the slate instead of clipping it — a slot with five kept options used to run past the bottom of a fixed-height panel.
         .frame(maxWidth: .infinity, minHeight: 300, alignment: .leading)
         .background(WandrCardBackground(fill: Wandr.cardSurface))
         .transition(.opacity.combined(with: .scale(scale: 0.97)))

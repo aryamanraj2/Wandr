@@ -1,21 +1,12 @@
-//
-//  CurationView.swift
-//  Wandr
-//
-//  The first modal after a plan is researched: what's actually on the table.
-//  One deck per slot — Food, Sights, Nightlife, Discover — each a stack of
-//  grounded candidates the host swipes through.
-//
+// CurationView.swift Wandr The first modal after a plan is researched: what's actually on the table. One deck per slot — Food, Sights, Nightlife, Discover — each a stack of grounded candidates the host swipes through.
 
 import SwiftUI
 
 struct CurationView: View {
     @State private var decks: [Deck]
-    @State private var scrolledDeck: Deck.ID?
     @State private var showSchedule = false
 
-    /// True once the display header has scrolled up under the navigation bar,
-    /// at which point the short title takes over up there.
+    /// True once the display header has scrolled up under the navigation bar, at which point the short title takes over up there.
     @State private var headerCollapsed = false
 
     // Send-to-Squad. The slate goes to a per-slot vote; the winners seed the schedule.
@@ -23,18 +14,13 @@ struct CurationView: View {
     @State private var pollSession: PollSession?
     @State private var stopsFromPoll: [ScheduleBlock] = []
 
-    /// Group size from the confirmed brief, pre-filling the poll's quorum. `nil` when the
-    /// summary left it open — the poll falls back to the slate's implied size.
+    /// Group size from the confirmed brief, pre-filling the poll's quorum. `nil` when the summary left it open — the poll falls back to the slate's implied size.
     private let groupSize: Int?
 
-    /// One-line explanation shown when the group's time window shaped the plan
-    /// (e.g. "You're free 8–9 pm — time for one stop"). `nil` for an open plan.
+    /// One-line explanation shown when the group's time window shaped the plan (e.g. "You're free 8–9 pm — time for one stop"). `nil` for an open plan.
     private let banner: String?
 
-    /// Per-category window [start...end] in minutes, so the squad's winners land
-    /// inside the group's real window on the schedule. Empty ⇒ category defaults.
-    /// Keyed by `Deck.slotID`, not category: a plan can hold both lunch and dinner,
-    /// and looking their window up by `.food` would give both the same hour.
+    /// Per-category window [start...end] in minutes, so the squad's winners land inside the group's real window on the schedule. Empty ⇒ category defaults. Keyed by `Deck.slotID`, not category: a plan can hold both lunch and dinner, and looking their window up by `.food` would give both the same hour.
     private let slotWindows: [String: ClosedRange<Int>]
 
     /// Preview / design-pass entry point: the hardcoded demo decks, no window.
@@ -45,8 +31,7 @@ struct CurationView: View {
         self.slotWindows = [:]
     }
 
-    /// The live entry point: model-curated, grounded decks with a window banner and
-    /// window-aware schedule placement.
+    /// The live entry point: model-curated, grounded decks with a window banner and window-aware schedule placement.
     init(
         decks: [Deck],
         groupSize: Int?,
@@ -66,41 +51,28 @@ struct CurationView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 40) {
-                        intro
+            ScrollView {
+                LazyVStack(spacing: 40) {
+                    intro
 
-                        ForEach($decks) { $deck in
-                            // Leading rule rather than trailing, so the list does
-                            // not end on a divider pointing at nothing.
-                            if deck.id != decks.first?.id {
-                                WandrDashedRule()
-                            }
-
-                            DeckView(deck: $deck)
-                                .id(deck.id)
+                    ForEach($decks) { $deck in
+                        // Leading rule rather than trailing, so the list does not end on a divider pointing at nothing.
+                        if deck.id != decks.first?.id {
+                            WandrDashedRule()
                         }
+
+                        DeckView(deck: $deck)
+                            .id(deck.id)
                     }
-                    .padding(.horizontal, Metrics.gutter)
                 }
-                // Threshold rather than raw offset: state only changes on the two
-                // frames where the header crosses the bar, not on every scroll tick.
-                .onScrollGeometryChange(for: Bool.self) { geometry in
-                    geometry.contentOffset.y + geometry.contentInsets.top > Metrics.headerCollapse
-                } action: { _, collapsed in
-                    // Assign bare and let the two views that care animate on the
-                    // value. Wrapping this in `withAnimation` made every deck in
-                    // the stack a participant in a transaction about a title's
-                    // opacity — four card stacks, their materials and gradients
-                    // all re-evaluated on the exact frames the finger was moving.
-                    headerCollapsed = collapsed
-                }
-                .onChange(of: scrolledDeck) { _, target in
-                    guard let target else { return }
-                    withAnimation(.wandrTransition) { proxy.scrollTo(target, anchor: .top) }
-                    scrolledDeck = nil
-                }
+                .padding(.horizontal, Metrics.gutter)
+            }
+            // Threshold rather than raw offset: state only changes on the two frames where the header crosses the bar, not on every scroll tick.
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y + geometry.contentInsets.top > Metrics.headerCollapse
+            } action: { _, collapsed in
+                // Assign bare and let the two views that care animate on the value. Wrapping this in `withAnimation` made every deck in the stack a participant in a transaction about a title's opacity — four card stacks, their materials and gradients all re-evaluated on the exact frames the finger was moving.
+                headerCollapsed = collapsed
             }
             .background(Wandr.pageBackground)
             .navigationBarTitleDisplayMode(.inline)
@@ -112,22 +84,15 @@ struct CurationView: View {
                         .opacity(headerCollapsed ? 1 : 0)
                         .animation(.wandrResponse, value: headerCollapsed)
                 }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    categoryJumpMenu
-                }
             }
             .safeAreaBar(edge: .bottom) {
                 summaryBar
             }
-            // Soft on both edges: content feathers away under the toolbar the
-            // same way it does under the summary bar, rather than hitting a
-            // hard ribbon across the top.
+            // Soft on both edges: content feathers away under the toolbar the same way it does under the summary bar, rather than hitting a hard ribbon across the top.
             .scrollEdgeEffectStyle(.soft, for: .top)
             .scrollEdgeEffectStyle(.soft, for: .bottom)
             .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
-            // The poll is the doorway to the schedule: once it locks, its winners
-            // become the stops, and dismissing it opens the laid-out night.
+            // The poll is the doorway to the schedule: once it locks, its winners become the stops, and dismissing it opens the laid-out night.
             .sheet(isPresented: $showPoll, onDismiss: {
                 if !stopsFromPoll.isEmpty { showSchedule = true }
             }) {
@@ -147,8 +112,7 @@ struct CurationView: View {
 
     // MARK: Intro
 
-    /// Fades out as the bar title fades in, so the two read as one title
-    /// moving up rather than two titles briefly on screen together.
+    /// Fades out as the bar title fades in, so the two read as one title moving up rather than two titles briefly on screen together.
     private var intro: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Pick your stops")
@@ -157,8 +121,7 @@ struct CurationView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 8)
 
-            // The one line that makes a time-boxed night read differently from an
-            // open one: it names the window and how many stops it fits.
+            // The one line that makes a time-boxed night read differently from an open one: it names the window and how many stops it fits.
             if let banner {
                 Label(banner, systemImage: "clock.badge.checkmark")
                     .font(.subheadline.weight(.medium))
@@ -168,33 +131,6 @@ struct CurationView: View {
         }
         .opacity(headerCollapsed ? 0 : 1)
         .animation(.wandrResponse, value: headerCollapsed)
-    }
-
-    // MARK: Toolbar
-
-    /// Jumping between decks is a navigation job, so it belongs in a menu —
-    /// not a second row of custom chrome competing with the tab area.
-    private var categoryJumpMenu: some View {
-        Menu {
-            ForEach(decks) { deck in
-                Button {
-                    scrolledDeck = deck.id
-                } label: {
-                    Label {
-                        Text(deck.slotName)
-                        if !deck.shortlist.isEmpty {
-                            Text("\(deck.shortlist.count) on the slate")
-                        }
-                    } icon: {
-                        Image(systemName: deck.shortlist.isEmpty
-                              ? deck.category.symbol
-                              : "checkmark.circle.fill")
-                    }
-                }
-            }
-        } label: {
-            Label("Jump to slot", systemImage: "list.bullet.indent")
-        }
     }
 
     // MARK: Summary bar
@@ -228,16 +164,13 @@ struct CurationView: View {
 
     // MARK: Handoff
 
-    /// The squad's per-slot winners become the schedule. Each slot contributes one
-    /// block, timed by category. Real slot times come from `FeasibilityValidator`;
-    /// these category defaults are placeholders for the design pass.
+    /// The squad's per-slot winners become the schedule. Each slot contributes one block, timed by category. Real slot times come from `FeasibilityValidator`; these category defaults are placeholders for the design pass.
     private func scheduleBlocks(
         from winners: [(slotID: String, candidate: Candidate)]
     ) -> [ScheduleBlock] {
         let day = DemoPlan.days[0]
         return winners.map { slotID, candidate in
-            // A window-shaped plan places the block inside the group's real window
-            // and clamps its length to fit; an open plan uses the category default.
+            // A window-shaped plan places the block inside the group's real window and clamps its length to fit; an open plan uses the category default.
             let start: Int
             let duration: Int
             if let window = slotWindows[slotID] {

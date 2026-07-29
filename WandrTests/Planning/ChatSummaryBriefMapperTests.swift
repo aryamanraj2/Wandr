@@ -1,11 +1,4 @@
-//
-//  ChatSummaryBriefMapperTests.swift
-//  WandrTests
-//
-//  The deterministic JSON→brief bridge. If this drifts, the model is planning for
-//  the wrong group — so budget, dietary, setting, and (above all) time parsing are
-//  pinned here.
-//
+// ChatSummaryBriefMapperTests.swift WandrTests The deterministic JSON→brief bridge. If this drifts, the model is planning for the wrong group — so budget, dietary, setting, and (above all) time parsing are pinned here.
 
 import Foundation
 import Testing
@@ -90,11 +83,7 @@ struct ChatSummaryBriefMapperTests {
     }
 
     // MARK: - Durations
-    //
-    // The reported bug in one line: "3 hours" and "3 o'clock" share their digits.
-    // The clock scanner found the `3`, applied its unqualified-evening rule, and
-    // returned a 3 pm *start* — so a host who said they were short on time got a
-    // window that constrained nothing and a plan that ran until 1 am.
+    // The reported bug in one line: "3 hours" and "3 o'clock" share their digits. The clock scanner found the `3`, applied its unqualified-evening rule, and returned a 3 pm *start* — so a host who said they were short on time got a window that constrained nothing and a plan that ran until 1 am.
 
     @Test(
         "A stated duration is read as a length, never as a clock time",
@@ -149,18 +138,9 @@ struct ChatSummaryBriefMapperTests {
     }
 
     // MARK: - What the host asked to do
-    //
-    // The word "lunch" decides whether the plan contains a restaurant. It is read
-    // from every field it might have landed in, because the extractor puts it
-    // wherever it likes and losing it costs the host the one stop they asked for.
+    // The word "lunch" decides whether the plan contains a restaurant. It is read from every field it might have landed in, because the extractor puts it wherever it likes and losing it costs the host the one stop they asked for.
 
-    /// Only the words that *name a meal* are read here now.
-    ///
-    /// "Somewhere to eat" and "grab a bite" used to resolve through a 63-word category
-    /// table, which is gone: deciding that "a bite" means food is semantics, and
-    /// semantics is the model's job — `PlanShape.stops` classifies it, constrained
-    /// token-by-token to this vocabulary. What stays deterministic is the three meal
-    /// names, because three meals is a closed set and no fourth one is coming.
+    /// Only the words that *name a meal* are read here now. "Somewhere to eat" and "grab a bite" used to resolve through a 63-word category table, which is gone: deciding that "a bite" means food is semantics, and semantics is the model's job — `PlanShape.stops` classifies it, constrained token-by-token to this vocabulary. What stays deterministic is the three meal names, because three meals is a closed set and no fourth one is coming.
     @Test("A meal named outright is read without a model")
     func mealWordsRequestFood() {
         for field in ["lunch", "we want dinner", "breakfast first"] {
@@ -172,8 +152,7 @@ struct ChatSummaryBriefMapperTests {
         }
     }
 
-    /// The other half of the same rule: a phrase that describes food without naming a
-    /// meal is the model's to classify, and Swift declines rather than guessing.
+    /// The other half of the same rule: a phrase that describes food without naming a meal is the model's to classify, and Swift declines rather than guessing.
     @Test("A phrase that names no meal asks for nothing on its own")
     func unnamedFoodPhrasesNeedTheModel() {
         for field in ["somewhere to eat", "grab a bite", "ramen", "a brewery"] {
@@ -189,8 +168,7 @@ struct ChatSummaryBriefMapperTests {
                 == [.dinner])
     }
 
-    /// The half of the request a `Set<SlotCategory>` could not carry. Both of these
-    /// are `food`, and a host who says one of them does not want the other.
+    /// The half of the request a `Set<SlotCategory>` could not carry. Both of these are `food`, and a host who says one of them does not want the other.
     @Test("Naming the meal pins the time of day", arguments: [
         ("lunch", Set<SlotBand>([.lunch])),
         ("brunch on sunday", Set<SlotBand>([.lunch])),
@@ -204,12 +182,7 @@ struct ChatSummaryBriefMapperTests {
         #expect(ChatSummaryBriefMapper.requestedStops(from: payload) == expected)
     }
 
-    /// A word that names the kind of stop but not the hour asks for every band the
-    /// category owns, and lets the window decide which one it gets.
-    /// "Somewhere to eat" names no meal, so it pins no band — the plan's own default
-    /// shape decides, which is what an unspecified request is *for*. It used to expand
-    /// to every food band through the category table; that table taught "snacks" to
-    /// mean dinner, which is how a 12-to-5 request planned an 8 pm meal.
+    /// A word that names the kind of stop but not the hour asks for every band the category owns, and lets the window decide which one it gets. "Somewhere to eat" names no meal, so it pins no band — the plan's own default shape decides, which is what an unspecified request is *for*. It used to expand to every food band through the category table; that table taught "snacks" to mean dinner, which is how a 12-to-5 request planned an 8 pm meal.
     @Test("A meal word with no hour in it leaves the choice to the plan")
     func unspecificFoodAsksForBoth() {
         var payload = ChatSummaryPayload()
@@ -235,14 +208,12 @@ struct ChatSummaryBriefMapperTests {
     func multipleCategoriesAreRecognised() {
         var payload = ChatSummaryPayload()
         payload.plannedStops = "lunch, then a walk, then drinks"
-        // What a faithful extractor returns for that sentence. "A walk" and "drinks"
-        // are semantics; only "lunch" is vocabulary.
+        // What a faithful extractor returns for that sentence. "A walk" and "drinks" are semantics; only "lunch" is vocabulary.
         payload.stops = ["lunch", "afternoon", "late"]
 
         #expect(ChatSummaryBriefMapper.requestedStops(from: payload) == [.lunch, .afternoon, .late])
 
-        // Without the model, the meal survives and the rest does not — deterministically
-        // less, never differently.
+        // Without the model, the meal survives and the rest does not — deterministically less, never differently.
         payload.stops = nil
         #expect(ChatSummaryBriefMapper.requestedStops(from: payload) == [.lunch])
     }
@@ -267,13 +238,7 @@ struct ChatSummaryBriefMapperTests {
     }
 
     // MARK: - The model's own classification
-    //
-    // Neither source outranks the other. The model is the only thing that can read
-    // "something to eat before the movie"; the host's own words are the only thing
-    // that cannot be lost to a bad generation. The keyword table used to be a mere
-    // fallback, which meant a run where the model dropped the field lost the word the
-    // host had literally typed — and the same sentence planned a different night
-    // depending on how the generation went.
+    // Neither source outranks the other. The model is the only thing that can read "something to eat before the movie"; the host's own words are the only thing that cannot be lost to a bad generation. The keyword table used to be a mere fallback, which meant a run where the model dropped the field lost the word the host had literally typed — and the same sentence planned a different night depending on how the generation went.
 
     @Test("A model-classified stop list is used in preference to the keywords")
     func modelClassificationWins() {
@@ -317,12 +282,7 @@ struct ChatSummaryBriefMapperTests {
     }
 
     // MARK: - A word the host typed is never lost
-    //
-    // The reported bug. "I asked for a dinner at saket ... it got most of the things
-    // right but not the DINNER." The model's `stops` came back empty, the keyword scan
-    // only ran as a fallback over fields the *same* generation had filled, and the raw
-    // text the host actually wrote was never consulted at all — so the one word that
-    // decides the whole shape of the plan disappeared with no error anywhere.
+    // The reported bug. "I asked for a dinner at saket ... it got most of the things right but not the DINNER." The model's `stops` came back empty, the keyword scan only ran as a fallback over fields the *same* generation had filled, and the raw text the host actually wrote was never consulted at all — so the one word that decides the whole shape of the plan disappeared with no error anywhere.
 
     @Test("A stop the model dropped is recovered from the host's own words")
     func rawTextRecoversADroppedStop() {
@@ -351,9 +311,7 @@ struct ChatSummaryBriefMapperTests {
         )
     }
 
-    /// "Drinks" is the whole second half of that plan, and it now reaches the plan
-    /// through the model rather than a word list — which is the only way "a brewery",
-    /// "a listening bar" or "somewhere to dance" ever get there too.
+    /// "Drinks" is the whole second half of that plan, and it now reaches the plan through the model rather than a word list — which is the only way "a brewery", "a listening bar" or "somewhere to dance" ever get there too.
     @Test("A stop the model classified is unioned with the meals the host named")
     func modelClassificationAddsUncoveredStops() {
         #expect(
@@ -361,8 +319,7 @@ struct ChatSummaryBriefMapperTests {
                 == [.dinner, .late]
         )
 
-        // The union is what makes the meal safe: even if the model returns only the
-        // half it understood, the word the host typed still lands.
+        // The union is what makes the meal safe: even if the model returns only the half it understood, the word the host typed still lands.
         #expect(
             ChatSummaryBriefMapper.stops(classified: ["late"], inText: "dinner then drinks")
                 == [.dinner, .late]
@@ -375,8 +332,7 @@ struct ChatSummaryBriefMapperTests {
         payload.plannedStops = "dinner"
         payload.vibe = "somewhere we can get good coffee"
 
-        // "Coffee" is a food word, but food is already covered — a mood must not put a
-        // second meal in the plan.
+        // "Coffee" is a food word, but food is already covered — a mood must not put a second meal in the plan.
         #expect(ChatSummaryBriefMapper.requestedStops(from: payload) == [.dinner])
     }
 
@@ -386,10 +342,7 @@ struct ChatSummaryBriefMapperTests {
     }
 
     // MARK: - "Just" has to be next to the stop to mean it
-    //
-    // Presence alone is useless: "just" and "only" are among the commonest words in a
-    // sentence about plans, and reading every one of them as exclusivity would turn
-    // "just 2 of us for dinner" into a one-stop night.
+    // Presence alone is useless: "just" and "only" are among the commonest words in a sentence about plans, and reading every one of them as exclusivity would turn "just 2 of us for dinner" into a one-stop night.
 
     @Test("An exclusivity word beside a stop means exactly that stop", arguments: [
         "just dinner",
@@ -413,11 +366,7 @@ struct ChatSummaryBriefMapperTests {
     }
 
     // MARK: - How many people, read from the sentence
-    //
-    // The reported run: "dinner and lunch for 2 near Saket with budget around 2000
-    // each" planned for a different number of people. `groupSize` is the fifth of
-    // twelve fields in one generation, and nothing checked it against the sentence the
-    // host had actually written — where "for 2" is sitting in plain sight.
+    // The reported run: "dinner and lunch for 2 near Saket with budget around 2000 each" planned for a different number of people. `groupSize` is the fifth of twelve fields in one generation, and nothing checked it against the sentence the host had actually written — where "for 2" is sitting in plain sight.
 
     @Test("A headcount is read exactly from the host's own words", arguments: [
         ("Let's plan dinner and lunch for 2 near Saket with budget around 2000 each", 2),
@@ -451,13 +400,7 @@ struct ChatSummaryBriefMapperTests {
         #expect(ChatSummaryBriefMapper().draft(from: payload).stopsAreExclusive)
     }
 
-    /// The reported scenario, end to end through the deterministic half of the
-    /// pipeline: "an outing, 12:30 to 2, lunch, in CP".
-    ///
-    /// What the host got instead was a monument. Three separate defects lined up —
-    /// `food` had no midday band, the summary had nowhere to record "lunch", and
-    /// nothing carried the request through to the schedule. This asserts the whole
-    /// chain, because each piece passing on its own is what let the gap survive.
+    /// The reported scenario, end to end through the deterministic half of the pipeline: "an outing, 12:30 to 2, lunch, in CP". What the host got instead was a monument. Three separate defects lined up — `food` had no midday band, the summary had nowhere to record "lunch", and nothing carried the request through to the schedule. This asserts the whole chain, because each piece passing on its own is what let the gap survive.
     @Test("A lunchtime plan produces a lunch slot, not a monument")
     func lunchtimePlanProducesLunch() throws {
         var payload = ChatSummaryPayload()
@@ -486,13 +429,7 @@ struct ChatSummaryBriefMapperTests {
         #expect(lunch.windowLabel == "12:30 pm – 2:00 pm")
     }
 
-    /// The screenshot: "lunch", two people, ₹2000 — and a dead end reading "One pick
-    /// works out to ₹2400 a head, over your ₹2000 limit."
-    ///
-    /// Two separate defects produced that one sentence. Nothing established whether
-    /// ₹2000 was each or between them, so Wandr assumed the stricter reading and then
-    /// compared it against a per-head price; and being over the ceiling was fatal
-    /// rather than worth a note. Both are pinned here.
+    /// The screenshot: "lunch", two people, ₹2000 — and a dead end reading "One pick works out to ₹2400 a head, over your ₹2000 limit." Two separate defects produced that one sentence. Nothing established whether ₹2000 was each or between them, so Wandr assumed the stricter reading and then compared it against a per-head price; and being over the ceiling was fatal rather than worth a note. Both are pinned here.
     @Test("Two people with ₹2000 between them get a lunch plan, not a dead end")
     func tightSharedBudgetStillPlans() throws {
         var payload = ChatSummaryPayload()
@@ -510,26 +447,16 @@ struct ChatSummaryBriefMapperTests {
         }
         #expect(brief.budget.value.ceilingPerHead(for: brief.groupSize.value) == 1_000)
 
-        // The meal they named is in the plan. It is no longer the *whole* plan —
-        // one named stop seeds an outing built around it — but this test is about the
-        // budget, and what it needs is that lunch survives the shared-budget path.
+        // The meal they named is in the plan. It is no longer the *whole* plan — one named stop seeds an outing built around it — but this test is about the budget, and what it needs is that lunch survives the shared-budget path.
         #expect(brief.schedule.slots.map(\.band).contains(.lunch))
 
-        // And whatever the dataset offers, the plan is possible: the resolver gives
-        // up the ceiling rather than the outing, and says so.
+        // And whatever the dataset offers, the plan is possible: the resolver gives up the ceiling rather than the outing, and says so.
         let resolution = EvidenceResolver().resolve(brief: brief, evidence: Fixtures.evidence)
         #expect(!resolution.eligible.isEmpty, "A tight budget must never empty the plan")
         #expect(resolution.eligible.contains { $0.category == .food })
     }
 
-    /// The second report, and the harder half of it: the host said "lunch" and gave
-    /// no time at all — just a group of two and a budget. They got a nightlife deck
-    /// for 10 pm to 1 am.
-    ///
-    /// Two things had to be wrong at once. The request only *re-ranked* bands, and
-    /// only for windows bounded at both ends, so an open window kept the whole table;
-    /// and even once `food` won, a bare category resolved to its latest band, which
-    /// is dinner. Nothing here constrains the clock, so both defects are live.
+    /// The second report, and the harder half of it: the host said "lunch" and gave no time at all — just a group of two and a budget. They got a nightlife deck for 10 pm to 1 am. Two things had to be wrong at once. The request only *re-ranked* bands, and only for windows bounded at both ends, so an open window kept the whole table; and even once `food` won, a bare category resolved to its latest band, which is dinner. Nothing here constrains the clock, so both defects are live.
     @Test("Saying lunch and nothing about the time still means lunch, and only lunch")
     func lunchWithNoStatedTimeIsStillLunch() throws {
         var payload = ChatSummaryPayload()
@@ -546,8 +473,7 @@ struct ChatSummaryBriefMapperTests {
 
         let schedule = brief.schedule
 
-        // The defect was never that the plan had other stops in it — it was that the
-        // plan had *no lunch* and did have a 10 pm bar. Both of those stay fixed.
+        // The defect was never that the plan had other stops in it — it was that the plan had *no lunch* and did have a 10 pm bar. Both of those stay fixed.
         let meal = try #require(schedule.slot(for: .food))
         #expect(meal.band == .lunch, "They said lunch, not dinner")
         #expect(meal.title == "Lunch")
@@ -594,8 +520,7 @@ struct ChatSummaryBriefMapperTests {
 
         #expect(draft.area == "CP")
         #expect(draft.groupSize == 8)
-        // "₹1500" with no "each" is the group's total — reading it as per head
-        // would invent the more permissive of the two readings.
+        // "₹1500" with no "each" is the group's total — reading it as per head would invent the more permissive of the two readings.
         #expect(draft.budget == .total(rupees: 1_500))
         #expect(draft.dietary == .required([.vegetarian]))
         #expect(draft.setting == .indoor)
@@ -617,15 +542,7 @@ struct ChatSummaryBriefMapperTests {
 
     // MARK: - Per-head basis, however it is spelled
 
-    /// The invariant, not the case: **how a per-head phrase is punctuated cannot change
-    /// what it means.** Quantified over the spellings of one phrase rather than over a
-    /// list of examples, because the bug was never about a missing example — it was a
-    /// literal-string list written with single spaces, which recognised the first
-    /// spelling of every phrase and silently missed the rest.
-    ///
-    /// The observed failure: `"around 1000 perhead"` for seven people read as a ₹1000
-    /// group total — a ₹142 ceiling — so a ₹120 chaat counter outranked every
-    /// restaurant in the deck and nothing reported a problem.
+    /// The invariant, not the case: **how a per-head phrase is punctuated cannot change what it means.** Quantified over the spellings of one phrase rather than over a list of examples, because the bug was never about a missing example — it was a literal-string list written with single spaces, which recognised the first spelling of every phrase and silently missed the rest. The observed failure: `"around 1000 perhead"` for seven people read as a ₹1000 group total — a ₹142 ceiling — so a ₹120 chaat counter outranked every restaurant in the deck and nothing reported a problem.
     @Test(
         "A per-head phrase means the same however it is spaced",
         arguments: ["per head", "per person", "per pax"]
@@ -648,16 +565,14 @@ struct ChatSummaryBriefMapperTests {
         }
     }
 
-    /// The other half: a number with no basis stated stays the group's total, which is
-    /// the weaker of the two readings and the only one the host actually said.
+    /// The other half: a number with no basis stated stays the group's total, which is the weaker of the two readings and the only one the host actually said.
     @Test(
         "A phrase that does not say 'each' is still the group's total",
         arguments: [
             "around 1000",
             "1000 for the group",
             "1000 in total",
-            // The words that *contain* a per-head token without being one. "reach"
-            // holds "each"; the old substring check read it as a per-head budget.
+            // The words that *contain* a per-head token without being one. "reach" holds "each"; the old substring check read it as a per-head budget.
             "1000, we'll reach by 8",
             "1000, we're planning ahead",
             "1000 for shopping"
@@ -670,11 +585,7 @@ struct ChatSummaryBriefMapperTests {
 
     // MARK: - A stated time survives the model dropping it
 
-    /// The observed failure: `"after office after 5:30 pm"` came back with `time: nil`,
-    /// the clause swept into `otherNotes`, and the brief's window `.unknown` — so a
-    /// stated 5:30 start constrained nothing.
-    /// One bound per case, named, so the tuple stays simple enough for the type
-    /// checker inside a parameterised `@Test`.
+    /// The observed failure: `"after office after 5:30 pm"` came back with `time: nil`, the clause swept into `otherNotes`, and the brief's window `.unknown` — so a stated 5:30 start constrained nothing. One bound per case, named, so the tuple stays simple enough for the type checker inside a parameterised `@Test`.
     struct BoundCase: Sendable {
         let sentence: String
         let earliest: Int?
@@ -728,10 +639,7 @@ struct ChatSummaryBriefMapperTests {
         )
     }
 
-    /// The half that matters more. An invented amount is worse than no amount: it does
-    /// not widen the search, it marks real venues as over budget. So every number in a
-    /// sentence that is *not* money has to read as none — a headcount, a clock, a
-    /// party size, a duration.
+    /// The half that matters more. An invented amount is worse than no amount: it does not widen the search, it marks real venues as over budget. So every number in a sentence that is *not* money has to read as none — a headcount, a clock, a party size, a duration.
     @Test(
         "Numbers that are not money produce no budget",
         arguments: [
@@ -749,9 +657,7 @@ struct ChatSummaryBriefMapperTests {
         #expect(ChatSummaryBriefMapper.budget(from: phrase) == nil)
     }
 
-    /// The scan's whole discipline: a number is a time only when something *says* it is.
-    /// Handing this sentence to `timeWindow` directly is what produced a window
-    /// finishing before it started — 7 from "7 people", 10:00 and 00:00 from "1000".
+    /// The scan's whole discipline: a number is a time only when something *says* it is. Handing this sentence to `timeWindow` directly is what produced a window finishing before it started — 7 from "7 people", 10:00 and 00:00 from "1000".
     @Test(
         "Numbers that are not times produce no window",
         arguments: [

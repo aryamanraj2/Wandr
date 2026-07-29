@@ -1,11 +1,4 @@
-//
-//  CurationModels.swift
-//  Wandr
-//
-//  UI-layer view models for the curation and schedule surfaces.
-//  Hardcoded for the design pass — these mirror the shapes WandrKit's
-//  DistrictVenue / GroundedOption / WandrPlan will hand over later.
-//
+// CurationModels.swift Wandr UI-layer view models for the curation and schedule surfaces. Hardcoded for the design pass — these mirror the shapes WandrKit's DistrictVenue / GroundedOption / WandrPlan will hand over later.
 
 import Foundation
 
@@ -60,23 +53,17 @@ struct Candidate: Identifiable, Hashable {
     /// Backdrop gradient seed, standing in for venue photography.
     let imageSeed: Int
 
-    /// The model's one-line reason for this pick. Prose, never a source of facts —
-    /// `nil` for the hardcoded demo deck, set for model-curated candidates.
+    /// The model's one-line reason for this pick. Prose, never a source of facts — `nil` for the hardcoded demo deck, set for model-curated candidates.
     var rationale: String? = nil
 
-    /// The dataset had no price. The card must show that honestly rather than
-    /// rendering `perHead == 0` as "Free".
+    /// The dataset had no price. The card must show that honestly rather than rendering `perHead == 0` as "Free".
     var costUnknown: Bool = false
 
-    /// Deterministic validator caveats to surface on the card (unknown hours,
-    /// unverified dietary, provider limitations). Never model-authored.
+    /// Deterministic validator caveats to surface on the card (unknown hours, unverified dietary, provider limitations). Never model-authored.
     var warnings: [String] = []
 
     // MARK: Expanded-card content
-    //
-    // None of the following appears in the deck. A card in the stack is a snap
-    // judgement — name, look, price, one line — and anything more competes with
-    // the swipe. These are the second look, revealed only once a card is opened.
+    // None of the following appears in the deck. A card in the stack is a snap judgement — name, look, price, one line — and anything more competes with the swipe. These are the second look, revealed only once a card is opened.
 
     /// A short paragraph of colour: what the place actually feels like.
     var story: String? = nil
@@ -96,20 +83,11 @@ struct Candidate: Identifiable, Hashable {
 
 // MARK: - Deck
 
-/// A time slot in the plan plus the candidates competing for it.
-///
-/// The host does not pick a winner here — they shortlist. A right swipe adds a
-/// candidate to the slate the squad will vote on, and the deck keeps going.
-/// Narrowing many options down to one is the squad's job, not the host's.
+/// A time slot in the plan plus the candidates competing for it. The host does not pick a winner here — they shortlist. A right swipe adds a candidate to the slate the squad will vote on, and the deck keeps going. Narrowing many options down to one is the squad's job, not the host's.
 struct Deck: Identifiable {
     let id: UUID = UUID()
 
-    /// Stable identity for this stop, carried through from the plan's `SlotID`.
-    ///
-    /// Distinct from `category`, which is *not* unique across a plan: a host who
-    /// asks for lunch and dinner gets two `.food` decks. Keying anything by
-    /// category silently merged them — the squad poll built one ballot for both,
-    /// so voting on lunch also voted on dinner.
+    /// Stable identity for this stop, carried through from the plan's `SlotID`. Distinct from `category`, which is *not* unique across a plan: a host who asks for lunch and dinner gets two `.food` decks. Keying anything by category silently merged them — the squad poll built one ballot for both, so voting on lunch also voted on dinner.
     let slotID: String
     let category: StopCategory
     /// e.g. "Dinner", "Late evening" — the human name for this slot.

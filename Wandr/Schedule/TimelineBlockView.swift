@@ -1,17 +1,4 @@
-//
-//  TimelineBlockView.swift
-//  Wandr
-//
-//  A scheduled stop on the timeline.
-//
-//  A tap does nothing — this is content, not a control. Press and hold and the
-//  block shrinks, takes the ink fill, and follows your finger; a dashed ghost
-//  holds the slot it came from so the original time stays legible.
-//
-//  All transient state lives in `@GestureState`, which SwiftUI resets
-//  automatically if the gesture is cancelled. That is what keeps a block from
-//  being stranded in the lifted state when a touch is interrupted.
-//
+// TimelineBlockView.swift Wandr A scheduled stop on the timeline. A tap does nothing — this is content, not a control. Rescheduling is not a mode you enter, it is a commitment you make with one finger: hold the block and an accent ring draws itself around the edge while the card tightens in your grip; hold it all the way and the block snaps free, takes the ink fill, and follows your finger, with a dashed ghost keeping the slot it came from so the original time stays legible. Letting go early costs nothing and the ring unwinds. The hold is deliberately long — a stop moving is a real edit to the night, and it should take a moment of intent rather than a brush of a thumb. All transient state lives in `@GestureState`, which SwiftUI resets automatically if the gesture is cancelled. That is what keeps a block from being stranded in the lifted state when a touch is interrupted.
 
 import SwiftUI
 
@@ -24,9 +11,8 @@ struct TimelineBlockView: View {
     /// Minute bounds of the visible day, for clamping.
     let dayRange: ClosedRange<Int>
 
-    /// Rescheduling is only possible in edit mode. Outside it the block is
-    /// pure content and swallows nothing.
-    let isEditing: Bool
+    /// How long the finger has to stay down before the block comes free. Long enough that a scroll or a brushed thumb never moves a stop, short enough that a deliberate hold does not feel stuck — and the charge ring makes the wait legible rather than dead.
+    private static let holdDuration: Double = 0.45
 
     /// Canonical long-press-then-drag state. Auto-resets on cancellation.
     private enum LiftState: Equatable {
@@ -44,6 +30,12 @@ struct TimelineBlockView: View {
 
     @GestureState private var lift: LiftState = .inactive
 
+    /// True from touch-down until the finger leaves or travels far enough to be a scroll. This only reports the press — it never succeeds on its own, so it cannot claim the touch away from the gesture that actually does the work.
+    @GestureState private var isCharging = false
+
+    /// 0 → 1 over the hold, driving the ring that draws around the block. Plain `@State` because it has to animate over real time rather than track a value the finger is producing.
+    @State private var charge: CGFloat = 0
+
     /// Pulsed after a release, purely to fire the landing haptic.
     @State private var isSettling = false
 
@@ -55,8 +47,7 @@ struct TimelineBlockView: View {
 
     private var isLifted: Bool { lift.isLifted }
 
-    /// The pinch is deepest at the moment of grab and relaxes once the block is
-    /// travelling, so the squeeze reads as a response to the finger closing.
+    /// The pinch is deepest at the moment of grab and relaxes once the block is travelling, so the squeeze reads as a response to the finger closing.
     private var isPressing: Bool { lift == .pressing }
 
     private var isDragging: Bool {
@@ -64,18 +55,25 @@ struct TimelineBlockView: View {
         return false
     }
 
-    /// Non-uniform on purpose — squashing slightly more vertically than
-    /// horizontally is what makes it feel gripped rather than zoomed out.
+    /// Non-uniform on purpose — squashing slightly more vertically than horizontally is what makes it feel gripped rather than zoomed out. The charging stage is uniform and shallow by contrast: nothing has been decided yet, so the block is only tensing, not gripped.
     private var squeeze: CGSize {
         if isPressing { return CGSize(width: 0.88, height: 0.84) }
         if isDragging { return CGSize(width: 0.90, height: 0.89) }
+        if isCharging { return CGSize(width: 0.965, height: 0.965) }
         return CGSize(width: 1, height: 1)
+    }
+
+    /// The squeeze is one motion with three tempos, and keying them apart is what makes the threshold land as a snap. Charging eases *in* so the tension builds and the release out of it reads as a break; the grab springs loose; the settle damps.
+    private var squeezeAnimation: Animation {
+        if isLifted { return .wandrLift }
+        if isCharging { return .easeIn(duration: Self.holdDuration) }
+        return .wandrSettle
     }
 
     /// Another block owns the interaction — this one must not respond.
     private var isBlocked: Bool { liftedID != nil && liftedID != block.id }
 
-    private var canLift: Bool { isEditing && !isBlocked }
+    private var canLift: Bool { !isBlocked }
 
     private var dragOffset: CGFloat {
         isLifted ? resisted(lift.verticalTranslation) : 0
@@ -93,9 +91,7 @@ struct TimelineBlockView: View {
             card
         }
         .frame(height: height, alignment: .top)
-        // Publishing the lift upward is what enforces one-at-a-time and lets the
-        // timeline suspend scrolling. Driven by onChange so a cancelled gesture
-        // clears it just as reliably as a completed one.
+        // Publishing the lift upward is what enforces one-at-a-time and lets the timeline suspend scrolling. Driven by onChange so a cancelled gesture clears it just as reliably as a completed one.
         .onChange(of: isLifted) { _, lifted in
             liftedID = lifted ? block.id : nil
         }
@@ -112,6 +108,18 @@ struct TimelineBlockView: View {
             )
             .frame(height: height)
             .transition(.opacity)
+    }
+
+    // MARK: Charge ring
+
+    /// The commitment, drawn. A hold with no feedback is indistinguishable from a screen that has stopped responding — this is what turns the wait into a visible countdown, and what makes letting go early an obvious, costless choice.
+    private var chargeRing: some View {
+        RoundedRectangle(cornerRadius: Metrics.blockCorner)
+            .trim(from: 0, to: charge)
+            .stroke(accent, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+            .opacity(isLifted ? 0 : 1)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 
     // MARK: Card
@@ -152,21 +160,37 @@ struct TimelineBlockView: View {
             RoundedRectangle(cornerRadius: Metrics.blockCorner)
                 .fill(isLifted ? Wandr.liftedSurface : Wandr.cardSurface)
         }
-        // Shrinking on lift is what makes the block read as detached from the
-        // timeline rather than merely recolored.
+        .overlay { chargeRing }
+        // Shrinking on lift is what makes the block read as detached from the timeline rather than merely recolored.
         .scaleEffect(squeeze, anchor: .center)
         .shadow(color: Wandr.ink.opacity(isLifted ? 0.34 : 0.06),
                 radius: isLifted ? 26 : 4,
                 x: 0, y: isLifted ? 16 : 2)
         .offset(y: dragOffset)
         .zIndex(isLifted ? 10 : 0)
-        // The grab springs, the release settles — two different feelings. Keyed
-        // on the phase rather than a bool so press → drag also animates.
-        .animation(isLifted ? .wandrLift : .wandrSettle, value: squeeze)
+        // Three tempos, one motion: tension, grab, settle.
+        .animation(squeezeAnimation, value: squeeze)
+        // While one block is in the air the rest of the night steps back, so there is never a question about which stop the finger owns.
+        .opacity(isBlocked ? 0.45 : 1)
+        .animation(.wandrResponse, value: isBlocked)
         .contentShape(RoundedRectangle(cornerRadius: Metrics.blockCorner))
         .gesture(liftAndDrag, isEnabled: canLift)
-        // Three distinct taps, quietest to loudest in the order you feel them:
-        // the grab, each slot you cross, and the landing.
+        // Simultaneous, and deliberately never satisfiable: this exists only to know a finger is down. A `.gesture` here would claim the touch and starve both the real lift and the scroll view.
+        .simultaneousGesture(pressTracker, isEnabled: canLift)
+        // The ring is time-based, not finger-based, so it is driven from the press rather than tracked. Winding down faster than it wound up makes an abandoned hold feel released rather than undone.
+        .onChange(of: isCharging) { _, charging in
+            guard !isLifted else { return }
+            withAnimation(charging ? .linear(duration: Self.holdDuration)
+                                   : .easeOut(duration: 0.16)) {
+                charge = charging ? 1 : 0
+            }
+        }
+        // The ring has done its job the instant the block comes free — it must not survive into the drag as a stray outline.
+        .onChange(of: isLifted) { _, lifted in
+            guard lifted else { return }
+            withAnimation(.wandrResponse) { charge = 0 }
+        }
+        // Three distinct taps, quietest to loudest in the order you feel them: the grab, each slot you cross, and the landing.
         .sensoryFeedback(.impact(weight: .medium, intensity: 0.75),
                          trigger: isPressing) { _, pressing in pressing }
         .sensoryFeedback(.impact(flexibility: .soft, intensity: 0.4),
@@ -177,11 +201,9 @@ struct TimelineBlockView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(block.title), \(block.category.title)")
         .accessibilityValue("\(block.startLabel) to \(block.endLabel)")
-        .accessibilityHint(isEditing ? "Adjust to reschedule" : "")
-        // Press-and-hold is not reachable for every input method, so the same
-        // capability is exposed through the adjustable trait.
+        .accessibilityHint("Adjust to reschedule")
+        // Press-and-hold is now the only gesture that moves a stop, and it is not reachable for every input method — so the adjustable trait is not a convenience here, it is the whole capability.
         .accessibilityAdjustableAction { direction in
-            guard isEditing else { return }
             let delta = direction == .increment ? Metrics.snapMinutes : -Metrics.snapMinutes
             withAnimation(.wandrSettle) {
                 block.startMinute = clamped(block.startMinute + delta)
@@ -195,20 +217,27 @@ struct TimelineBlockView: View {
 
     // MARK: Gesture
 
-    /// Long press to lift, then drag to reschedule. Sequencing them means a
-    /// scroll never accidentally moves a block, and a tap does nothing at all.
+    /// Reports the press and nothing else. A long press publishes its state from the moment the finger lands rather than only on success, which is the whole trick: the duration is set past any real hold so the gesture never completes and never claims the touch, and `updating` still tells us a finger is down. `maximumDistance` is what keeps it honest — a finger that travels is scrolling, the press fails, and the ring unwinds on its own.
+    ///
+    /// The duration is a large *finite* number on purpose. `.infinity` and `.greatestFiniteMagnitude` are the obvious way to say "never", and both hand an unrepresentable deadline to a gesture that schedules a real timer.
+    private var pressTracker: some Gesture {
+        LongPressGesture(minimumDuration: 60, maximumDistance: 24)
+            .updating($isCharging) { pressing, state, _ in state = pressing }
+    }
+
+    /// Long press to lift, then drag to reschedule. Sequencing them means a scroll never accidentally moves a block, and a tap does nothing at all.
     private var liftAndDrag: some Gesture {
-        LongPressGesture(minimumDuration: 0.3)
+        LongPressGesture(minimumDuration: Self.holdDuration, maximumDistance: 24)
             .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
             .updating($lift) { value, state, transaction in
                 switch value {
                 case .first(true):
+                    // The threshold. Everything before this was tension; this is the break, so it springs rather than eases.
                     state = .pressing
-                    transaction.animation = .wandrSettle
+                    transaction.animation = .wandrLift
 
                 case .second(true, let drag):
-                    // No animation while tracking — the block must sit under the
-                    // finger, not chase it.
+                    // No animation while tracking — the block must sit under the finger, not chase it.
                     state = .dragging(translation: drag?.translation ?? .zero)
                     transaction.animation = nil
 
@@ -220,15 +249,13 @@ struct TimelineBlockView: View {
                 guard case .second(true, let drag) = value else { return }
                 let translation = drag?.translation.height ?? 0
                 let velocity = (drag?.predictedEndTranslation.height ?? translation) - translation
-                // Project the release forward so a flick lands where it was
-                // headed, rather than where the finger happened to stop.
+                // Project the release forward so a flick lands where it was headed, rather than where the finger happened to stop.
                 settle(to: minute(forOffset: translation + velocity * 0.25))
             }
     }
 
     private func settle(to target: Int) {
-        // `lift` resets itself the instant the gesture ends, so the block
-        // animates from wherever it was released into the committed slot.
+        // `lift` resets itself the instant the gesture ends, so the block animates from wherever it was released into the committed slot.
         withAnimation(.wandrSettle) {
             block.startMinute = clamped(target)
         }
@@ -260,8 +287,7 @@ struct TimelineBlockView: View {
         guard allowed != unclamped else { return raw }
 
         let overshootPoints = CGFloat(unclamped - allowed) * Metrics.pointsPerMinute
-        // Keep a fraction of the overflow so the finger stays attached, but make
-        // the boundary unmistakable.
+        // Keep a fraction of the overflow so the finger stays attached, but make the boundary unmistakable.
         return raw - overshootPoints + overshootPoints * 0.28
     }
 }

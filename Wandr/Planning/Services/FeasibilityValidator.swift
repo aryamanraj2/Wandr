@@ -1,16 +1,4 @@
-//
-//  FeasibilityValidator.swift
-//  Wandr
-//
-//  Pure Swift. The gate that stops beautiful-but-impossible AI output.
-//
-//  It receives typed brief fields, an immutable evidence snapshot, and the
-//  proposed selections — and nothing else. There is no model call, no network,
-//  no file system, no UI framework reachable from this file, by design.
-//
-//  The model may add rationale. It can never remove a warning produced here, and
-//  it can never turn an unknown into a fact.
-//
+// FeasibilityValidator.swift Wandr Pure Swift. The gate that stops beautiful-but-impossible AI output. It receives typed brief fields, an immutable evidence snapshot, and the proposed selections — and nothing else. There is no model call, no network, no file system, no UI framework reachable from this file, by design. The model may add rationale. It can never remove a warning produced here, and it can never turn an unknown into a fact.
 
 import Foundation
 
@@ -35,8 +23,7 @@ nonisolated struct FeasibilityRules: Sendable, Equatable, Hashable {
 
 // MARK: - Violations
 
-/// A deterministic rule the curation broke. Every case names the venue and slot
-/// responsible, so a failure is debuggable without replaying the model.
+/// A deterministic rule the curation broke. Every case names the venue and slot responsible, so a failure is debuggable without replaying the model.
 nonisolated enum FeasibilityViolation: Sendable, Equatable, Hashable {
 
     /// The curator returned nothing at all.
@@ -51,13 +38,7 @@ nonisolated enum FeasibilityViolation: Sendable, Equatable, Hashable {
     /// The same venue fills more than one slot.
     case duplicateAcrossSlots(venueID: VenueID, slotIDs: [SlotID])
 
-    // `overBudget` and `insufficientCandidates` used to live here. Both are gone,
-    // and deliberately: a violation fails the *whole run*, and neither of those is
-    // the model doing something wrong. A place costing more than the host hoped, or
-    // a category with only two options, is a plan worth showing with a note on it —
-    // `EvidenceResolver` gives the constraint up and discloses it, and a thin deck
-    // is simply thin. What remains below is genuine model misbehaviour, which
-    // should still stop the run loudly.
+    // `overBudget` and `insufficientCandidates` used to live here. Both are gone, and deliberately: a violation fails the *whole run*, and neither of those is the model doing something wrong. A place costing more than the host hoped, or a category with only two options, is a plan worth showing with a note on it — `EvidenceResolver` gives the constraint up and discloses it, and a thin deck is simply thin. What remains below is genuine model misbehaviour, which should still stop the run loudly.
 
     /// Evidence was surveyed and contradicts a hard dietary requirement.
     case unmetDietaryRequirement(slotID: SlotID, venueID: VenueID, missing: [DietaryRequirement])
@@ -69,34 +50,12 @@ nonisolated enum FeasibilityViolation: Sendable, Equatable, Hashable {
     case unmetSettingPreference(slotID: SlotID, venueID: VenueID, preference: SettingPreference, actual: VenueSetting)
 
     // MARK: Shape invariants
-    //
-    // The two below differ in kind from everything above. The others catch a bad
-    // *pick* — a venue that should not have been chosen. These catch a bad *plan*:
-    // the right venues arranged into a night the host never asked for. They are
-    // quantified over every plan rather than written as cases, because the failure
-    // they guard against has recurred in a new sentence every time it was fixed as
-    // one.
+    // The two below differ in kind from everything above. The others catch a bad *pick* — a venue that should not have been chosen. These catch a bad *plan*: the right venues arranged into a night the host never asked for. They are quantified over every plan rather than written as cases, because the failure they guard against has recurred in a new sentence every time it was fixed as one.
 
-    /// The plan contains a stop the host neither named nor could have implied.
-    ///
-    /// Once the host names anything, the span of the plan is pinned: it may not reach
-    /// earlier than their first stop or later than their last. Anything inside that
-    /// span is filling a gap they themselves bounded; anything outside it is Wandr
-    /// deciding it knows better.
-    ///
-    /// This is the invariant for the reported failure. "12 to 5, lunch and snacks"
-    /// recognised only `lunch`, took a growth branch meant for unspecified requests,
-    /// and extended forward to an 8 pm dinner — three hours past a stated finish, out
-    /// of a sentence that named two stops. The growth path is gone; this makes its
-    /// return detectable rather than depending on nobody reintroducing it.
+    /// The plan contains a stop the host neither named nor could have implied. Once the host names anything, the span of the plan is pinned: it may not reach earlier than their first stop or later than their last. Anything inside that span is filling a gap they themselves bounded; anything outside it is Wandr deciding it knows better. This is the invariant for the reported failure. "12 to 5, lunch and snacks" recognised only `lunch`, took a growth branch meant for unspecified requests, and extended forward to an 8 pm dinner — three hours past a stated finish, out of a sentence that named two stops. The growth path is gone; this makes its return detectable rather than depending on nobody reintroducing it.
     case grewBeyondRequest(slotID: SlotID, band: SlotBand, named: [SlotBand])
 
-    /// A block runs past the finish the host gave.
-    ///
-    /// `SlotSchedule` already truncates to the window, so this should be unreachable —
-    /// which is the point. It is the backstop that makes "no stop ever ends after
-    /// their stated end" a property of the *plan*, not a property of one function
-    /// that happens to be careful.
+    /// A block runs past the finish the host gave. `SlotSchedule` already truncates to the window, so this should be unreachable — which is the point. It is the backstop that makes "no stop ever ends after their stated end" a property of the *plan*, not a property of one function that happens to be careful.
     case ranPastStatedEnd(slotID: SlotID, endMinute: Int, statedEnd: Int)
 
     /// User-readable. Never mentions the host's own words.
@@ -136,12 +95,7 @@ nonisolated enum FeasibilityViolation: Sendable, Equatable, Hashable {
 
 // MARK: - Validator
 
-/// Deterministic feasibility checks over a proposed curation.
-///
-/// Implements only the first-step rules from `nonuistuff/plan.md` §10. Route
-/// duration, live opening hours, weather fallback, time-zone resolution, and
-/// offer-window validation are deferred rules and are deliberately absent —
-/// faking them would be worse than not having them.
+/// Deterministic feasibility checks over a proposed curation. Implements only the first-step rules from `nonuistuff/plan.md` §10. Route duration, live opening hours, weather fallback, time-zone resolution, and offer-window validation are deferred rules and are deliberately absent — faking them would be worse than not having them.
 nonisolated struct FeasibilityValidator: ItineraryValidating, Sendable {
 
     let rules: FeasibilityRules
@@ -150,12 +104,7 @@ nonisolated struct FeasibilityValidator: ItineraryValidating, Sendable {
         self.rules = rules
     }
 
-    /// Validates the curation and returns the immutable plan, or throws.
-    ///
-    /// Check order is deliberate: per-candidate rules run first because they name
-    /// the exact venue at fault, then cross-slot rules, then deck depth. Deck depth
-    /// last means a thin deck of *valid* venues reports as thin, rather than
-    /// masking a bad pick.
+    /// Validates the curation and returns the immutable plan, or throws. Check order is deliberate: per-candidate rules run first because they name the exact venue at fault, then cross-slot rules, then deck depth. Deck depth last means a thin deck of *valid* venues reports as thin, rather than masking a bad pick.
     func validate(
         brief: OutingBrief,
         evidence: [GroundedVenue],
@@ -232,16 +181,7 @@ nonisolated struct FeasibilityValidator: ItineraryValidating, Sendable {
         }
 
         // MARK: Rule 6 — deck depth
-        //
-        // A thin deck is a thin deck, not a failure. This used to throw two
-        // different ways — `insufficientEvidence` when the category was short and
-        // `insufficientCandidates` when the curator under-picked — and both ended
-        // the host's run. Two real restaurants beat no plan, and a low budget or a
-        // small neighbourhood should never be able to produce nothing at all.
-        //
-        // The shortfall is still worth knowing about, so it becomes a warning the
-        // host sees and a number the log records. `minimumCandidatesPerSlot` remains
-        // what `SlotDeckBuilder` fills *towards*; it is no longer a contract.
+        // A thin deck is a thin deck, not a failure. This used to throw two different ways — `insufficientEvidence` when the category was short and `insufficientCandidates` when the curator under-picked — and both ended the host's run. Two real restaurants beat no plan, and a low budget or a small neighbourhood should never be able to produce nothing at all. The shortfall is still worth knowing about, so it becomes a warning the host sees and a number the log records. `minimumCandidatesPerSlot` remains what `SlotDeckBuilder` fills *towards*; it is no longer a contract.
 
         for slot in slots where slot.candidates.count < rules.minimumCandidatesPerSlot {
             warnings.append(
@@ -273,29 +213,14 @@ nonisolated struct FeasibilityValidator: ItineraryValidating, Sendable {
 
     // MARK: - Rules 9 and 10: the plan's shape
 
-    /// Every way the arrangement of stops can betray the request, checked over the
-    /// whole plan at once.
-    ///
-    /// Quantified deliberately. Both properties below hold for *all* briefs and all
-    /// plans, and neither names a stop, a time, or a phrasing — so a new sentence
-    /// cannot require a new branch here. That is the whole reason they are written
-    /// this way: the failures they cover have each been fixed before as a special
-    /// case, and each came back wearing different words.
+    /// Every way the arrangement of stops can betray the request, checked over the whole plan at once. Quantified deliberately. Both properties below hold for *all* briefs and all plans, and neither names a stop, a time, or a phrasing — so a new sentence cannot require a new branch here. That is the whole reason they are written this way: the failures they cover have each been fixed before as a special case, and each came back wearing different words.
     private func shapeViolations(brief: OutingBrief, slots: [CurationSlot]) -> [FeasibilityViolation] {
         let schedule = brief.schedule
         var found: [FeasibilityViolation] = []
 
-        // Rule 9 — the host's own stops bound the plan's span.
-        //
-        // Only once they have named something. An unspecified request has no span to
-        // exceed, and proposing a full day for it is the feature, not a violation.
+        // Rule 9 — the host's own stops bound the plan's span. Only once they have named something. An unspecified request has no span to exceed, and proposing a full day for it is the feature, not a violation.
         let requested = brief.requestedStops
-        // Only when the request was actually satisfiable. A host who asks for lunch and
-        // says they are free 8 to 9 pm has contradicted themselves; `SlotSchedule`
-        // drops the stop and falls back to the default shape, `requestHonoured` reports
-        // it, and the host is told. Applying the span to that fallback would call
-        // Wandr's own recovery a violation and fail the run outright — the plan is
-        // *entirely* outside a span it was never able to honour.
+        // Only when the request was actually satisfiable. A host who asks for lunch and says they are free 8 to 9 pm has contradicted themselves; `SlotSchedule` drops the stop and falls back to the default shape, `requestHonoured` reports it, and the host is told. Applying the span to that fallback would call Wandr's own recovery a violation and fail the run outright — the plan is *entirely* outside a span it was never able to honour.
         let honoured = slots.contains { requested.contains($0.band) }
         if !requested.isEmpty, honoured {
             let order = SlotBand.allCases
@@ -318,19 +243,7 @@ nonisolated struct FeasibilityValidator: ItineraryValidating, Sendable {
             }
         }
 
-        // Rule 10 — no block ends after the finish the host gave.
-        //
-        // Over `schedule.slots`, which are the blocks the timeline actually lays down,
-        // rather than over the curated decks: a deck has no time of its own, it shows
-        // whatever window its band resolved to.
-        //
-        // Honest about what this is: `SlotSchedule.layOut` clamps every block to
-        // `latestEnd`, so as the code stands this cannot fire. It is a backstop, kept
-        // because the property is one the host can *see* violated — an 11 pm bar on a
-        // plan they said had to end at nine — and because the clamp has been rewritten
-        // three times. An assertion that only earns its place after a regression is
-        // still worth its four lines. The reachable half of the same property is
-        // enforced in `SlotScheduleTests`, quantified over every band and window.
+        // Rule 10 — no block ends after the finish the host gave. Over `schedule.slots`, which are the blocks the timeline actually lays down, rather than over the curated decks: a deck has no time of its own, it shows whatever window its band resolved to. Honest about what this is: `SlotSchedule.layOut` clamps every block to `latestEnd`, so as the code stands this cannot fire. It is a backstop, kept because the property is one the host can *see* violated — an 11 pm bar on a plan they said had to end at nine — and because the clamp has been rewritten three times. An assertion that only earns its place after a regression is still worth its four lines. The reachable half of the same property is enforced in `SlotScheduleTests`, quantified over every band and window.
         if let statedEnd = brief.timeWindow.value.latestEndMinute {
             for block in schedule.slots where block.endMinute > statedEnd {
                 found.append(
@@ -348,10 +261,7 @@ nonisolated struct FeasibilityValidator: ItineraryValidating, Sendable {
 
     // MARK: - Rule 4: budget
 
-    /// A card above the host's ceiling is shown with the number on it, not removed
-    /// and not fatal. `EvidenceResolver` only lets one through when the alternative
-    /// was an empty deck, and it discloses that separately — this is the per-card
-    /// half of the same honesty.
+    /// A card above the host's ceiling is shown with the number on it, not removed and not fatal. `EvidenceResolver` only lets one through when the alternative was an empty deck, and it discloses that separately — this is the per-card half of the same honesty.
     private func budgetWarnings(
         venue: GroundedVenue,
         slot: CurationSlot,
@@ -371,8 +281,7 @@ nonisolated struct FeasibilityValidator: ItineraryValidating, Sendable {
         ]
     }
 
-    /// An unknown cost is a warning, never a guessed number — even when the host
-    /// set no ceiling, because the host still deserves to know we don't know.
+    /// An unknown cost is a warning, never a guessed number — even when the host set no ceiling, because the host still deserves to know we don't know.
     private func costWarnings(venue: GroundedVenue, slot: CurationSlot) -> [PlanWarning] {
         guard venue.cost == .unknown else { return [] }
         return [PlanWarning(.unknownCost(venue.venueID), slotID: slot.slotID)]
@@ -479,8 +388,7 @@ nonisolated struct FeasibilityValidator: ItineraryValidating, Sendable {
 // MARK: - Deterministic ordering
 
 nonisolated private extension FeasibilityViolation {
-    /// Groups violations by kind, then by slot and venue, so the reported order
-    /// never depends on dictionary iteration.
+    /// Groups violations by kind, then by slot and venue, so the reported order never depends on dictionary iteration.
     var sortKey: String {
         switch self {
         case .emptyCuration:

@@ -1,12 +1,4 @@
-//
-//  ShortcutSetupView.swift
-//  Wandr
-//
-//  First-launch onboarding (Docs/AI-Integration-Blueprint.md Phase 1): walk the host
-//  through installing the distributable Wandr chat-import Shortcut once. The Shortcut
-//  chains the messaging app's own message access → `Use Model` (Wandr's extraction
-//  prompt) → this app's intent, so Wandr's code never touches the transcript.
-//
+// ShortcutSetupView.swift Wandr First-launch onboarding (Docs/AI-Integration-Blueprint.md Phase 1): walk the host through installing the distributable Wandr chat-import Shortcut once. The Shortcut chains the messaging app's own message access → `Use Model` (Wandr's extraction prompt) → this app's intent, so Wandr's code never touches the transcript.
 
 import SwiftUI
 import AppIntents
@@ -15,8 +7,7 @@ import UIKit
 struct ShortcutSetupView: View {
     let inbox: IntakeInbox
 
-    /// The hosted iCloud link to the distributable `.shortcut`. A `.shortcut` cannot be
-    /// authored in code — build it in the Shortcuts app and paste its iCloud share link here.
+    /// The hosted iCloud link to the distributable `.shortcut`. A `.shortcut` cannot be authored in code — build it in the Shortcuts app and paste its iCloud share link here.
     // TODO: replace with the real iCloud Shortcut link before distribution / demo.
     private static let shortcutURL = URL(string: "https://www.icloud.com/shortcuts/645bdedbff07494dbd6217352be565c8")
 
@@ -62,9 +53,7 @@ struct ShortcutSetupView: View {
                 .buttonStyle(.glassProminent)
                 .tint(Wandr.ink)
 
-                // Installing a Shortcut is a real barrier on first launch, and it is
-                // not the only way in. A host who just wants to plan something can
-                // skip all of this and say it out loud.
+                // Installing a Shortcut is a real barrier on first launch, and it is not the only way in. A host who just wants to plan something can skip all of this and say it out loud.
                 Button {
                     inbox.beginCapture()
                 } label: {

@@ -1,43 +1,4 @@
-//
-//  FoundationModelsCurator.swift
-//  Wandr
-//
-//  The language model. On-device Apple Foundation Models, and the ONLY file in the
-//  planning core allowed to import FoundationModels.
-//
-//  Its job is narrow on purpose: given the group's typed brief and an immutable
-//  snapshot of real, pre-vetted venues, it *picks and orders* the venues that fit —
-//  by their number in a list it is shown — and writes one sentence of reasoning
-//  each. It never emits a name, a price, an availability claim, or a venue that
-//  isn't in the snapshot: it returns indices, which this file resolves back to
-//  dataset `VenueID`s, and `FeasibilityValidator` is the deterministic backstop.
-//
-//  Two safety properties hold by construction:
-//    1. The model only sees the typed brief and the dataset — never the host's raw
-//       words — so there is no free-text channel for prompt injection.
-//    2. The candidate list and brief are framed as DATA in the instructions; text
-//       inside a venue name/tag/note is never treated as a command.
-//
-//  Time: it fills only the slots that fit the brief's window (`SlotSchedule`), so
-//  the model is never asked to staff an 11 pm slot for a group that's home by 9.
-//
-//  ## The model ranks; this file guarantees the contract
-//
-//  A language model cannot be made to return exactly N valid, distinct, in-range
-//  picks — it will occasionally return two, or an out-of-range index, or the same
-//  index twice. Every one of those used to end the run with "Wandr couldn't make
-//  sense of that request".
-//
-//  So the model no longer gates the run. Its output is a *preference ordering* over
-//  a list this file already has; whatever it fails to supply is filled from the
-//  provider's own deterministic rank (cheapest-in-budget first, stable tiebreak).
-//  A thin deck is now shown as a thin deck rather than failing anything, and a run
-//  can only fail when there was no evidence at all — an honest outcome the host can
-//  act on ("widen the area").
-//
-//  That means model regressions go quiet instead of loud, so they are counted
-//  instead: `CuratorTelemetry.recordSlotFilled` reports every backfilled card.
-//
+// FoundationModelsCurator.swift Wandr The language model. On-device Apple Foundation Models, and the ONLY file in the planning core allowed to import FoundationModels. Its job is narrow on purpose: given the group's typed brief and an immutable snapshot of real, pre-vetted venues, it *picks and orders* the venues that fit — by their number in a list it is shown — and writes one sentence of reasoning each. It never emits a name, a price, an availability claim, or a venue that isn't in the snapshot: it returns indices, which this file resolves back to dataset `VenueID`s, and `FeasibilityValidator` is the deterministic backstop. Two safety properties hold by construction: 1. The model only sees the typed brief and the dataset — never the host's raw words — so there is no free-text channel for prompt injection. 2. The candidate list and brief are framed as DATA in the instructions; text inside a venue name/tag/note is never treated as a command. Time: it fills only the slots that fit the brief's window (`SlotSchedule`), so the model is never asked to staff an 11 pm slot for a group that's home by 9. ## The model ranks; this file guarantees the contract A language model cannot be made to return exactly N valid, distinct, in-range picks — it will occasionally return two, or an out-of-range index, or the same index twice. Every one of those used to end the run with "Wandr couldn't make sense of that request". So the model no longer gates the run. Its output is a *preference ordering* over a list this file already has; whatever it fails to supply is filled from the provider's own deterministic rank (cheapest-in-budget first, stable tiebreak). A thin deck is now shown as a thin deck rather than failing anything, and a run can only fail when there was no evidence at all — an honest outcome the host can act on ("widen the area"). That means model regressions go quiet instead of loud, so they are counted instead: `CuratorTelemetry.recordSlotFilled` reports every backfilled card.
 
 import Foundation
 import FoundationModels
@@ -45,32 +6,21 @@ import FoundationModels
 /// The production `ItineraryCurating`: on-device guided generation over the dataset.
 nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
 
-    /// Cap on how many candidates a single deck gets, even if the model returns more.
-    ///
-    /// - Important: this and `minimumCandidatesPerSlot` are mirrored by the literal
-    ///   range in `SlotPicks.picks`' `@Guide`, which must be a compile-time constant.
-    ///   Changing either here without changing that guide only weakens the hint given
-    ///   to the model — the deck contract itself is still enforced in code below — but
-    ///   the two should be kept in step.
+    /// Cap on how many candidates a single deck gets, even if the model returns more. Important: this and `minimumCandidatesPerSlot` are mirrored by the literal range in `SlotPicks.picks`' `@Guide`, which must be a compile-time constant. Changing either here without changing that guide only weakens the hint given to the model — the deck contract itself is still enforced in code below — but the two should be kept in step.
     let maxCandidatesPerSlot: Int
 
-    /// The deck depth `FeasibilityValidator` will insist on. Taken from the same
-    /// `FeasibilityRules` the validator uses so the two cannot drift apart.
+    /// The deck depth `FeasibilityValidator` will insist on. Taken from the same `FeasibilityRules` the validator uses so the two cannot drift apart.
     let minimumCandidatesPerSlot: Int
 
-    /// How long one slot's generation may take before it is abandoned and the deck
-    /// is filled deterministically. A hung generation must not hang the UI.
+    /// How long one slot's generation may take before it is abandoned and the deck is filled deterministically. A hung generation must not hang the UI.
     let slotTimeout: Duration
 
     private let log: AILog
 
-    /// Owns every rule about what a deck may contain. Shared with
-    /// `FakeItineraryCurator` so a test can never pass against looser rules than
-    /// production runs under.
+    /// Owns every rule about what a deck may contain. Shared with `FakeItineraryCurator` so a test can never pass against looser rules than production runs under.
     private let deckBuilder: SlotDeckBuilder
 
-    /// Orders a deck by what the stop is *for*. Shared across slots so the embedding
-    /// loads once and every venue is vectorised at most once per run.
+    /// Orders a deck by what the stop is *for*. Shared across slots so the embedding loads once and every venue is vectorised at most once per run.
     private let ranker = SemanticVenueRanker()
 
     init(
@@ -90,23 +40,9 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
     }
 
     // MARK: - Generable output
-    //
-    // Index-based, never ID strings: guided generation has no "one of this runtime
-    // set of IDs" constraint, so asking the model to reproduce an ID invites a
-    // ParsingError or a hallucinated venue. A small integer it can always produce,
-    // and an out-of-range one is trivially dropped.
+    // Index-based, never ID strings: guided generation has no "one of this runtime set of IDs" constraint, so asking the model to reproduce an ID invites a ParsingError or a hallucinated venue. A small integer it can always produce, and an out-of-range one is trivially dropped.
 
-    /// What this stop needs to be, in the host's terms rather than the dataset's.
-    ///
-    /// The model's entire contribution to *retrieval*: a sentence describing what would
-    /// make a place right for this part of this particular night. It names no venue, no
-    /// index and no count — it says what to look for, and `SemanticVenueRanker` finds
-    /// it in the words the dataset already carries.
-    ///
-    /// This is what replaces a keyword table. "Drinks", "ramen", "escape room" and
-    /// "somewhere to sit and talk" all become queries; none of them needs to be a case
-    /// anyone wrote down, and a word nobody anticipated is not a word that silently
-    /// does nothing.
+    /// What this stop needs to be, in the host's terms rather than the dataset's. The model's entire contribution to *retrieval*: a sentence describing what would make a place right for this part of this particular night. It names no venue, no index and no count — it says what to look for, and `SemanticVenueRanker` finds it in the words the dataset already carries. This is what replaces a keyword table. "Drinks", "ramen", "escape room" and "somewhere to sit and talk" all become queries; none of them needs to be a case anyone wrote down, and a word nobody anticipated is not a word that silently does nothing.
     @Generable
     nonisolated struct SlotBrief {
         @Guide(description: "One sentence describing what would make a place right for this stop, for these people, on this occasion. Describe the room and the experience — how loud it is, whether people sit, whether it is worth lingering in, what it is good for. Do not name a place, a neighbourhood, or a price.")
@@ -121,9 +57,7 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
 
     @Generable
     nonisolated struct SlotPicks {
-        // The floor matters more than the ceiling. `.maximumCount` alone let the
-        // model return one pick, which is schema-valid and fails validation — the
-        // exact shape of the old intermittent failure.
+        // The floor matters more than the ceiling. `.maximumCount` alone let the model return one pick, which is schema-valid and fails validation — the exact shape of the old intermittent failure.
         @Guide(description: "The chosen places for this part of the night, best fit first", .count(3...5))
         var picks: [Pick]
     }
@@ -143,9 +77,7 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
         let startedAt = ContinuousClock.now
         log.runStarted(detail: "evidence=\(evidence.count)")
 
-        // Availability first — never build a session in an unavailable branch.
-        // This is the one class of failure that still stops the run: there is no
-        // model to fall back *from*, and each case has its own host action.
+        // Availability first — never build a session in an unavailable branch. This is the one class of failure that still stops the run: there is no model to fall back *from*, and each case has its own host action.
         switch SystemLanguageModel.default.availability {
         case .available:
             log.availability("available", contextSize: SystemLanguageModel.default.contextSize)
@@ -165,31 +97,13 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
         }
 
         return try await log.measure("curate", "run") {
-            // Only the slots the time window actually allows, in time order. Read off
-            // the brief so the deck, the card's window label and the timeline cannot
-            // be computed from three slightly different sets of inputs.
+            // Only the slots the time window actually allows, in time order. Read off the brief so the deck, the card's window label and the timeline cannot be computed from three slightly different sets of inputs.
             let schedule = brief.schedule
 
-            // Already filtered. `EvidenceResolver` applied the hard constraints *and*
-            // decided which soft ones had to be given up, so re-filtering here would
-            // quietly re-impose the very constraint it just relaxed — a venue kept
-            // because the alternative was an empty deck would be dropped again, and
-            // the disclosure the host was shown would be a lie.
+            // Already filtered. `EvidenceResolver` applied the hard constraints *and* decided which soft ones had to be given up, so re-filtering here would quietly re-impose the very constraint it just relaxed — a venue kept because the alternative was an empty deck would be dropped again, and the disclosure the host was shown would be a lie.
             let eligible = evidence
 
-            // `areas` is the tell for a mis-resolved neighbourhood: a host who named
-            // one place and gets `areas=7` is being planned across the whole city.
-            // It is a count of dataset-owned strings, so it stays safe to log public.
-            //
-            // `requested` is the tell for the other half: a host who typed "lunch" and
-            // sees `requested=-` is looking at a word that never survived extraction,
-            // which is a different bug from one the schedule got wrong. Both are Wandr's
-            // own enum names, never the host's words.
-            //
-            // `group` carries its provenance because the number alone cannot say
-            // whether a plan for four is what the host asked for or what Wandr assumed
-            // when nothing was extracted — and those are opposite bugs. A bounded
-            // count (1...50), logged like the other counts on this line, never text.
+            // `areas` is the tell for a mis-resolved neighbourhood: a host who named one place and gets `areas=7` is being planned across the whole city. It is a count of dataset-owned strings, so it stays safe to log public. `requested` is the tell for the other half: a host who typed "lunch" and sees `requested=-` is looking at a word that never survived extraction, which is a different bug from one the schedule got wrong. Both are Wandr's own enum names, never the host's words. `group` carries its provenance because the number alone cannot say whether a plan for four is what the host asked for or what Wandr assumed when nothing was extracted — and those are opposite bugs. A bounded count (1...50), logged like the other counts on this line, never text.
             let window = brief.timeWindow.value
             let requested = brief.requestedStops.map(\.rawValue).sorted()
             log.event(
@@ -211,10 +125,7 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
 
             var slots: [CurationSlot] = []
 
-            // Venues an earlier stop already took. A plan can hold two stops of one
-            // category — lunch and dinner — and they draw from the identical pool, so
-            // without this the same restaurant lands in both and the validator's
-            // no-reuse rule ends the run on Wandr's own mistake.
+            // Venues an earlier stop already took. A plan can hold two stops of one category — lunch and dinner — and they draw from the identical pool, so without this the same restaurant lands in both and the validator's no-reuse rule ends the run on Wandr's own mistake.
             var spent: Set<VenueID> = []
 
             for feasibleSlot in schedule.slots {
@@ -224,15 +135,12 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
                     $0.category == feasibleSlot.category && !spent.contains($0.venueID)
                 }
                 guard !inCategory.isEmpty else {
-                    // Not a failure — but it silently removes a deck, so it is the
-                    // first thing to look for when a plan comes back short.
+                    // Not a failure — but it silently removes a deck, so it is the first thing to look for when a plan comes back short.
                     log.warning("SLOT-SKIP category=\(feasibleSlot.category.rawValue) reason=noEligibleVenues")
                     continue
                 }
 
-                // Leave at least one venue for every later stop sharing this
-                // category, or the lunch deck takes the whole pool and dinner is
-                // dropped for having nothing left.
+                // Leave at least one venue for every later stop sharing this category, or the lunch deck takes the whole pool and dinner is dropped for having nothing left.
                 let laterSharing = schedule.slots
                     .drop { $0.band != feasibleSlot.band }
                     .dropFirst()
@@ -247,8 +155,7 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
                 )
                 spent.formUnion(candidates.map(\.venueID))
 
-                // A slot that produced nothing at all is left out — the validator turns
-                // a genuinely thin category into an honest `insufficientEvidence` failure.
+                // A slot that produced nothing at all is left out — the validator turns a genuinely thin category into an honest `insufficientEvidence` failure.
                 guard !candidates.isEmpty else {
                     log.warning("SLOT-SKIP category=\(feasibleSlot.category.rawValue) reason=emptyDeck")
                     continue
@@ -275,12 +182,7 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
 
     // MARK: - One slot
 
-    /// The deck for one slot: the model's ordering where it supplied one, the
-    /// provider's ordering everywhere it didn't.
-    ///
-    /// Never throws. Every model-side failure degrades to deterministic ranking,
-    /// because a deck built from the provider's own budget-sorted order is a far
-    /// better outcome than ending the host's run.
+    /// The deck for one slot: the model's ordering where it supplied one, the provider's ordering everywhere it didn't. Never throws. Every model-side failure degrades to deterministic ranking, because a deck built from the provider's own budget-sorted order is a far better outcome than ending the host's run.
     private func candidates(
         for slot: SlotSchedule.FeasibleSlot,
         from venues: [GroundedVenue],
@@ -292,17 +194,11 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
         let category = slot.category.rawValue
         log.event("SLOT-START category=\(category) venues=\(venues.count)")
 
-        // What this stop needs to be, and the order that answers it. Both degrade to
-        // nothing: no model, no embedding assets, or a blank query all leave
-        // `semanticOrder` nil and the provider's own ranking in charge.
+        // What this stop needs to be, and the order that answers it. Both degrade to nothing: no model, no embedding assets, or a blank query all leave `semanticOrder` nil and the provider's own ranking in charge.
         let slotBrief = await slotBrief(for: slot, brief: brief)
         let semanticOrder = await ranker.ranking(of: venues, matching: slotBrief?.query ?? "")
 
-        // Nothing for the *model* to curate when there is no choice to make — but
-        // ordering still matters, and with every area holding barely more venues than
-        // a deck needs, this is the branch almost every slot takes. It used to hand
-        // back the provider's budget sort unchanged, which is why a date and an office
-        // outing produced the same three restaurants in the same order.
+        // Nothing for the *model* to curate when there is no choice to make — but ordering still matters, and with every area holding barely more venues than a deck needs, this is the branch almost every slot takes. It used to hand back the provider's budget sort unchanged, which is why a date and an office outing produced the same three restaurants in the same order.
         guard venues.count > minimumCandidatesPerSlot else {
             let deck = deckBuilder.build(
                 preferredIndices: semanticOrder ?? [],
@@ -319,9 +215,7 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
 
         log.event("PICKS category=\(category) count=\(modelPicks.count) indices=\(modelPicks.map(\.index))")
 
-        // The model only ever supplies an ordering. `SlotDeckBuilder` owns every rule
-        // that decides whether the result is a deck the validator will accept —
-        // out-of-range indices, duplicates, the budget ceiling, and the depth floor.
+        // The model only ever supplies an ordering. `SlotDeckBuilder` owns every rule that decides whether the result is a deck the validator will accept — out-of-range indices, duplicates, the budget ceiling, and the depth floor.
         var rationales: [Int: String] = [:]
         for pick in modelPicks where rationales[pick.index] == nil {
             rationales[pick.index] = pick.rationale
@@ -336,8 +230,7 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
             limit: limit
         )
 
-        // A backfilled deck is the app working as designed *and* the model failing to
-        // do its job. It is invisible in the UI, so it is loud here.
+        // A backfilled deck is the app working as designed *and* the model failing to do its job. It is invisible in the UI, so it is loud here.
         if deck.backfilled > 0 {
             log.warning("SLOT-DONE category=\(category) source=backfilled \(deck.summary)")
         } else {
@@ -349,17 +242,7 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
 
     // MARK: - Generation
 
-    /// One generation attempt, retried once for the transient cases.
-    ///
-    /// Returns an empty array rather than throwing: the caller's backfill is the
-    /// recovery path, and it is better than any error message this could produce.
-    /// What this stop should be like, as the model reads the occasion.
-    ///
-    /// Never throws and never blocks a plan: a failure here costs the deck its
-    /// *ordering*, not its contents, so it is swallowed exactly like a failed pick.
-    /// Deliberately given no venue list — asking what a good stop looks like is a
-    /// question about the occasion, and showing it the candidates would only invite it
-    /// to answer with one of them.
+    /// One generation attempt, retried once for the transient cases. Returns an empty array rather than throwing: the caller's backfill is the recovery path, and it is better than any error message this could produce. What this stop should be like, as the model reads the occasion. Never throws and never blocks a plan: a failure here costs the deck its *ordering*, not its contents, so it is swallowed exactly like a failed pick. Deliberately given no venue list — asking what a good stop looks like is a question about the occasion, and showing it the candidates would only invite it to answer with one of them.
     private func slotBrief(for slot: SlotSchedule.FeasibleSlot, brief: OutingBrief) async -> SlotBrief? {
         let prompt = """
             Part of the night: \(slot.title), \(slot.windowLabel).
@@ -416,8 +299,7 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
             } catch let error as LanguageModelError {
                 switch error {
                 case .contextSizeExceeded(let context):
-                    // The one model error with numbers worth having: how far over we
-                    // went tells you whether to trim the venue list or the brief.
+                    // The one model error with numbers worth having: how far over we went tells you whether to trim the venue list or the brief.
                     log.failure(
                         "category=\(category) kind=contextSizeExceeded tokens=\(context.tokenCount) contextSize=\(context.contextSize)",
                         detail: String(describing: error)
@@ -425,8 +307,7 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
                     return []
 
                 case .timeout, .rateLimited:
-                    // Genuinely transient. This is the case the old code mapped to
-                    // "try rewording it", which was both wrong and unactionable.
+                    // Genuinely transient. This is the case the old code mapped to "try rewording it", which was both wrong and unactionable.
                     let kind = Self.classify(error)
                     guard attempt == 0 else {
                         log.failure("category=\(category) kind=\(kind) attempts=2 exhausted", detail: String(describing: error))
@@ -437,9 +318,7 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
                     continue
 
                 default:
-                    // Guardrail, refusal, unsupported language, unsupported guide —
-                    // all unexpected against a typed, dataset-derived brief, and none
-                    // of them a reason to end the host's run.
+                    // Guardrail, refusal, unsupported language, unsupported guide — all unexpected against a typed, dataset-derived brief, and none of them a reason to end the host's run.
                     log.failure("category=\(category) kind=\(Self.classify(error))", detail: String(describing: error))
                     return []
                 }
@@ -458,9 +337,7 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
                 return []
 
             } catch let error as LanguageModelSession.Error {
-                // `concurrentRequests` means two requests hit one session — this file
-                // builds a session per slot, so it would be a wiring bug, not a
-                // runtime condition.
+                // `concurrentRequests` means two requests hit one session — this file builds a session per slot, so it would be a wiring bug, not a runtime condition.
                 log.fault("category=\(category) kind=sessionError detail=\(String(describing: error))")
                 return []
 
@@ -473,8 +350,7 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
         return []
     }
 
-    /// A stable, loggable name for a model error. Public in the log, so it must never
-    /// contain host text — the case name only, never the payload's description.
+    /// A stable, loggable name for a model error. Public in the log, so it must never contain host text — the case name only, never the payload's description.
     private static func classify(_ error: LanguageModelError) -> String {
         switch error {
         case .contextSizeExceeded:        return "contextSizeExceeded"
@@ -520,11 +396,7 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
         let session = LanguageModelSession(instructions: Self.instructions)
         let startedAt = ContinuousClock.now
 
-        // Sampling is left at the framework default on purpose. Reliability here comes
-        // from the schema, the validator, and the backfill above — not from pinning the
-        // model to greedy decoding, which would make every run of the same brief return
-        // an identical slate and read as hardcoded. `maximumResponseTokens` is a
-        // runaway guard, not a quality knob.
+        // Sampling is left at the framework default on purpose. Reliability here comes from the schema, the validator, and the backfill above — not from pinning the model to greedy decoding, which would make every run of the same brief return an identical slate and read as hardcoded. `maximumResponseTokens` is a runaway guard, not a quality knob.
         let response = try await session.respond(
             to: text,
             generating: SlotPicks.self,
@@ -579,9 +451,7 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
     static func groupLine(brief: OutingBrief, slot: SlotSchedule.FeasibleSlot) -> String {
         var parts: [String] = [brief.occasion.value]
         parts.append("~\(brief.groupSize.value.people) people")
-        // Say what the host said. This line used to assert "per head" for any number
-        // they gave, which told the model a constraint they had never stated — the
-        // same invention the `@Guide` examples used to cause.
+        // Say what the host said. This line used to assert "per head" for any number they gave, which told the model a constraint they had never stated — the same invention the `@Guide` examples used to cause.
         if let stated = brief.budget.value.statedRupees,
            let basis = brief.budget.value.basisLabel {
             parts.append("budget around ₹\(stated) \(basis)")
@@ -594,8 +464,7 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
         return parts.joined(separator: "; ")
     }
 
-    /// One dataset venue as a single prompt line. Facts the model needs to choose —
-    /// it never echoes these back; names and prices are resolved from the dataset later.
+    /// One dataset venue as a single prompt line. Facts the model needs to choose — it never echoes these back; names and prices are resolved from the dataset later.
     static func line(for venue: GroundedVenue) -> String {
         let cost = venue.cost.knownPerHeadRupees.map { "₹\($0)" } ?? "₹?"
         let vibes = venue.vibeTags.isEmpty ? "—" : venue.vibeTags.prefix(3).joined(separator: "/")
@@ -609,11 +478,7 @@ nonisolated struct FoundationModelsCurator: ItineraryCurating, Sendable {
 /// Raised when one slot's generation outruns `slotTimeout`.
 nonisolated private struct CurationTimedOut: Error {}
 
-/// Runs `operation`, abandoning it if it outlasts `duration`.
-///
-/// Foundation Models has no timeout knob of its own (`GenerationOptions` exposes
-/// none), so a stalled generation would otherwise hold the planning run — and the
-/// host's progress spinner — open indefinitely.
+/// Runs `operation`, abandoning it if it outlasts `duration`. Foundation Models has no timeout knob of its own (`GenerationOptions` exposes none), so a stalled generation would otherwise hold the planning run — and the host's progress spinner — open indefinitely.
 nonisolated private func withTimeout<T: Sendable>(
     _ duration: Duration,
     operation: @escaping @Sendable () async throws -> T

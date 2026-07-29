@@ -1,15 +1,4 @@
-//
-//  FreeTextSummaryExtractorTests.swift
-//  WandrTests
-//
-//  The mapping half of extraction, tested without a model.
-//
-//  `extract(from:)` needs Apple Intelligence and cannot run in CI, but everything
-//  that decides whether its answer is *safe* is pure: validating the outing type,
-//  rejecting absurd group sizes, trimming blanks, and reporting which fields
-//  actually settled. Those are the parts that turn a plausible-looking model answer
-//  into a payload the rest of the app trusts, so those are the parts tested here.
-//
+// FreeTextSummaryExtractorTests.swift WandrTests The mapping half of extraction, tested without a model. `extract(from:)` needs Apple Intelligence and cannot run in CI, but everything that decides whether its answer is *safe* is pure: validating the outing type, rejecting absurd group sizes, trimming blanks, and reporting which fields actually settled. Those are the parts that turn a plausible-looking model answer into a payload the rest of the app trusts, so those are the parts tested here.
 
 import Testing
 @testable import Wandr
@@ -29,10 +18,7 @@ struct FreeTextSummaryExtractorTests {
     }
 
     // MARK: - Outing type
-    //
-    // Deliberately a validated String rather than a `@Generable` enum: a non-frozen
-    // one traps on a case the model invents, and this is the one field with a fixed
-    // vocabulary the model can plausibly get wrong.
+    // Deliberately a validated String rather than a `@Generable` enum: a non-frozen one traps on a case the model invents, and this is the one field with a fixed vocabulary the model can plausibly get wrong.
 
     @Test("A valid outing type maps through")
     func validOutingTypeMaps() {
@@ -51,13 +37,7 @@ struct FreeTextSummaryExtractorTests {
     }
 
     // MARK: - Echoed values
-    //
-    // The reported bug. A host who said only "outing at 12:30, lunch" got back an
-    // outing type of after-office, an accessibility requirement of "step-free entry",
-    // and a vibe of "quiet" — none of which they had said, and all three of which
-    // were verbatim copies of the sample values in Wandr's own `@Guide` descriptions.
-    // The examples are gone now; these are the backstop that makes the echo
-    // unreachable even if a future guide reintroduces one.
+    // The reported bug. A host who said only "outing at 12:30, lunch" got back an outing type of after-office, an accessibility requirement of "step-free entry", and a vibe of "quiet" — none of which they had said, and all three of which were verbatim copies of the sample values in Wandr's own `@Guide` descriptions. The examples are gone now; these are the backstop that makes the echo unreachable even if a future guide reintroduces one.
 
     @Test("An outing type the host's words do not support is dropped")
     func unsupportedOutingTypeIsDropped() {
@@ -162,8 +142,7 @@ struct FreeTextSummaryExtractorTests {
         #expect(FreeTextSummaryExtractor.payload(from: extracted).groupSize == 8)
     }
 
-    /// The reported run. The model settled a `groupSize`, and the plan came back for
-    /// the wrong number of people — so the host's own "for 2" now wins over it.
+    /// The reported run. The model settled a `groupSize`, and the plan came back for the wrong number of people — so the host's own "for 2" now wins over it.
     @Test("The host's own headcount beats the model's")
     func rawTextHeadcountWinsOverTheModel() {
         var extracted = empty()
@@ -227,9 +206,7 @@ struct FreeTextSummaryExtractorTests {
     }
 
     // MARK: - Settled fields
-    //
-    // What the log reports. Names only — the values are the host's own words and
-    // never appear in a `.public` log field.
+    // What the log reports. Names only — the values are the host's own words and never appear in a `.public` log field.
 
     @Test("Only the fields that carry a value are reported as settled")
     func settledFieldNamesAreAccurate() {
@@ -253,15 +230,7 @@ struct FreeTextSummaryExtractorTests {
 
     // MARK: - Fields the model dropped
 
-    /// The invariant: **a field the host stated plainly does not depend on whether the
-    /// generation happened to emit it.** Already true of `stops` and `groupSize`; these
-    /// pin it for the two fields that were still model-only.
-    ///
-    /// The run this comes from returned `area: nil` and `time: nil` for a sentence
-    /// carrying both, sweeping them into `otherNotes` instead. Downstream, that is not
-    /// an error — it is `OutingBrief.defaultArea` (city-wide, so every area filter
-    /// stops filtering) and an `.unknown` window (so a stated start constrains
-    /// nothing). Both failures are invisible in the UI.
+    /// The invariant: **a field the host stated plainly does not depend on whether the generation happened to emit it.** Already true of `stops` and `groupSize`; these pin it for the two fields that were still model-only. The run this comes from returned `area: nil` and `time: nil` for a sentence carrying both, sweeping them into `otherNotes` instead. Downstream, that is not an error — it is `OutingBrief.defaultArea` (city-wide, so every area filter stops filtering) and an `.unknown` window (so a stated start constrains nothing). Both failures are invisible in the UI.
     @Test("An area the model dropped is recovered from the host's own words")
     func droppedAreaIsRecovered() {
         let source = "after office, dinner near saket for 7 with a loud setting"
@@ -282,8 +251,7 @@ struct FreeTextSummaryExtractorTests {
         #expect(window.earliestStartMinute == 17 * 60 + 30)
     }
 
-    /// The model's answer keeps priority whenever it is usable, so the recovery cannot
-    /// flatten a richer phrasing into a bare match.
+    /// The model's answer keeps priority whenever it is usable, so the recovery cannot flatten a richer phrasing into a bare match.
     @Test("The model's own answer wins when it names a real area")
     func statedAreaWins() {
         var extracted = empty()
@@ -295,8 +263,7 @@ struct FreeTextSummaryExtractorTests {
         #expect(payload.area == "Hauz Khas Village")
     }
 
-    /// Over-capture is harmless and must stay so: area matching is by token run, so the
-    /// neighbourhood is still found inside whatever clause the model swallowed.
+    /// Over-capture is harmless and must stay so: area matching is by token run, so the neighbourhood is still found inside whatever clause the model swallowed.
     @Test("An over-captured area still carries the neighbourhood")
     func overCapturedAreaStillResolves() {
         var extracted = empty()
@@ -308,9 +275,7 @@ struct FreeTextSummaryExtractorTests {
         #expect(payload.area == "hauz khas for my sister birthday")
     }
 
-    /// An area Wandr genuinely does not cover must reach the provider unchanged, so the
-    /// run still fails honestly. Rewriting it to a covered area that happened to appear
-    /// elsewhere in the sentence would answer a question nobody asked.
+    /// An area Wandr genuinely does not cover must reach the provider unchanged, so the run still fails honestly. Rewriting it to a covered area that happened to appear elsewhere in the sentence would answer a question nobody asked.
     @Test("An uncovered area is not quietly replaced")
     func uncoveredAreaSurvives() {
         var extracted = empty()
@@ -340,8 +305,7 @@ struct FreeTextSummaryExtractorTests {
         #expect(payload.outingType == .getTogether)
         #expect(payload.area == "Khan Market")
         #expect(payload.groupSize == 8)
-        // Unsaid stays unsaid — the normalizer marks these `.safeDefault` and tells
-        // the host, which an invented value would prevent.
+        // Unsaid stays unsaid — the normalizer marks these `.safeDefault` and tells the host, which an invented value would prevent.
         #expect(payload.dietary == nil)
         #expect(payload.accessibility == nil)
     }

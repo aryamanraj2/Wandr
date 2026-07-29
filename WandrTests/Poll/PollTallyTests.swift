@@ -1,12 +1,4 @@
-//
-//  PollTallyTests.swift
-//  WandrTests
-//
-//  The plurality lock rule, one test per rule. Like the feasibility tests, none of
-//  these touch a model, the network, disk, or a UI framework — `PollTally` is pure,
-//  and if this file ever needs a simulator the poll brain has grown a dependency it
-//  shouldn't have.
-//
+// PollTallyTests.swift WandrTests The plurality lock rule, one test per rule. Like the feasibility tests, none of these touch a model, the network, disk, or a UI framework — `PollTally` is pure, and if this file ever needs a simulator the poll brain has grown a dependency it shouldn't have.
 
 import Foundation
 import Testing

@@ -1,16 +1,4 @@
-//
-//  CandidateCardView.swift
-//  Wandr
-//
-//  One card in a deck. Full-bleed backdrop, no frame; the caption rides on a
-//  frosted panel that the backdrop still shows through, so the venue imagery
-//  and the copy read as one surface rather than two stacked ones.
-//
-//  The face is split out from the card because the expanded view rebuilds the
-//  identical composition as its hero. Two hand-matched copies would drift by a
-//  point or two and the zoom transition would show the seam — sharing the view
-//  makes the growth read as the same object rather than a cross-fade.
-//
+// CandidateCardView.swift Wandr One card in a deck. Full-bleed backdrop, no frame; the caption rides on a frosted panel that the backdrop still shows through, so the venue imagery and the copy read as one surface rather than two stacked ones. The face is split out from the card because the expanded view rebuilds the identical composition as its hero. Two hand-matched copies would drift by a point or two and the zoom transition would show the seam — sharing the view makes the growth read as the same object rather than a cross-fade.
 
 import SwiftUI
 
@@ -24,9 +12,7 @@ struct CandidateCardView: View {
     var body: some View {
         CandidateCardFace(candidate: candidate)
             .overlay { verdictOverlay }
-            // No frame, no stroke, no shadow — the edge is the clip itself. The
-            // stack reads as depth through scale and offset in DeckView, so the
-            // card needs nothing bleeding out past its own bounds.
+            // No frame, no stroke, no shadow — the edge is the clip itself. The stack reads as depth through scale and offset in DeckView, so the card needs nothing bleeding out past its own bounds.
             .clipShape(ConcentricRectangle(corners: .concentric(minimum: .fixed(Metrics.cardCorner))))
             .accessibilityElement(children: .combine)
             .accessibilityLabel("\(candidate.name), \(candidate.area)")
@@ -35,8 +21,7 @@ struct CandidateCardView: View {
 
     // MARK: Verdict overlay
 
-    /// Confirms the destination of the drag before release — the trajectory
-    /// should reveal the outcome, not surprise on `onEnded`.
+    /// Confirms the destination of the drag before release — the trajectory should reveal the outcome, not surprise on `onEnded`.
     private var verdictOverlay: some View {
         let keeping = dragProgress > 0
         let strength = min(abs(dragProgress), 1)
@@ -75,14 +60,11 @@ struct CandidateCardView: View {
 
 // MARK: - Face
 
-/// The card's visible composition, minus the clip, the gesture affordances and
-/// the verdict wash. Shared by the deck card and the expanded hero.
+/// The card's visible composition, minus the clip, the gesture affordances and the verdict wash. Shared by the deck card and the expanded hero.
 struct CandidateCardFace: View {
     let candidate: Candidate
 
-    /// The expanded hero drops the deck-only marginalia — the model's rationale
-    /// and the validator warning both get their own proper section down the page,
-    /// and repeating them in the hero would read as a stutter.
+    /// The expanded hero drops the deck-only marginalia — the model's rationale and the validator warning both get their own proper section down the page, and repeating them in the hero would read as a stutter.
     var isHero: Bool = false
 
     var body: some View {
@@ -113,8 +95,7 @@ struct CandidateCardFace: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             if !isHero {
-                // The model's reason for the pick — the one piece of model prose on the
-                // card, styled as a quiet aside so it never reads as a hard fact.
+                // The model's reason for the pick — the one piece of model prose on the card, styled as a quiet aside so it never reads as a hard fact.
                 if let rationale = candidate.rationale {
                     Text(rationale)
                         .font(.footnote.italic())
@@ -150,8 +131,7 @@ struct CandidateCardFace: View {
         .background(frost)
     }
 
-    /// Translucent, not opaque: the backdrop keeps travelling under the copy and
-    /// dissolves into it, which is what stops the panel reading as a pasted-on box.
+    /// Translucent, not opaque: the backdrop keeps travelling under the copy and dissolves into it, which is what stops the panel reading as a pasted-on box.
     private var frost: some View {
         Rectangle()
             .fill(.ultraThinMaterial)
@@ -182,8 +162,7 @@ struct CandidateCardFace: View {
         .lineLimit(1)
     }
 
-    /// Quiet facts on the left, the number that decides the swipe on the right —
-    /// the same weighting the eye already expects from a card's action row.
+    /// Quiet facts on the left, the number that decides the swipe on the right — the same weighting the eye already expects from a card's action row.
     private var footer: some View {
         HStack(alignment: .center, spacing: 14) {
             detail("clock", candidate.openWindow)
@@ -256,9 +235,7 @@ struct CandidateCardFace: View {
 
 // MARK: - Backdrop
 
-/// Stands in for venue photography. Deterministic per-venue hue so a card
-/// keeps the same identity across launches — and so the expanded hero paints
-/// the exact same gradient the deck card was showing a frame earlier.
+/// Stands in for venue photography. Deterministic per-venue hue so a card keeps the same identity across launches — and so the expanded hero paints the exact same gradient the deck card was showing a frame earlier.
 struct CandidateBackdrop: View {
     let candidate: Candidate
 

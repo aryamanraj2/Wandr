@@ -1,24 +1,10 @@
-//
-//  PlanningRun.swift
-//  Wandr
-//
-//  The run, its phases, and the guard that makes an illegal phase change
-//  impossible rather than merely discouraged.
-//
-//  Only `TravelPlanningService` mutates a run. A view cannot jump from capture
-//  straight to curation merely because it has text — the transition table says so,
-//  and `transition(to:)` throws when asked to break it.
-//
+// PlanningRun.swift Wandr The run, its phases, and the guard that makes an illegal phase change impossible rather than merely discouraged. Only `TravelPlanningService` mutates a run. A view cannot jump from capture straight to curation merely because it has text — the transition table says so, and `transition(to:)` throws when asked to break it.
 
 import Foundation
 
 // MARK: - State
 
-/// The phases of one planning run.
-///
-/// Deliberately payload-free: the transition table is about phase identity alone,
-/// which keeps the guard exhaustively testable. The brief, plan, and failure live
-/// on `PlanningRun` beside the state.
+/// The phases of one planning run. Deliberately payload-free: the transition table is about phase identity alone, which keeps the guard exhaustively testable. The brief, plan, and failure live on `PlanningRun` beside the state.
 nonisolated enum PlanningState: String, Sendable, Equatable, Hashable, CaseIterable {
     /// No active request. The capture screen is showing.
     case idle
@@ -39,10 +25,7 @@ nonisolated enum PlanningState: String, Sendable, Equatable, Hashable, CaseItera
     /// The host stopped the work, or left.
     case cancelled
 
-    /// The states this one may legally advance to.
-    ///
-    /// Mirrors the transition table in `nonuistuff/plan.md` §6 exactly. Note there
-    /// are no self-transitions: re-entering a phase is a bug, not a no-op.
+    /// The states this one may legally advance to. Mirrors the transition table in `nonuistuff/plan.md` §6 exactly. Note there are no self-transitions: re-entering a phase is a bug, not a no-op.
     var legalNextStates: Set<PlanningState> {
         switch self {
         case .idle:         return [.extracting]
@@ -90,10 +73,7 @@ nonisolated struct IllegalPlanningTransition: Error, Sendable, Equatable, Hashab
 
 // MARK: - Events
 
-/// One line of tool/status transparency.
-///
-/// Contains what Wandr *did*, never what the model thought and never what the
-/// host typed. No chain-of-thought, no raw input, no transcript.
+/// One line of tool/status transparency. Contains what Wandr *did*, never what the model thought and never what the host typed. No chain-of-thought, no raw input, no transcript.
 nonisolated struct PlanningEvent: Sendable, Equatable, Hashable, Identifiable {
 
     nonisolated enum Severity: String, Sendable, Equatable, Hashable, CaseIterable {
@@ -130,12 +110,7 @@ nonisolated struct PlanningEvent: Sendable, Equatable, Hashable, Identifiable {
 
 // MARK: - Run
 
-/// The single source of truth for one planning attempt.
-///
-/// Note what is *not* here: `PlanningInput.text`. The run keeps the input's ID and
-/// channel for audit, and nothing else. Once the extractor has produced a draft,
-/// the host's words have no home in this object — which is why they cannot leak
-/// into events, failures, or storage.
+/// The single source of truth for one planning attempt. Note what is *not* here: `PlanningInput.text`. The run keeps the input's ID and channel for audit, and nothing else. Once the extractor has produced a draft, the host's words have no home in this object — which is why they cannot leak into events, failures, or storage.
 nonisolated struct PlanningRun: Sendable, Equatable, Identifiable {
 
     let id: PlanningRunID
@@ -176,8 +151,7 @@ nonisolated struct PlanningRun: Sendable, Equatable, Identifiable {
             throw IllegalPlanningTransition(from: state, to: next)
         }
 
-        // Leaving a failure or a result behind means clearing it, so a stale
-        // failure can never be rendered beside a fresh phase.
+        // Leaving a failure or a result behind means clearing it, so a stale failure can never be rendered beside a fresh phase.
         if next == .idle || next == .extracting || next == .researching {
             failure = nil
         }
@@ -228,10 +202,7 @@ nonisolated struct PlanningRun: Sendable, Equatable, Identifiable {
 
     // MARK: Events
 
-    /// Appends one transparency event.
-    ///
-    /// Callers must pass a fixed, Wandr-authored `title`/`detail`. Never interpolate
-    /// `PlanningInput.text` here — that is the one rule this type exists to protect.
+    /// Appends one transparency event. Callers must pass a fixed, Wandr-authored `title`/`detail`. Never interpolate `PlanningInput.text` here — that is the one rule this type exists to protect.
     mutating func record(_ event: PlanningEvent) {
         events.append(event)
     }

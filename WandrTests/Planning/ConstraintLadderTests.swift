@@ -1,13 +1,4 @@
-//
-//  ConstraintLadderTests.swift
-//  WandrTests
-//
-//  The rule that replaced "the run dies".
-//
-//  Two things are pinned here and neither is negotiable: constraints are given up
-//  in ascending order of how much the host cared about them, and dietary and
-//  accessibility are never given up at all.
-//
+// ConstraintLadderTests.swift WandrTests The rule that replaced "the run dies". Two things are pinned here and neither is negotiable: constraints are given up in ascending order of how much the host cared about them, and dietary and accessibility are never given up at all.
 
 import Foundation
 import Testing
@@ -35,9 +26,7 @@ struct ConstraintLadderTests {
         #expect(Set(ConstraintLadder.rungs(for: brief)) == [.budget, .timeWindow])
     }
 
-    /// The whole point of using `Sourced` as the weight: a number Wandr invented is
-    /// cheaper to give up than an hour the host actually said out loud, even though
-    /// budget outranks time on the product ordering.
+    /// The whole point of using `Sourced` as the weight: a number Wandr invented is cheaper to give up than an hour the host actually said out loud, even though budget outranks time on the product ordering.
     @Test("A Wandr-defaulted value gives way before anything the host stated")
     func provenanceOutranksProductOrder() {
         let brief = OutingBrief(
@@ -59,13 +48,11 @@ struct ConstraintLadderTests {
             requestedStops: [.lunch]
         )
 
-        // Setting is the softest thing on the list; the stop they named is the last
-        // thing to go.
+        // Setting is the softest thing on the list; the stop they named is the last thing to go.
         #expect(ConstraintLadder.rungs(for: brief) == [.setting, .budget, .timeWindow, .requestedStops])
     }
 
-    /// Vibe tags have never filtered a venue, only ranked one. A rung for them would
-    /// claim a compromise the host never actually made.
+    /// Vibe tags have never filtered a venue, only ranked one. A rung for them would claim a compromise the host never actually made.
     @Test("Vibe is not a rung, because giving it up removes nothing")
     func vibeIsNotRelaxable() {
         #expect(!RelaxableConstraint.allCases.contains { $0.rawValue == "vibe" })
@@ -77,12 +64,7 @@ struct EvidenceResolverTests {
 
     private let resolver = EvidenceResolver()
 
-    /// A ₹50-a-head ceiling against a dataset whose cheapest restaurant is dearer.
-    ///
-    /// The figure has to stay under the dataset's cheapest food venue or this stops
-    /// testing relaxation. It was ₹200 until street-food entries at ₹100 landed.
-    /// Before the ladder this ended the run; the host got a Try again button that
-    /// could only ever produce the same dead end.
+    /// A ₹50-a-head ceiling against a dataset whose cheapest restaurant is dearer. The figure has to stay under the dataset's cheapest food venue or this stops testing relaxation. It was ₹200 until street-food entries at ₹100 landed. Before the ladder this ended the run; the host got a Try again button that could only ever produce the same dead end.
     @Test("An unmeetable budget is given up, and the giving-up is disclosed")
     func unmeetableBudgetIsRelaxedAndDisclosed() throws {
         let resolution = resolver.resolve(
@@ -105,8 +87,7 @@ struct EvidenceResolverTests {
         )
 
         #expect(resolution.relaxations.isEmpty)
-        // And it still filtered: nothing over the ceiling survives when it didn't
-        // have to.
+        // And it still filtered: nothing over the ceiling survives when it didn't have to.
         let ceiling = Fixtures.afterWorkBrief.budget.value
             .ceilingPerHead(for: Fixtures.afterWorkBrief.groupSize.value)
         #expect(resolution.eligible.allSatisfy { venue in
@@ -115,8 +96,7 @@ struct EvidenceResolverTests {
         })
     }
 
-    /// The line that must never move. Relaxing these is not a degraded plan — it is
-    /// sending someone to a restaurant they cannot eat at or a door they cannot use.
+    /// The line that must never move. Relaxing these is not a degraded plan — it is sending someone to a restaurant they cannot eat at or a door they cannot use.
     @Test("Dietary and accessibility are never given up, even when nothing is left")
     func hardConstraintsAreNeverRelaxed() {
         let brief = OutingBrief(
@@ -140,11 +120,7 @@ struct EvidenceResolverTests {
 
     @Test("Two stops of one category never draw the same venue")
     func sameCategoryStopsDoNotShareAVenue() async throws {
-        // "lunch and snacks" in a neighbourhood with a handful of restaurants. Both
-        // stops are `.food`, so both decks are built from the identical pool — and
-        // nothing used to stop the same place landing in both. Rule 3 then failed the
-        // whole run with "The same place was picked for two different stops", which
-        // is Wandr's own bug reported as if the model had misbehaved.
+        // "lunch and snacks" in a neighbourhood with a handful of restaurants. Both stops are `.food`, so both decks are built from the identical pool — and nothing used to stop the same place landing in both. Rule 3 then failed the whole run with "The same place was picked for two different stops", which is Wandr's own bug reported as if the model had misbehaved.
         let brief = OutingBrief(
             groupSize: .host(GroupSize(clamping: 5)),
             budget: .host(.perHead(rupees: 1_500)),
@@ -172,8 +148,7 @@ struct EvidenceResolverTests {
 
     @Test("Relaxation stops as soon as the plan is possible")
     func relaxationIsMinimal() {
-        // Outdoor-only *and* a tight budget. Dropping the setting alone is enough,
-        // so the budget must survive.
+        // Outdoor-only *and* a tight budget. Dropping the setting alone is enough, so the budget must survive.
         let brief = OutingBrief(
             groupSize: .host(GroupSize(clamping: 2)),
             budget: .host(.total(rupees: 4_000)),

@@ -1,15 +1,4 @@
-//
-//  SquadPollView.swift
-//  Wandr
-//
-//  Send-to-Squad: the slate becomes one place-poll per slot, and each slot locks to
-//  the place with the most votes — but only once everyone (the quorum N) has voted.
-//
-//  Phase 1 simulates the squad in-app: tapping an option casts a pseudonymous vote, so
-//  the tally / quorum / winner / tie flow can be exercised on one device. Phase 2 swaps
-//  that seam for real votes arriving on an `MSMessage` in the iMessage thread; the host
-//  taps Send (Apple's rule) and the squad disposes.
-//
+// SquadPollView.swift Wandr Send-to-Squad: the slate becomes one place-poll per slot, and each slot locks to the place with the most votes — but only once everyone (the quorum N) has voted. Phase 1 simulates the squad in-app: tapping an option casts a pseudonymous vote, so the tally / quorum / winner / tie flow can be exercised on one device. Phase 2 swaps that seam for real votes arriving on an `MSMessage` in the iMessage thread; the host taps Send (Apple's rule) and the squad disposes.
 
 import SwiftUI
 

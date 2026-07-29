@@ -1,21 +1,8 @@
-//
-//  ChatSummaryPayload.swift
-//  Wandr
-//
-//  The "final JSON summary" — the structured shape the Wandr chat-import Shortcut
-//  emits from its `Use Model` (Apple Intelligence) step, and the one place that
-//  shape is defined in Swift. The Shortcut's extraction prompt (chat-extraction-prompt.txt)
-//  is hand-mirrored against this schema; keep the two in sync.
-//
-//  This value type is untrusted external content: it describes what a group *said*
-//  they wanted, never an instruction to the app. It is shown on Host Review and
-//  discarded on confirm/cancel — never persisted.
-//
+// ChatSummaryPayload.swift Wandr The "final JSON summary" — the structured shape the Wandr chat-import Shortcut emits from its `Use Model` (Apple Intelligence) step, and the one place that shape is defined in Swift. The Shortcut's extraction prompt (chat-extraction-prompt.txt) is hand-mirrored against this schema; keep the two in sync. This value type is untrusted external content: it describes what a group *said* they wanted, never an instruction to the app. It is shown on Host Review and discarded on confirm/cancel — never persisted.
 
 import Foundation
 
-/// The outing categories the group can settle on. Mirrors the vocabulary in
-/// `Docs/AI-Orchestration-Flow.md` ("after-office, birthday, get-together, full-day, or custom").
+/// The outing categories the group can settle on. Mirrors the vocabulary in `Docs/AI-Orchestration-Flow.md` ("after-office, birthday, get-together, full-day, or custom").
 nonisolated enum OutingType: String, Codable, Sendable, CaseIterable {
     case afterOffice = "after-office"
     case birthday
@@ -34,61 +21,31 @@ nonisolated enum OutingType: String, Codable, Sendable, CaseIterable {
     }
 }
 
-/// The structured summary handed to Wandr through the single intent doorway.
-///
-/// Every field is optional: the model emits only what the group actually agreed on,
-/// skipping anything left open (`Docs/plan.md` §6.1a). Decoding is deliberately lenient —
-/// a missing key, a null, or an unexpected extra key must never fail the whole payload.
-/// - Note: `nonisolated` throughout. It is a pure value type decoded off the main
-///   actor by `ChatSummaryBriefExtractor` and read by the planning core, and a
-///   main-actor-isolated `init(from:)` would not satisfy `Decodable` under Swift 6.
+/// The structured summary handed to Wandr through the single intent doorway. Every field is optional: the model emits only what the group actually agreed on, skipping anything left open (`Docs/plan.md` §6.1a). Decoding is deliberately lenient — a missing key, a null, or an unexpected extra key must never fail the whole payload. Note: `nonisolated` throughout. It is a pure value type decoded off the main actor by `ChatSummaryBriefExtractor` and read by the planning core, and a main-actor-isolated `init(from:)` would not satisfy `Decodable` under Swift 6.
 nonisolated struct ChatSummaryPayload: Codable, Sendable, Equatable {
     var outingType: OutingType?
     var dateOrDay: String?
     var time: String?
     var area: String?
     var groupSize: Int?
-    /// The money the host named, in their own words — "₹2000", "2k each".
-    ///
-    /// Free text on purpose: the *basis* lives in the wording, and dropping it into
-    /// a bare number is what let Wandr read an unqualified "2000" as per head.
+    /// The money the host named, in their own words — "₹2000", "2k each". Free text on purpose: the *basis* lives in the wording, and dropping it into a bare number is what let Wandr read an unqualified "2000" as per head.
     var budget: String?
     var dietary: String?
     var accessibility: String?
     var vibe: String?
     var indoorOutdoor: String?
-    /// What the group wants to *do* — "lunch", "drinks after", "a walk somewhere".
-    ///
-    /// Added because "lunch" previously had nowhere to go. The schema had a slot for
-    /// when, where, how many and what mood, but none for the kind of stop, so the
-    /// extractor dropped the one word that decides whether the plan contains a
-    /// restaurant at all.
+    /// What the group wants to *do* — "lunch", "drinks after", "a walk somewhere". Added because "lunch" previously had nowhere to go. The schema had a slot for when, where, how many and what mood, but none for the kind of stop, so the extractor dropped the one word that decides whether the plan contains a restaurant at all.
     var plannedStops: String?
-    /// The same request as `plannedStops`, in Wandr's own closed vocabulary.
-    ///
-    /// Raw tokens on purpose — validation against `SlotBand` happens once, in
-    /// `ChatSummaryBriefMapper`, so an unrecognised word is dropped in exactly one
-    /// place rather than trusted here and rejected later.
+    /// The same request as `plannedStops`, in Wandr's own closed vocabulary. Raw tokens on purpose — validation against `SlotBand` happens once, in `ChatSummaryBriefMapper`, so an unrecognised word is dropped in exactly one place rather than trusted here and rejected later.
     var stops: [String]?
-    /// The host said `stops` is the whole plan — "just dinner", "only breakfast".
-    ///
-    /// Three-valued on purpose. `nil` is "the model didn't answer", which is not the
-    /// same as `false`: one named stop otherwise means an outing built *around* that
-    /// stop, and collapsing an unanswered flag to "no" would be indistinguishable from
-    /// a host who explicitly asked for one thing.
+    /// The host said `stops` is the whole plan — "just dinner", "only breakfast". Three-valued on purpose. `nil` is "the model didn't answer", which is not the same as `false`: one named stop otherwise means an outing built *around* that stop, and collapsing an unanswered flag to "no" would be indistinguishable from a host who explicitly asked for one thing.
     var onlyTheseStops: Bool?
 
-    /// What kind of night this is — pace, how much of it is doing rather than eating,
-    /// whether the group must sit together, and whether it builds to something.
-    ///
-    /// Four values instead of an occasion *name*, because a name only works for the
-    /// occasions someone listed. A photography walk and a first date differ here
-    /// without either being a case anyone wrote down.
+    /// What kind of night this is — pace, how much of it is doing rather than eating, whether the group must sit together, and whether it builds to something. Four values instead of an occasion *name*, because a name only works for the occasions someone listed. A photography walk and a first date differ here without either being a case anyone wrote down.
     var occasionProfile: OccasionProfile?
     var otherNotes: String?
 
-    /// `true` when the model returned a well-formed object but settled no fields at all.
-    /// Treated as "no usable summary" by the inbox.
+    /// `true` when the model returned a well-formed object but settled no fields at all. Treated as "no usable summary" by the inbox.
     var isEmpty: Bool {
         outingType == nil
             && dateOrDay.isNilOrBlank
@@ -136,15 +93,11 @@ nonisolated extension ChatSummaryPayload {
         case outingType, dateOrDay, time, area, groupSize, budget
         case dietary, accessibility, vibe, indoorOutdoor, plannedStops, stops
         case onlyTheseStops, occasionProfile, otherNotes
-        /// The key this field shipped under before the per-head/total distinction
-        /// existed. Shortcuts already installed on a host's phone still emit it, and
-        /// they update on Apple's schedule rather than ours, so it is read forever.
+        /// The key this field shipped under before the per-head/total distinction existed. Shortcuts already installed on a host's phone still emit it, and they update on Apple's schedule rather than ours, so it is read forever.
         case legacyBudgetPerHead = "budgetPerHead"
     }
 
-    /// Hand-written so the retired `budgetPerHead` key still decodes. Everything else
-    /// is `decodeIfPresent`, matching the lenient contract in this file's header: a
-    /// missing key, a null, or an unexpected extra key must never fail the payload.
+    /// Hand-written so the retired `budgetPerHead` key still decodes. Everything else is `decodeIfPresent`, matching the lenient contract in this file's header: a missing key, a null, or an unexpected extra key must never fail the payload.
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.init(
@@ -195,15 +148,13 @@ nonisolated extension ChatSummaryPayload {
     enum DecodeResult: Sendable, Equatable {
         /// Valid JSON object carrying at least one settled field.
         case structured(ChatSummaryPayload)
-        /// Non-empty text that isn't our JSON schema (e.g. conversational Siri prose,
-        /// or a well-formed-but-empty object). Not a dead end — shown raw on Host Review.
+        /// Non-empty text that isn't our JSON schema (e.g. conversational Siri prose, or a well-formed-but-empty object). Not a dead end — shown raw on Host Review.
         case unstructured(String)
         /// Nothing usable — empty or whitespace only. Routes to the recovery state.
         case empty
     }
 
-    /// Decode raw intent text into a summary. Tolerant of the wrapping the Shortcuts
-    /// runtime and Apple Intelligence sometimes add (leading/trailing prose, ```json fences).
+    /// Decode raw intent text into a summary. Tolerant of the wrapping the Shortcuts runtime and Apple Intelligence sometimes add (leading/trailing prose, ```json fences).
     static func decode(from rawText: String) -> DecodeResult {
         let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return .empty }
@@ -218,8 +169,7 @@ nonisolated extension ChatSummaryPayload {
         return payload.isEmpty ? .unstructured(trimmed) : .structured(payload)
     }
 
-    /// Pull the outermost `{ ... }` object out of a string, tolerating a code fence or
-    /// a sentence of preamble around it. Returns `nil` when no braces are present.
+    /// Pull the outermost `{ ... }` object out of a string, tolerating a code fence or a sentence of preamble around it. Returns `nil` when no braces are present.
     private static func extractJSONObject(from text: String) -> String? {
         guard let open = text.firstIndex(of: "{"),
               let close = text.lastIndex(of: "}"),

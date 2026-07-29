@@ -1,12 +1,4 @@
-//
-//  ChatExtractionPrompt.swift
-//  Wandr
-//
-//  Loads the canonical `Use Model` extraction prompt for display in onboarding
-//  (the host copies it into the Wandr Shortcut). The `.txt` in Resources is the
-//  source of truth a maintainer hand-mirrors into the distributed `.shortcut`;
-//  the embedded string is a fallback in case bundle membership isn't picked up.
-//
+// ChatExtractionPrompt.swift Wandr Loads the canonical `Use Model` extraction prompt for display in onboarding (the host copies it into the Wandr Shortcut). The `.txt` in Resources is the source of truth a maintainer hand-mirrors into the distributed `.shortcut`; the embedded string is a fallback in case bundle membership isn't picked up.
 
 import Foundation
 
@@ -22,13 +14,7 @@ enum ChatExtractionPrompt {
         return embedded
     }
 
-    /// Keep this byte-identical to `chat-extraction-prompt.txt`.
-    ///
-    /// Describe each key; never show a sample *value*. A quoted example sitting
-    /// beside an optional key reads to a small model as a default to emit — hosts
-    /// got back an accessibility requirement and a budget that were verbatim
-    /// copies of Wandr's own prompt. The same rule governs the `@Guide`
-    /// descriptions in `FreeTextSummaryExtractor`.
+    /// Keep this byte-identical to `chat-extraction-prompt.txt`. Describe each key; never show a sample *value*. A quoted example sitting beside an optional key reads to a small model as a default to emit — hosts got back an accessibility requirement and a budget that were verbatim copies of Wandr's own prompt. The same rule governs the `@Guide` descriptions in `FreeTextSummaryExtractor`.
     private static let embedded = """
     You are reading a WhatsApp or iMessage group conversation about planning a social outing.
 

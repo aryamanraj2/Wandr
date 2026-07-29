@@ -1,22 +1,10 @@
-//
-//  PlanningInput.swift
-//  Wandr
-//
-//  The doorway into the planning core. One request, one run.
-//
-//  Framework-free by contract: Foundation only. No SwiftUI, no MapKit,
-//  no FoundationModels, no SwiftData, no file or network I/O.
-//
+// PlanningInput.swift Wandr The doorway into the planning core. One request, one run. Framework-free by contract: Foundation only. No SwiftUI, no MapKit, no FoundationModels, no SwiftData, no file or network I/O.
 
 import Foundation
 
 // MARK: - Provenance
 
-/// How a planning request reached the app.
-///
-/// This is audit metadata — it records the *channel*, never the content.
-/// Siri and Shortcuts arrive later and must enter through this same enum
-/// rather than opening a second planning path.
+/// How a planning request reached the app. This is audit metadata — it records the *channel*, never the content. Siri and Shortcuts arrive later and must enter through this same enum rather than opening a second planning path.
 nonisolated enum PlanningInputSource: String, Sendable, Equatable, Hashable, CaseIterable {
     /// Typed or dictated directly in `PlanCaptureView`. The only live case today.
     case directCapture
@@ -41,12 +29,7 @@ nonisolated struct PlanningRunID: Sendable, Equatable, Hashable, CustomStringCon
 
 // MARK: - Input
 
-/// A volatile planning request.
-///
-/// `text` is the raw thing the host typed or dictated. It is **volatile**:
-/// it is never persisted, never logged, never copied into a `PlanningEvent`,
-/// and never included in a `PlanningFailure` payload. It lives only long
-/// enough for the extractor to turn it into an `OutingBriefDraft`.
+/// A volatile planning request. `text` is the raw thing the host typed or dictated. It is **volatile**: it is never persisted, never logged, never copied into a `PlanningEvent`, and never included in a `PlanningFailure` payload. It lives only long enough for the extractor to turn it into an `OutingBriefDraft`.
 nonisolated struct PlanningInput: Sendable, Equatable, Identifiable, CustomStringConvertible {
 
     nonisolated struct ID: Sendable, Equatable, Hashable {
@@ -86,8 +69,7 @@ nonisolated struct PlanningInput: Sendable, Equatable, Identifiable, CustomStrin
         return self
     }
 
-    /// Redacted on purpose — the request text must not leak into logs or crash reports
-    /// via string interpolation.
+    /// Redacted on purpose — the request text must not leak into logs or crash reports via string interpolation.
     var description: String {
         "PlanningInput(id: \(id.rawValue.uuidString), source: \(source.rawValue), characters: \(text.count))"
     }

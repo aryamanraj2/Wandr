@@ -1,33 +1,11 @@
-//
-//  EvidenceResolver.swift
-//  Wandr
-//
-//  The step between research and curation that decides which venues the model is
-//  allowed to see — and, when the host's constraints leave nothing to show, which
-//  constraint to give up so there is still a plan.
-//
-//  Pure Swift, no model call, no I/O. Relaxation therefore costs nothing and cannot
-//  itself fail, which is the point: this is the code path that used to be a thrown
-//  `PlanningFailure` and a dead end.
-//
-//  ## What it does
-//
-//  Filters the evidence under every constraint, then asks one question: does every
-//  stop the host actually asked for still have something to fill it? If not, it
-//  gives up the least important constraint (`ConstraintLadder`), filters again, and
-//  records what it gave up so the host can be told.
-//
-//  Dietary and accessibility are not on the ladder and are never given up here —
-//  see `ConstraintLadder` for why.
-//
+// EvidenceResolver.swift Wandr The step between research and curation that decides which venues the model is allowed to see — and, when the host's constraints leave nothing to show, which constraint to give up so there is still a plan. Pure Swift, no model call, no I/O. Relaxation therefore costs nothing and cannot itself fail, which is the point: this is the code path that used to be a thrown `PlanningFailure` and a dead end. ## What it does Filters the evidence under every constraint, then asks one question: does every stop the host actually asked for still have something to fill it? If not, it gives up the least important constraint (`ConstraintLadder`), filters again, and records what it gave up so the host can be told. Dietary and accessibility are not on the ladder and are never given up here — see `ConstraintLadder` for why.
 
 import Foundation
 
 /// Resolves the evidence a brief is allowed to be planned from.
 nonisolated struct EvidenceResolver: Sendable {
 
-    /// The venues curation may use, plus every constraint that had to be given up
-    /// to leave any.
+    /// The venues curation may use, plus every constraint that had to be given up to leave any.
     nonisolated struct Resolution: Sendable, Equatable {
         let eligible: [GroundedVenue]
         let relaxations: [PlanRelaxation]
@@ -42,16 +20,11 @@ nonisolated struct EvidenceResolver: Sendable {
     init() {}
 
     func resolve(brief: OutingBrief, evidence: [GroundedVenue]) -> Resolution {
-        // Only the rungs this step can act on. Time window and requested stops shape
-        // the *schedule*, not which venues exist, so `SlotSchedule` reports those
-        // itself rather than having them relaxed twice from two different places.
+        // Only the rungs this step can act on. Time window and requested stops shape the *schedule*, not which venues exist, so `SlotSchedule` reports those itself rather than having them relaxed twice from two different places.
         let ladder = ConstraintLadder.rungs(for: brief)
             .filter { $0 == .setting || $0 == .budget }
 
-        // What the plan will actually ask for. Taken from the schedule rather than
-        // from `requestedStops` alone: a host who named no stops still gets the
-        // default shape, and a budget that leaves that shape with no restaurant is
-        // just as much a dead end as one that empties a stop they asked for by name.
+        // What the plan will actually ask for. Taken from the schedule rather than from `requestedStops` alone: a host who named no stops still gets the default shape, and a budget that leaves that shape with no restaurant is just as much a dead end as one that empties a stop they asked for by name.
         let needed = Set(brief.schedule.slots.map(\.category))
 
         var relaxed: Set<RelaxableConstraint> = []
@@ -66,19 +39,14 @@ nonisolated struct EvidenceResolver: Sendable {
 
             let widened = filter(evidence, for: brief, relaxing: relaxed)
 
-            // Only disclose a constraint whose removal actually put something back.
-            // A rung that changed nothing was not a compromise the host made, and
-            // telling them they gave up their budget when the venues were missing
-            // for some other reason would be a worse lie than saying nothing.
+            // Only disclose a constraint whose removal actually put something back. A rung that changed nothing was not a compromise the host made, and telling them they gave up their budget when the venues were missing for some other reason would be a worse lie than saying nothing.
             if widened.count > eligible.count {
                 relaxations.append(PlanRelaxation(next, disclosure: disclosure(for: next, brief: brief)))
             }
             eligible = widened
         }
 
-        // The ladder can run out with the plan still short. That is not a failure
-        // here — an empty result becomes an honest `insufficientEvidence` upstream,
-        // and a merely thin one becomes a thin deck the host can still use.
+        // The ladder can run out with the plan still short. That is not a failure here — an empty result becomes an honest `insufficientEvidence` upstream, and a merely thin one becomes a thin deck the host can still use.
         return Resolution(eligible: eligible, relaxations: relaxations)
     }
 
@@ -94,14 +62,12 @@ nonisolated struct EvidenceResolver: Sendable {
             : brief.budget.value.ceilingPerHead(for: brief.groupSize.value)
 
         return evidence.filter { venue in
-            // Dietary and accessibility, always. `ConstraintEligibility` stays the
-            // single definition of the never-relaxed rules, shared with both curators.
+            // Dietary and accessibility, always. `ConstraintEligibility` stays the single definition of the never-relaxed rules, shared with both curators.
             guard ConstraintEligibility.isEligible(
                 venue, for: brief, ignoringSetting: relaxed.contains(.setting)
             ) else { return false }
 
-            // A venue with no known price is not *known* to break the ceiling, so it
-            // survives and the validator warns about the missing price instead.
+            // A venue with no known price is not *known* to break the ceiling, so it survives and the validator warns about the missing price instead.
             guard let ceiling, let perHead = venue.cost.knownPerHeadRupees else { return true }
             return perHead <= ceiling
         }
@@ -116,8 +82,7 @@ nonisolated struct EvidenceResolver: Sendable {
 
     // MARK: - Disclosure
 
-    /// What the host is told. Specific about the constraint, never apologetic, and
-    /// never a restatement of their own words.
+    /// What the host is told. Specific about the constraint, never apologetic, and never a restatement of their own words.
     private func disclosure(for constraint: RelaxableConstraint, brief: OutingBrief) -> String {
         switch constraint {
         case .budget:
@@ -134,9 +99,7 @@ nonisolated struct EvidenceResolver: Sendable {
             return "We had to go a little outside the hours you gave."
 
         case .requestedStops:
-            // Never reached from here — this rung is filtered out of the ladder above,
-            // because a stop that does not fit is a schedule problem, not an evidence
-            // one. The coordinator raises it. Kept in step via the shared constant.
+            // Never reached from here — this rung is filtered out of the ladder above, because a stop that does not fit is a schedule problem, not an evidence one. The coordinator raises it. Kept in step via the shared constant.
             return PlanRelaxation.stopsDidNotFit.disclosure
         }
     }

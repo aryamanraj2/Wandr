@@ -1,15 +1,4 @@
-//
-//  RootView.swift
-//  Wandr
-//
-//  Outings-only shell (D3 — no Trips tab in v1). Switches on the intake state machine
-//  (`IntakeInbox`): first-launch setup → awaiting a Siri/Shortcut summary → host review
-//  → confirm/recover. On confirm it hands off to curation, the existing downstream surface.
-//
-//  Once `TravelPlanningService` lands, this view switches on `PlanningRun.state`
-//  (awaitingSiriSummary → hostReview → … → curating → approving). For the design
-//  pass it opens straight onto curation, which is where the plan becomes visible.
-//
+// RootView.swift Wandr Outings-only shell (D3 — no Trips tab in v1); switches on IntakeInbox's state machine from onboarding through host review to confirm/recover, then hands off to curation.
 
 import SwiftUI
 
@@ -31,9 +20,7 @@ struct RootView: View {
             case .awaitingSummary:
                 AwaitSiriSummaryView(inbox: inbox)
             case .capturing:
-                // The speak-or-type doorway. `PlanCaptureView` hands back raw words;
-                // the inbox runs them through on-device extraction and rejoins the
-                // Siri path at Host Review.
+                // The speak-or-type doorway: PlanCaptureView hands back raw words, extracted on-device, rejoining the Siri path at Host Review.
                 PlanCaptureView(
                     onCommit: { text in
                         Task { await inbox.captureFreeText(text) }
@@ -49,12 +36,9 @@ struct RootView: View {
             case .recovery(let reason):
                 RecoveryView(inbox: inbox, reason: reason)
             case .confirmed(let payload):
-                // The confirmed summary now seeds the grounded pipeline: research the
-                // dataset, let the on-device model pick places, validate, and open the
-                // decks. `PlanningFlowView` owns that async lifecycle and its states.
+                // The confirmed summary seeds the grounded pipeline; PlanningFlowView owns that async lifecycle and its states.
                 PlanningFlowView(payload: payload, inbox: inbox)
-                    // Settling the last hair of scale, rather than sliding in: the plan
-                    // was already on its way, this is it arriving.
+                    // Settling the last hair of scale rather than sliding in: the plan was already on its way, this is it arriving.
                     .scaleEffect(reduceMotion ? 1 : (curating ? 1 : 1.015))
                     .transition(.opacity)
             }
@@ -62,15 +46,12 @@ struct RootView: View {
         .animation(stateAnimation, value: stateID)
     }
 
-    /// Whichever screen is arriving waits for the other to clear; whichever is
-    /// leaving goes immediately. Reads as a handoff in one direction rather
-    /// than a symmetric crossfade.
+    /// Arriving screen waits for the other to clear, leaving screen goes immediately — a one-directional handoff, not a symmetric crossfade.
     private var stateAnimation: Animation {
         curating ? .wandrStageIn : .wandrStageOut
     }
 
-    /// A cheap identity for the state, so the container animates on transitions between
-    /// screens without needing `IntakeState` itself to be `Hashable`.
+    /// A cheap identity for the state so the container animates transitions without `IntakeState` needing to be `Hashable`.
     private var stateID: Int {
         switch inbox.state {
         case .onboarding:      return 0
@@ -86,12 +67,7 @@ struct RootView: View {
 
 // MARK: - Extraction
 
-/// The short wait while the on-device model turns what the host said into the same
-/// structured summary the Shortcut would have produced.
-///
-/// Deliberately names the step rather than showing a bare spinner: this is the one
-/// moment the host has handed over their own words and cannot yet see what Wandr
-/// made of them.
+/// The wait while the on-device model turns what the host said into the same structured summary the Shortcut would produce; names the step rather than a bare spinner.
 private struct ExtractingSummaryView: View {
     var body: some View {
         VStack(spacing: 18) {
@@ -135,9 +111,7 @@ private struct ExtractingSummaryView: View {
 
 // MARK: - Planning flow
 
-/// Owns one planning run: it kicks off the grounded pipeline for the confirmed
-/// summary and renders its three outcomes — working, decks ready, or a recoverable
-/// failure. Separated from `RootView` so the async lifecycle has a stable identity.
+/// Owns one planning run: kicks off the grounded pipeline and renders its three outcomes (working, decks ready, recoverable failure); separated from `RootView` for a stable async lifecycle identity.
 private struct PlanningFlowView: View {
     let payload: ChatSummaryPayload
     let inbox: IntakeInbox
@@ -234,8 +208,7 @@ private struct PlanningFailureView: View {
     }
 }
 
-/// Preview-only shell that drives the intake screens from a freshly configured inbox
-/// rather than the shared singleton, so each preview shows a distinct state.
+/// Preview-only shell that drives the intake screens from a freshly configured inbox rather than the shared singleton, so each preview shows a distinct state.
 private struct RootView_PreviewHost: View {
     @State private var inbox: IntakeInbox
 

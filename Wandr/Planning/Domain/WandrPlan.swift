@@ -1,13 +1,4 @@
-//
-//  WandrPlan.swift
-//  Wandr
-//
-//  The validated, immutable result the curation and schedule surfaces consume.
-//
-//  A `WandrPlan` can only be produced by the deterministic validator. The model
-//  contributes rank order and rationale; it never contributes a display fact and
-//  it can never remove a warning.
-//
+// WandrPlan.swift Wandr The validated, immutable result the curation and schedule surfaces consume. A `WandrPlan` can only be produced by the deterministic validator. The model contributes rank order and rationale; it never contributes a display fact and it can never remove a warning.
 
 import Foundation
 
@@ -38,10 +29,7 @@ nonisolated struct SlotID: Sendable, Equatable, Hashable, Comparable, CustomStri
 
 // MARK: - Curated output
 
-/// One ranked choice inside a slot.
-///
-/// It carries an ID and nothing displayable. Name, area, price, offer, and hours
-/// are resolved from the matching `GroundedVenue` at presentation time.
+/// One ranked choice inside a slot. It carries an ID and nothing displayable. Name, area, price, offer, and hours are resolved from the matching `GroundedVenue` at presentation time.
 nonisolated struct CuratedCandidate: Sendable, Equatable, Identifiable {
     var id: VenueID { venueID }
 
@@ -58,20 +46,11 @@ nonisolated struct CuratedCandidate: Sendable, Equatable, Identifiable {
     }
 }
 
-/// One slot in the plan plus the candidates competing for it.
-///
-/// This is both what the curator proposes and what the validator blesses — the
-/// validator returns the same shape rather than a parallel type, so nothing can
-/// drift between proposal and plan.
+/// One slot in the plan plus the candidates competing for it. This is both what the curator proposes and what the validator blesses — the validator returns the same shape rather than a parallel type, so nothing can drift between proposal and plan.
 nonisolated struct CurationSlot: Sendable, Equatable, Identifiable {
     var id: SlotID { slotID }
 
-    /// Derived from the band, so two stops of the same category are two slots.
-    ///
-    /// This used to be the *category's* raw value, which meant lunch and dinner
-    /// were one `SlotID` — the single line that made "lunch and dinner, nothing in
-    /// between" impossible to express. It also silently collided in the squad poll,
-    /// where two food decks would have voted into the same ballot.
+    /// Derived from the band, so two stops of the same category are two slots. This used to be the *category's* raw value, which meant lunch and dinner were one `SlotID` — the single line that made "lunch and dinner, nothing in between" impossible to express. It also silently collided in the squad poll, where two food decks would have voted into the same ballot.
     let slotID: SlotID
     /// Which row of the band table this stop is.
     let band: SlotBand
@@ -93,10 +72,7 @@ nonisolated struct CurationSlot: Sendable, Equatable, Identifiable {
 
 // MARK: - Warnings
 
-/// Something the host must be told. Emitted only by deterministic validation.
-///
-/// Warnings are attached to the plan and survive every UI mapping. The model
-/// cannot add, edit, or remove one.
+/// Something the host must be told. Emitted only by deterministic validation. Warnings are attached to the plan and survive every UI mapping. The model cannot add, edit, or remove one.
 nonisolated struct PlanWarning: Sendable, Equatable, Hashable {
 
     nonisolated enum Kind: Sendable, Equatable, Hashable {
@@ -116,12 +92,7 @@ nonisolated struct PlanWarning: Sendable, Equatable, Hashable {
         case unknownHours(VenueID)
         /// A provider-stated caveat, carried through verbatim.
         case providerLimitation(VenueID, detail: String)
-        /// This place costs more per head than the host's ceiling works out to.
-        ///
-        /// A warning rather than a violation. `EvidenceResolver` only lets one of
-        /// these reach a deck when the alternative was an empty deck, so failing the
-        /// run on it meant failing every host whose budget was tight — which is
-        /// exactly the group most in need of being shown their options.
+        /// This place costs more per head than the host's ceiling works out to. A warning rather than a violation. `EvidenceResolver` only lets one of these reach a deck when the alternative was an empty deck, so failing the run on it meant failing every host whose budget was tight — which is exactly the group most in need of being shown their options.
         case overBudget(VenueID, perHeadRupees: Int, ceilingPerHead: Int)
         /// The deck has fewer options than Wandr aims for. Not slot-fatal.
         case thinDeck(required: Int, found: Int)
@@ -136,8 +107,7 @@ nonisolated struct PlanWarning: Sendable, Equatable, Hashable {
         self.slotID = slotID
     }
 
-    /// The venue this warning is about, when it is about one. `nil` for warnings
-    /// that describe the deck rather than a place in it.
+    /// The venue this warning is about, when it is about one. `nil` for warnings that describe the deck rather than a place in it.
     var venueID: VenueID? {
         switch kind {
         case .unknownCost(let id),
@@ -212,8 +182,7 @@ nonisolated struct WandrPlan: Sendable, Equatable, Identifiable {
     let slots: [CurationSlot]
     /// Every warning validation produced. These are mandatory on the plan.
     let warnings: [PlanWarning]
-    /// Constraints Wandr had to give up to produce a plan at all, each with the
-    /// sentence the host is owed. Empty when the request was satisfied exactly.
+    /// Constraints Wandr had to give up to produce a plan at all, each with the sentence the host is owed. Empty when the request was satisfied exactly.
     let relaxations: [PlanRelaxation]
     /// Every venue ID this plan is grounded in, sorted for determinism.
     let evidenceIDs: [VenueID]
@@ -260,9 +229,7 @@ nonisolated struct WandrPlan: Sendable, Equatable, Identifiable {
 nonisolated enum ScheduleAssumption: Sendable, Equatable, Hashable {
     case defaultStartMinute(Int)
     case defaultDuration(minutes: Int, slotID: SlotID)
-    /// The stop's start and length came from the host's confirmed time window
-    /// (via `SlotSchedule`), not from a template default — so it is disclosed as a
-    /// host-derived fact rather than an assumption Wandr invented.
+    /// The stop's start and length came from the host's confirmed time window (via `SlotSchedule`), not from a template default — so it is disclosed as a host-derived fact rather than an assumption Wandr invented.
     case windowConstrained(startMinute: Int, durationMinutes: Int, slotID: SlotID)
     /// Travel time between stops is a deferred rule — MapKit is not wired up.
     case travelTimeNotVerified
@@ -285,10 +252,7 @@ nonisolated struct ScheduleDraftBlock: Sendable, Equatable, Identifiable {
     var endMinute: Int { startMinute + durationMinutes }
 }
 
-/// Ordered blocks plus the assumptions behind them.
-///
-/// Derived from the validated plan's leading candidates — never from model text,
-/// and never from the placeholder starts currently hardcoded in `CurationView`.
+/// Ordered blocks plus the assumptions behind them. Derived from the validated plan's leading candidates — never from model text, and never from the placeholder starts currently hardcoded in `CurationView`.
 nonisolated struct ScheduleDraft: Sendable, Equatable {
     let planID: PlanID
     let blocks: [ScheduleDraftBlock]

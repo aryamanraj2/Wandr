@@ -1,28 +1,11 @@
-//
-//  ScheduleDrafter.swift
-//  Wandr
-//
-//  Pure Swift. Turns a validated plan into a timeline.
-//
-//  Every number this file produces is disclosed. A start minute that isn't backed
-//  by a `ScheduleAssumption` in the returned draft is a bug — the tests assert the
-//  correspondence in both directions, because "the app quietly decided 8pm" is
-//  exactly the kind of invented fact the planning core exists to prevent.
-//
-//  Travel time between stops is NOT verified: MapKit is out of scope for this
-//  step, so `.travelTimeNotVerified` rides on every draft this type produces.
-//
+// ScheduleDrafter.swift Wandr Pure Swift. Turns a validated plan into a timeline. Every number this file produces is disclosed. A start minute that isn't backed by a `ScheduleAssumption` in the returned draft is a bug — the tests assert the correspondence in both directions, because "the app quietly decided 8pm" is exactly the kind of invented fact the planning core exists to prevent. Travel time between stops is NOT verified: MapKit is out of scope for this step, so `.travelTimeNotVerified` rides on every draft this type produces.
 
 import Foundation
 
 /// The real `ScheduleDrafting` implementation.
 nonisolated struct ScheduleDrafter: ScheduleDrafting, Sendable {
 
-    /// The disclosed start-time template, in minutes from midnight.
-    ///
-    /// Chosen to match the deck windows the current curation UI already shows
-    /// ("Dinner 8:00 – 10:00 pm", "Late 10:00 pm – late", "Afternoon", "flexible"),
-    /// so Step 5's UI bridge is a small diff rather than a re-timing.
+    /// The disclosed start-time template, in minutes from midnight. Chosen to match the deck windows the current curation UI already shows ("Dinner 8:00 – 10:00 pm", "Late 10:00 pm – late", "Afternoon", "flexible"), so Step 5's UI bridge is a small diff rather than a re-timing.
     nonisolated struct Template: Sendable, Equatable {
         var sights: Int
         var discover: Int
@@ -64,20 +47,16 @@ nonisolated struct ScheduleDrafter: ScheduleDrafting, Sendable {
         var assumptions: [ScheduleAssumption] = []
         var blocks: [ScheduleDraftBlock] = []
 
-        // The host's time window decides start and length when it was stated. An
-        // unstated window falls through to the template — the same numbers the
-        // design already used — so nothing regresses for an open-ended plan.
+        // The host's time window decides start and length when it was stated. An unstated window falls through to the template — the same numbers the design already used — so nothing regresses for an open-ended plan.
         let schedule = plan.brief.schedule
 
-        // By band, not category. Lunch and dinner are both `.food` and start five
-        // hours apart, so resolving their start time by category would stack them.
+        // By band, not category. Lunch and dinner are both `.food` and start five hours apart, so resolving their start time by category would stack them.
         func baseStart(of slot: CurationSlot) -> Int {
             schedule.slot(band: slot.band)?.startMinute
                 ?? template.startMinute(for: slot.category)
         }
 
-        // Slots are laid out in start-time order, not curation order, so two slots
-        // that resolve to the same minute break their tie deterministically.
+        // Slots are laid out in start-time order, not curation order, so two slots that resolve to the same minute break their tie deterministically.
         let ordered = plan.slots.sorted { lhs, rhs in
             let left = baseStart(of: lhs)
             let right = baseStart(of: rhs)
@@ -87,8 +66,7 @@ nonisolated struct ScheduleDrafter: ScheduleDrafting, Sendable {
         for slot in ordered {
             guard let candidate = leadingCandidate(of: slot) else { continue }
 
-            // The validator already guarantees this resolves. If it somehow doesn't,
-            // say so with the existing named violation rather than dropping a stop.
+            // The validator already guarantees this resolves. If it somehow doesn't, say so with the existing named violation rather than dropping a stop.
             guard let venue = evidenceByID[candidate.venueID] else {
                 throw PlanningFailure.validationFailed(
                     [.unknownVenue(slotID: slot.slotID, venueID: candidate.venueID)]
@@ -101,8 +79,7 @@ nonisolated struct ScheduleDrafter: ScheduleDrafting, Sendable {
                 duration: template.durationMinutes
             )
 
-            // Clamp the block so it never runs past the host's window. `SlotSchedule`
-            // already guaranteed the slot has ≥ 60 min of room at its unpushed start.
+            // Clamp the block so it never runs past the host's window. `SlotSchedule` already guaranteed the slot has ≥ 60 min of room at its unpushed start.
             let feasible = schedule.slot(band: slot.band)
             let windowConstrained = schedule.isWindowConstrained && feasible != nil
             let duration: Int = {
@@ -144,22 +121,19 @@ nonisolated struct ScheduleDrafter: ScheduleDrafting, Sendable {
             planID: plan.id,
             blocks: blocks,
             assumptions: assumptions,
-            // Carried forward unchanged. The drafter cannot remove a warning, and
-            // has none of its own to add in this step.
+            // Carried forward unchanged. The drafter cannot remove a warning, and has none of its own to add in this step.
             warnings: plan.warnings
         )
     }
 
     // MARK: - Helpers
 
-    /// The rank-1 pick, falling back to the best-ranked candidate present so a
-    /// curator that numbers from zero still produces a schedule.
+    /// The rank-1 pick, falling back to the best-ranked candidate present so a curator that numbers from zero still produces a schedule.
     private func leadingCandidate(of slot: CurationSlot) -> CuratedCandidate? {
         slot.candidates.first { $0.rank == 1 } ?? slot.candidates.min { $0.rank < $1.rank }
     }
 
-    /// The given base start, pushed past any block already sitting there. Two
-    /// `food` slots become 8:00 and 9:30 rather than two stops at once.
+    /// The given base start, pushed past any block already sitting there. Two `food` slots become 8:00 and 9:30 rather than two stops at once.
     private func nextAvailableStart(
         from base: Int,
         after blocks: [ScheduleDraftBlock],

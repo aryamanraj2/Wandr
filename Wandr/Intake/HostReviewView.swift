@@ -1,12 +1,4 @@
-//
-//  HostReviewView.swift
-//  Wandr
-//
-//  Docs `hostReview`: the exact summary that came through, shown for approval before
-//  any planning starts. This is where the "final JSON summary" becomes visible — the
-//  structured brief the group settled on. The host confirms (planning begins) or
-//  cancels (the volatile summary is discarded). Nothing here reads a chat or runs a model.
-//
+// HostReviewView.swift Wandr Docs `hostReview`: the exact summary that came through, shown for approval before any planning starts. This is where the "final JSON summary" becomes visible — the structured brief the group settled on. The host confirms (planning begins) or cancels (the volatile summary is discarded). Nothing here reads a chat or runs a model.
 
 import SwiftUI
 
@@ -112,8 +104,7 @@ struct HostReviewView: View {
 
     @ViewBuilder
     private var rawDisclosure: some View {
-        // Only meaningful when we actually parsed structured JSON — otherwise the card above
-        // already shows the raw text.
+        // Only meaningful when we actually parsed structured JSON — otherwise the card above already shows the raw text.
         if let payload, !payload.displayFields.isEmpty {
             DisclosureGroup(isExpanded: $showingRaw) {
                 Text(rawText)

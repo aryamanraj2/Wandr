@@ -1,14 +1,4 @@
-//
-//  TravelPlanningServiceTests.swift
-//  WandrTests
-//
-//  The centrepiece of Step 2: the coordinator's ten required behaviors (§9),
-//  exercised with the fake extractor and curator plus the *real* provider,
-//  normalizer, validator, and drafter.
-//
-//  Nothing here touches SwiftUI, a simulator's UI, the network, or Apple
-//  Intelligence. The only I/O is decoding the bundled dataset.
-//
+// TravelPlanningServiceTests.swift WandrTests The centrepiece of Step 2: the coordinator's ten required behaviors (§9), exercised with the fake extractor and curator plus the *real* provider, normalizer, validator, and drafter. Nothing here touches SwiftUI, a simulator's UI, the network, or Apple Intelligence. The only I/O is decoding the bundled dataset.
 
 import Foundation
 import Testing
@@ -18,12 +8,9 @@ import Testing
 struct TravelPlanningServiceTests {
 
     // MARK: - Test doubles
-    //
-    // These are coordinator-shaped doubles, distinct from the app's fakes: they
-    // exist to observe call order and to interleave cancellation.
+    // These are coordinator-shaped doubles, distinct from the app's fakes: they exist to observe call order and to interleave cancellation.
 
-    /// Records whether research ever ran, so "the provider is not called before
-    /// normalization" can be asserted about the coordinator's real call order.
+    /// Records whether research ever ran, so "the provider is not called before normalization" can be asserted about the coordinator's real call order.
     private final actor CallRecorder {
         private(set) var researchCalls = 0
         private(set) var curateCalls = 0
@@ -35,8 +22,7 @@ struct TravelPlanningServiceTests {
     private struct ObservingProvider: VenueResearching {
         let wrapped: DistrictVenueProvider
         let recorder: CallRecorder
-        /// Runs after research, before the coordinator's next cancellation check —
-        /// the seam a mid-run cancellation test needs.
+        /// Runs after research, before the coordinator's next cancellation check — the seam a mid-run cancellation test needs.
         let afterResearch: (@Sendable () async -> Void)?
 
         func research(for brief: OutingBrief) async throws -> VenueResearchResult {
@@ -200,17 +186,7 @@ struct TravelPlanningServiceTests {
     }
 
     // MARK: - 4. Insufficient evidence
-    //
-    // Driven by a researcher that returns a genuinely thin category, rather than by
-    // whichever Delhi neighbourhood happens to be short this week.
-    //
-    // These two used to point at Lodhi with the note "the dataset gives it two food
-    // venues". The dataset has since grown, and — more to the point — **no** category
-    // in it now sits at 1 or 2 venues: every one is either 0 (the slot is skipped
-    // before it ever reaches the validator) or 3+. So the branch these tests exist to
-    // defend had become unreachable through real data, and they failed for a reason
-    // that had nothing to do with the rule they guard. Injecting the thin snapshot
-    // tests the rule instead of the neighbourhood.
+    // Driven by a researcher that returns a genuinely thin category, rather than by whichever Delhi neighbourhood happens to be short this week. These two used to point at Lodhi with the note "the dataset gives it two food venues". The dataset has since grown, and — more to the point — **no** category in it now sits at 1 or 2 venues: every one is either 0 (the slot is skipped before it ever reaches the validator) or 3+. So the branch these tests exist to defend had become unreachable through real data, and they failed for a reason that had nothing to do with the rule they guard. Injecting the thin snapshot tests the rule instead of the neighbourhood.
 
     /// A researcher whose snapshot is deliberately one venue short in `.food`.
     private struct ThinResearcher: VenueResearching {
@@ -239,15 +215,13 @@ struct TravelPlanningServiceTests {
         let service = try service(researcher: ThinResearcher())
         let run = try await service.plan(Fixtures.input(Fixtures.Request.afterWork))
 
-        // A neighbourhood with two restaurants is a small neighbourhood, not a
-        // broken request. Showing both beats sending the host back to the start.
+        // A neighbourhood with two restaurants is a small neighbourhood, not a broken request. Showing both beats sending the host back to the start.
         #expect(run.state == .ready)
         let plan = try #require(run.plan)
         #expect(!plan.slots.isEmpty)
     }
 
-    /// The one surviving `insufficientEvidence` path: the ladder ran out and there
-    /// is genuinely nothing to show. Only here is "widen the area" true advice.
+    /// The one surviving `insufficientEvidence` path: the ladder ran out and there is genuinely nothing to show. Only here is "widen the area" true advice.
     @Test("Nothing at all in the snapshot is the one honest evidence failure")
     func emptyEvidenceFailsHonestly() async throws {
         let service = try service(researcher: EmptyResearcher())
@@ -328,16 +302,13 @@ struct TravelPlanningServiceTests {
         #expect(violations.contains(.emptyCuration))
     }
 
-    /// §13.4's split: with a *deep* real evidence snapshot, a thin deck is the
-    /// curator's fault, not research's — and must report as such.
+    /// §13.4's split: with a *deep* real evidence snapshot, a thin deck is the curator's fault, not research's — and must report as such.
     @Test("An under-picking curator produces a thin plan, not a failed run")
     func underPickingStillPlans() async throws {
         let service = try service(curator: FakeItineraryCurator(misbehavior: .underPick))
         let run = try await service.plan(Fixtures.input(Fixtures.Request.afterWork))
 
-        // This used to be `.failed` with `insufficientCandidates`. A model that
-        // under-picks is a model doing a worse job, not a reason to give the host
-        // nothing — the shortfall is now a warning they can see.
+        // This used to be `.failed` with `insufficientCandidates`. A model that under-picks is a model doing a worse job, not a reason to give the host nothing — the shortfall is now a warning they can see.
         #expect(run.state == .ready)
         let plan = try #require(run.plan)
         #expect(!plan.slots.isEmpty)
@@ -347,9 +318,7 @@ struct TravelPlanningServiceTests {
         })
     }
 
-    /// The reported screenshot, end to end. A budget nothing in the dataset can meet
-    /// used to end the run with "over your limit" and a Try again button that
-    /// could only ever produce the same dead end.
+    /// The reported screenshot, end to end. A budget nothing in the dataset can meet used to end the run with "over your limit" and a Try again button that could only ever produce the same dead end.
     @Test("An unmeetable budget still produces a plan, with the compromise disclosed")
     func unmeetableBudgetRelaxesRatherThanFailing() async throws {
         let service = try service()
@@ -463,7 +432,6 @@ struct TravelPlanningServiceTests {
     }
 
     // MARK: - 9. No event ever contains the request text
-    //
     // Step 1 proved this of the *type*. This proves it of the *coordinator*.
 
     @Test("No event or failure carries the raw request text", arguments: [
@@ -484,8 +452,7 @@ struct TravelPlanningServiceTests {
         #expect(run.failure?.userMessage.contains(request) != true)
     }
 
-    /// The injection fixture specifically: its distinctive phrases must not appear
-    /// anywhere in the transparency trail, in whole or in part.
+    /// The injection fixture specifically: its distinctive phrases must not appear anywhere in the transparency trail, in whole or in part.
     @Test("The injection request leaves no trace in the event log")
     func injectionTextNeverSurfaces() async throws {
         let service = try service()
@@ -505,18 +472,14 @@ struct TravelPlanningServiceTests {
         let service = try service()
         let run = try await service.plan(Fixtures.input(Fixtures.Request.injection))
 
-        // There is no booking, payment, or price-maximizing affordance in the
-        // domain, so the instruction has nowhere to go. It plans like any other
-        // constraint-free request.
+        // There is no booking, payment, or price-maximizing affordance in the domain, so the instruction has nowhere to go. It plans like any other constraint-free request.
         #expect(run.state == .ready)
         let plan = try #require(run.plan)
         #expect(!plan.slots.isEmpty)
     }
 
     // MARK: - 10. All six fixtures reach a defined terminal state
-    //
-    // This mapping is the baseline Step 3 must reproduce once the fake extractor
-    // is replaced with a real Foundation Models adapter.
+    // This mapping is the baseline Step 3 must reproduce once the fake extractor is replaced with a real Foundation Models adapter.
 
     @Test("After-work reaches ready")
     func fixtureAfterWorkIsReady() async throws {
@@ -610,8 +573,7 @@ struct TravelPlanningServiceTests {
         let run = try await service.plan(Fixtures.input(Fixtures.Request.birthday))
         let plan = try #require(run.plan)
 
-        // Sights and discover venues in the dataset largely never state dietary
-        // tags, so a vegetarian request must produce unverified-dietary warnings.
+        // Sights and discover venues in the dataset largely never state dietary tags, so a vegetarian request must produce unverified-dietary warnings.
         #expect(plan.warnings.contains { warning in
             if case .unverifiedDietary = warning.kind { return true }
             return false

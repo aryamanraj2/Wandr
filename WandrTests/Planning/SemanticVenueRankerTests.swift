@@ -1,18 +1,4 @@
-//
-//  SemanticVenueRankerTests.swift
-//  WandrTests
-//
-//  Whether ranking by meaning actually beats ranking by nothing.
-//
-//  These run against the **real bundled dataset**, not fixtures, because the thing
-//  under test is precisely whether the taglines a human wrote carry enough signal to
-//  order a deck. A fixture with "quiet" in the tagline and "quiet" in the query would
-//  prove only that cosine similarity works.
-//
-//  The embedding assets ship separately from the app and are genuinely absent on some
-//  devices, so every test here skips rather than fails when the ranker reports
-//  unavailable. A skip is honest; a green suite that measured nothing is not.
-//
+// SemanticVenueRankerTests.swift WandrTests Whether ranking by meaning actually beats ranking by nothing. These run against the **real bundled dataset**, not fixtures, because the thing under test is precisely whether the taglines a human wrote carry enough signal to order a deck. A fixture with "quiet" in the tagline and "quiet" in the query would prove only that cosine similarity works. The embedding assets ship separately from the app and are genuinely absent on some devices, so every test here skips rather than fails when the ranker reports unavailable. A skip is honest; a green suite that measured nothing is not.
 
 import Foundation
 import NaturalLanguage
@@ -26,11 +12,7 @@ struct SemanticVenueRankerTests {
         try DistrictVenueProvider(bundle: .main, retrievedAt: Fixtures.retrievedAt).allVenues
     }
 
-    /// The stated intent, and a venue whose own description should answer it.
-    ///
-    /// Chosen so no expected venue repeats a content word from its query — "loud to
-    /// dance" against a tagline that says "resident DJs", not one that says "loud".
-    /// Keyword matching scores zero on this set by construction, which is the point.
+    /// The stated intent, and a venue whose own description should answer it. Chosen so no expected venue repeats a content word from its query — "loud to dance" against a tagline that says "resident DJs", not one that says "loud". Keyword matching scores zero on this set by construction, which is the point.
     private static let cases: [(query: String, expect: String)] = [
         ("somewhere loud to dance late",                 "Basement Forty"),
         ("quiet enough to actually talk",                "Neel Bhavan"),
@@ -40,16 +22,7 @@ struct SemanticVenueRankerTests {
         ("browse books for an hour",                     "Bahrisons Booksellers")
     ]
 
-    /// Whether this machine can score anything at all.
-    ///
-    /// Attempts the **load**, not just `hasAvailableAssets`. In the iOS Simulator the
-    /// flag reads `true` and `load()` then throws anyway — so a gate built on the flag
-    /// alone does not skip, it runs the test and fails it. Asking the same question the
-    /// ranker asks is the only version that cannot disagree with the ranker.
-    ///
-    /// Gating produces a **skip**, which is the honest outcome: a quality test that
-    /// silently passes on a machine that measured nothing is worse than no test,
-    /// because the number it reports is an empty average and it reads as green.
+    /// Whether this machine can score anything at all. Attempts the **load**, not just `hasAvailableAssets`. In the iOS Simulator the flag reads `true` and `load()` then throws anyway — so a gate built on the flag alone does not skip, it runs the test and fails it. Asking the same question the ranker asks is the only version that cannot disagree with the ranker. Gating produces a **skip**, which is the honest outcome: a quality test that silently passes on a machine that measured nothing is worse than no test, because the number it reports is an empty average and it reads as green.
     static var canScore: Bool {
         guard let embedding = NLContextualEmbedding(language: .english),
               embedding.hasAvailableAssets,
@@ -80,10 +53,7 @@ struct SemanticVenueRankerTests {
         try #require(scored > 0, "Embedding assets unavailable — nothing was measured")
         #expect(scored == Self.cases.count)
 
-        // A top-10 out of ~194 is a 5% slice, so chance alone lands roughly 0.3 of
-        // these. Gated well above that and well below perfect: this is a ranking
-        // signal over one-line taglines, not a search engine, and pretending otherwise
-        // is how a threshold ends up tuned to whatever today's number happened to be.
+        // A top-10 out of ~194 is a 5% slice, so chance alone lands roughly 0.3 of these. Gated well above that and well below perfect: this is a ranking signal over one-line taglines, not a search engine, and pretending otherwise is how a threshold ends up tuned to whatever today's number happened to be.
         #expect(hits >= 4, "\(hits)/\(Self.cases.count) queries surfaced their venue in the top 10")
     }
 
@@ -129,8 +99,7 @@ struct SemanticVenueRankerTests {
 
     @Test("Matching text is the venue's own words, and never its area")
     func matchedTextExcludesArea() throws {
-        // Area is already a hard filter upstream. Including it here would let a
-        // neighbourhood named in the query outscore what the host asked to *do*.
+        // Area is already a hard filter upstream. Including it here would let a neighbourhood named in the query outscore what the host asked to *do*.
         let khanMarket = try #require(venues().first { $0.area == "Khan Market" })
         let text = SemanticVenueRanker.text(of: khanMarket)
 
@@ -141,9 +110,7 @@ struct SemanticVenueRankerTests {
                 "Category is fixed by the slot, so scoring it dilutes everything else")
     }
 
-    /// Runs everywhere, deliberately. The quality test above skips without assets, so
-    /// this is the one that proves the *absent* case is handled — that a device which
-    /// cannot embed still gets a deck rather than a crash or an empty list.
+    /// Runs everywhere, deliberately. The quality test above skips without assets, so this is the one that proves the *absent* case is handled — that a device which cannot embed still gets a deck rather than a crash or an empty list.
     @Test("Without embedding assets, ranking declines instead of failing")
     func missingAssetsDegradeToNoRanking() async throws {
         let ranker = SemanticVenueRanker()

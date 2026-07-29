@@ -1,15 +1,4 @@
-//
-//  PollSession.swift
-//  Wandr
-//
-//  The app-layer state behind the Send-to-Squad surface. It seeds one `SquadSlotPoll`
-//  per slated slot from the host's slate and the brief's group size, holds the running
-//  votes, and resolves each slot's winning place back to a `Candidate` for the schedule.
-//
-//  The vote maths live in `PollTally` (pure); this type only decides *when* to lock and
-//  owns the Phase-1 simulation seam. In Phase 2 the same polls ride an `MSMessage` and
-//  real participant votes replace `castSimulatedVote`.
-//
+// PollSession.swift Wandr The app-layer state behind the Send-to-Squad surface. It seeds one `SquadSlotPoll` per slated slot from the host's slate and the brief's group size, holds the running votes, and resolves each slot's winning place back to a `Candidate` for the schedule. The vote maths live in `PollTally` (pure); this type only decides *when* to lock and owns the Phase-1 simulation seam. In Phase 2 the same polls ride an `MSMessage` and real participant votes replace `castSimulatedVote`.
 
 import Foundation
 import Observation
@@ -21,22 +10,19 @@ final class PollSession {
     /// One poll per slated slot, in curation order.
     private(set) var polls: [SquadSlotPoll]
 
-    /// Quorum N — how many votes each slot waits for. Host-adjustable before the votes
-    /// come in; sourced from the brief's group size.
+    /// Quorum N — how many votes each slot waits for. Host-adjustable before the votes come in; sourced from the brief's group size.
     private(set) var quorumSize: Int
 
     /// A poll needs at least two voters to be a poll.
     let minQuorum = 2
 
-    /// Resolves a winning option back to the place the host slated, keyed per slot so
-    /// two slots sharing a venue name never cross-resolve.
+    /// Resolves a winning option back to the place the host slated, keyed per slot so two slots sharing a venue name never cross-resolve.
     private let candidatesByKey: [String: Candidate]
 
     /// Monotonic counter minting a fresh pseudonymous voter per simulated vote.
     private var simulatedVoterCount = 0
 
-    /// Builds a session from the curation decks. Only slots the host actually slated
-    /// (non-empty shortlist) get a poll.
+    /// Builds a session from the curation decks. Only slots the host actually slated (non-empty shortlist) get a poll.
     init(decks: [Deck], groupSize: Int?) {
         let slated = decks.filter { !$0.shortlist.isEmpty }
 
@@ -93,8 +79,7 @@ final class PollSession {
 
     // MARK: - Host actions
 
-    /// Adjusts quorum for every slot, preserving votes already cast. Lowering N can push
-    /// a slot to a decision immediately, so re-evaluate locks afterward.
+    /// Adjusts quorum for every slot, preserving votes already cast. Lowering N can push a slot to a decision immediately, so re-evaluate locks afterward.
     func setQuorum(_ n: Int) {
         let clamped = max(minQuorum, n)
         guard clamped != quorumSize else { return }
@@ -112,8 +97,7 @@ final class PollSession {
         for index in polls.indices { autoLock(at: index) }
     }
 
-    /// The one interaction on a slot's options. Below quorum a tap is a (simulated) vote.
-    /// At a tie a tap is the host breaking it. A decided slot has already auto-locked.
+    /// The one interaction on a slot's options. Below quorum a tap is a (simulated) vote. At a tie a tap is the host breaking it. A decided slot has already auto-locked.
     func tap(_ option: PollOptionID, inSlot slotID: String) {
         guard let index = polls.firstIndex(where: { $0.slotID == slotID }) else { return }
         guard !polls[index].isLocked else { return }
@@ -128,16 +112,14 @@ final class PollSession {
 
     // MARK: - Phase 1 simulation seam
 
-    /// Records one vote from a fresh pseudonymous voter. Phase 2 replaces this with real
-    /// `MSSession` votes keyed on `MSConversation.localParticipantIdentifier`.
+    /// Records one vote from a fresh pseudonymous voter. Phase 2 replaces this with real `MSSession` votes keyed on `MSConversation.localParticipantIdentifier`.
     private func castSimulatedVote(_ option: PollOptionID, at index: Int) {
         simulatedVoterCount += 1
         polls[index].cast(option, by: ParticipantID("sim-\(simulatedVoterCount)"))
         autoLock(at: index)
     }
 
-    /// Locks a slot the moment it has a single plurality leader at quorum. Ties are left
-    /// open for the host to break.
+    /// Locks a slot the moment it has a single plurality leader at quorum. Ties are left open for the host to break.
     private func autoLock(at index: Int) {
         guard !polls[index].isLocked else { return }
         if case .decided(let winner) = PollTally.resolution(polls[index]) {

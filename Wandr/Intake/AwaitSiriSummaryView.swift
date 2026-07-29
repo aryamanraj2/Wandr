@@ -1,11 +1,4 @@
-//
-//  AwaitSiriSummaryView.swift
-//  Wandr
-//
-//  The resting state (Docs `awaitingSiriSummary`). Explains the one supported command
-//  and the chat-access boundary, and waits for a summary to arrive through the intent.
-//  Nothing here reads a chat or starts any work.
-//
+// AwaitSiriSummaryView.swift Wandr The resting state (Docs `awaitingSiriSummary`). Explains the one supported command and the chat-access boundary, and waits for a summary to arrive through the intent. Nothing here reads a chat or starts any work.
 
 import SwiftUI
 import AppIntents
@@ -33,9 +26,7 @@ struct AwaitSiriSummaryView: View {
         .background(Wandr.pageBackground)
         .safeAreaBar(edge: .bottom) {
             VStack(spacing: 10) {
-                // The prominent one: a host with no group chat to summarise still has
-                // an outing to plan, and this is the only route that does not require
-                // a Shortcut, Siri, or a chat to exist at all.
+                // The prominent one: a host with no group chat to summarise still has an outing to plan, and this is the only route that does not require a Shortcut, Siri, or a chat to exist at all.
                 Button {
                     inbox.beginCapture()
                 } label: {
@@ -83,14 +74,7 @@ struct AwaitSiriSummaryView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// The privacy promise, kept accurate now that there is a second doorway.
-    ///
-    /// This card used to read "Wandr never reads your chats, contacts, or mic." That
-    /// was true when Siri was the only way in. It stopped being true the moment this
-    /// screen grew a microphone button, and a privacy claim that is quietly false is
-    /// worse than one that is merely narrow — so it now says exactly what holds:
-    /// chats and contacts are still never read, and the mic is only ever on when the
-    /// host presses it themselves.
+    /// The privacy promise, kept accurate now that there is a second doorway. This card used to read "Wandr never reads your chats, contacts, or mic." That was true when Siri was the only way in. It stopped being true the moment this screen grew a microphone button, and a privacy claim that is quietly false is worse than one that is merely narrow — so it now says exactly what holds: chats and contacts are still never read, and the mic is only ever on when the host presses it themselves.
     private var boundaryCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("The boundary")

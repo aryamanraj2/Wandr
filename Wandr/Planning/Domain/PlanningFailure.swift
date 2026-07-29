@@ -1,16 +1,4 @@
-//
-//  PlanningFailure.swift
-//  Wandr
-//
-//  Every way planning can stop, with a sentence the host can actually read.
-//
-//  There is no generic error string anywhere in the planning core. A failure is
-//  a category plus a computed message plus the retry the UI should offer — so a
-//  dead end is impossible by construction.
-//
-//  Privacy: a failure payload never carries raw request text. Venue IDs and slot
-//  IDs are dataset-owned and safe; the host's words are not.
-//
+// PlanningFailure.swift Wandr Every way planning can stop, with a sentence the host can actually read. There is no generic error string anywhere in the planning core. A failure is a category plus a computed message plus the retry the UI should offer — so a dead end is impossible by construction. Privacy: a failure payload never carries raw request text. Venue IDs and slot IDs are dataset-owned and safe; the host's words are not.
 
 import Foundation
 
@@ -48,10 +36,7 @@ nonisolated struct PlanningFailure: Error, Sendable, Equatable, Hashable {
         case contextTooLarge
         /// Structured output could not be decoded into the typed brief.
         case structuredOutputDecodingFailed
-        /// The host named a neighbourhood no evidence source covers yet.
-        ///
-        /// `covered` is dataset-owned text, never the host's own words — see this
-        /// file's privacy note.
+        /// The host named a neighbourhood no evidence source covers yet. `covered` is dataset-owned text, never the host's own words — see this file's privacy note.
         case areaNotCovered(covered: [String])
         /// Not enough grounded candidates to fill the required slots.
         case insufficientEvidence(details: [InsufficientEvidenceDetail])

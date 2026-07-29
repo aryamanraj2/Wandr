@@ -1,14 +1,4 @@
-//
-//  IntakeCaptureTests.swift
-//  WandrTests
-//
-//  The second doorway: a host with no group chat describes the outing themselves.
-//
-//  The rule these defend is that the manual route **rejoins the Siri route at Host
-//  Review** and is identical from there on. Anything that lands the host somewhere
-//  else — a failure screen, a dead end, or worse, a confirmed-but-empty payload that
-//  silently plans a generic night — is the bug.
-//
+// IntakeCaptureTests.swift WandrTests The second doorway: a host with no group chat describes the outing themselves. The rule these defend is that the manual route **rejoins the Siri route at Host Review** and is identical from there on. Anything that lands the host somewhere else — a failure screen, a dead end, or worse, a confirmed-but-empty payload that silently plans a generic night — is the bug.
 
 import Foundation
 import Testing
@@ -75,9 +65,7 @@ struct IntakeCaptureTests {
 
     @Test("A confirmed capture carries the payload downstream, not an empty one")
     func confirmedCaptureCarriesThePayload() {
-        // The bug this guards: `confirm()` forwards `payload ?? ChatSummaryPayload()`,
-        // so a manual capture that reached Host Review with `payload: nil` would plan
-        // a generic night while looking completely normal.
+        // The bug this guards: `confirm()` forwards `payload ?? ChatSummaryPayload()`, so a manual capture that reached Host Review with `payload: nil` would plan a generic night while looking completely normal.
         let inbox = IntakeInbox()
         let extracted = StubExtractor.payload(area: "Khan Market")
 

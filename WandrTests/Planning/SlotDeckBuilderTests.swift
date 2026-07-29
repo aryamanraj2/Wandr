@@ -1,18 +1,4 @@
-//
-//  SlotDeckBuilderTests.swift
-//  WandrTests
-//
-//  The deck contract, tested without a model.
-//
-//  These are the tests the old curator could not have: it called
-//  `LanguageModelSession` inline, so "what happens when the model returns two picks"
-//  was only answerable on a device with Apple Intelligence switched on — which is
-//  exactly why it shipped returning two picks and failing the run.
-//
-//  Every case below is a way a language model actually misbehaves. The rule they all
-//  defend is the same one: **whatever the curator does or fails to do, the deck
-//  handed to `FeasibilityValidator` must be one it accepts.**
-//
+// SlotDeckBuilderTests.swift WandrTests The deck contract, tested without a model. These are the tests the old curator could not have: it called `LanguageModelSession` inline, so "what happens when the model returns two picks" was only answerable on a device with Apple Intelligence switched on — which is exactly why it shipped returning two picks and failing the run. Every case below is a way a language model actually misbehaves. The rule they all defend is the same one: **whatever the curator does or fails to do, the deck handed to `FeasibilityValidator` must be one it accepts.**
 
 import Testing
 @testable import Wandr
@@ -34,9 +20,7 @@ struct SlotDeckBuilderTests {
     private var brief: OutingBrief { Fixtures.afterWorkBrief }
 
     // MARK: - Depth
-    //
-    // The bug that made the app feel broken: the prompt said "returning fewer places
-    // is fine", the validator said three or the run dies.
+    // The bug that made the app feel broken: the prompt said "returning fewer places is fine", the validator said three or the run dies.
 
     @Test("One pick is topped up to a full deck")
     func underDeliveryIsBackfilled() {
@@ -73,8 +57,7 @@ struct SlotDeckBuilderTests {
         let two = Array(affordable.prefix(2))
         let deck = builder.build(preferredIndices: [0], venues: two, brief: brief)
 
-        // Two is all there is. The validator turns this into `.insufficientEvidence`,
-        // which is the honest answer — the builder must not invent a third.
+        // Two is all there is. The validator turns this into `.insufficientEvidence`, which is the honest answer — the builder must not invent a third.
         #expect(deck.candidates.count == 2)
     }
 
@@ -106,10 +89,7 @@ struct SlotDeckBuilderTests {
     }
 
     // MARK: - Budget
-    //
-    // The second run-killer, and the quieter one: `FeasibilityValidator` Rule 4 fails
-    // the whole run for a single over-budget candidate, and nothing upstream stopped
-    // a curator from choosing one.
+    // The second run-killer, and the quieter one: `FeasibilityValidator` Rule 4 fails the whole run for a single over-budget candidate, and nothing upstream stopped a curator from choosing one.
 
     /// Three affordable venues plus one well over the ₹1,500 ceiling.
     private var mixedBudget: [GroundedVenue] {
@@ -139,9 +119,7 @@ struct SlotDeckBuilderTests {
 
     @Test("An impossible budget still builds a deck, so the validator can name the ceiling")
     func impossibleBudgetStillBuildsADeck() {
-        // ₹200 a head against venues starting at ₹900. Filtering these out would
-        // replace "nothing here fits ₹200 a head" with "that plan didn't hold up",
-        // which tells the host nothing and hides the one number they can change.
+        // ₹200 a head against venues starting at ₹900. Filtering these out would replace "nothing here fits ₹200 a head" with "that plan didn't hold up", which tells the host nothing and hides the one number they can change.
         let deck = builder.build(
             preferredIndices: [],
             venues: affordable,
@@ -169,8 +147,7 @@ struct SlotDeckBuilderTests {
         ]
         let deck = builder.build(preferredIndices: [], venues: venues, brief: brief)
 
-        // Unknown cost is a validator *warning*, not a violation — so it belongs in
-        // the deck ahead of a venue that is known to break the ceiling.
+        // Unknown cost is a validator *warning*, not a violation — so it belongs in the deck ahead of a venue that is known to break the ceiling.
         #expect(deck.candidates.map(\.venueID).contains(VenueID("food-mystery")))
         #expect(!deck.candidates.map(\.venueID).contains(VenueID("food-rich")))
     }

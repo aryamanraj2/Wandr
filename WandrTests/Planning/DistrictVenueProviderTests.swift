@@ -1,9 +1,4 @@
-//
-//  DistrictVenueProviderTests.swift
-//  WandrTests
-//
-//  Dataset integrity. These are the tests that catch a bad JSON edit before a demo.
-//
+// DistrictVenueProviderTests.swift WandrTests Dataset integrity. These are the tests that catch a bad JSON edit before a demo.
 
 import Foundation
 import Testing
@@ -42,8 +37,7 @@ struct DistrictVenueProviderTests {
 
     // MARK: - Category floor
 
-    /// The floor `FeasibilityValidator` already enforces. Below it, every run in
-    /// that category is rejected on evidence grounds no matter how good curation is.
+    /// The floor `FeasibilityValidator` already enforces. Below it, every run in that category is rejected on evidence grounds no matter how good curation is.
     @Test("Every category clears the validator's floor", arguments: SlotCategory.allCases)
     func categoryFloorIsMet(category: SlotCategory) throws {
         let count = try makeProvider().allVenues.count { $0.category == category }
@@ -53,8 +47,7 @@ struct DistrictVenueProviderTests {
         )
     }
 
-    /// §10's demo-script requirement: the after-work fixture names Hauz Khas, so
-    /// Hauz Khas alone must be able to fill every deck.
+    /// §10's demo-script requirement: the after-work fixture names Hauz Khas, so Hauz Khas alone must be able to fill every deck.
     @Test("Hauz Khas alone fills every category")
     func hauzKhasIsDemoReady() throws {
         let provider = try makeProvider()
@@ -68,8 +61,7 @@ struct DistrictVenueProviderTests {
 
     // MARK: - Unknown vs. known
 
-    /// The distinction this whole file exists to protect: a field the JSON never
-    /// mentions must not arrive as an empty-but-surveyed tag set.
+    /// The distinction this whole file exists to protect: a field the JSON never mentions must not arrive as an empty-but-surveyed tag set.
     @Test("An absent tag field decodes to .unknown, not .known([])")
     func absentFieldsDecodeToUnknown() throws {
         let provider = try makeProvider()
@@ -87,8 +79,7 @@ struct DistrictVenueProviderTests {
 
     @Test("An absent price decodes to .unknown rather than zero")
     func absentPriceIsUnknown() throws {
-        // Every venue in the shipped dataset happens to state a price; the guard
-        // that matters is that a stated 0 is still *known*, not confused with absent.
+        // Every venue in the shipped dataset happens to state a price; the guard that matters is that a stated 0 is still *known*, not confused with absent.
         let provider = try makeProvider()
         let free = try #require(provider.allVenues.first { $0.venueID == VenueID("cp-sight-2") })
         #expect(free.cost == .known(perHeadRupees: 0, listPriceRupees: nil))
@@ -119,8 +110,7 @@ struct DistrictVenueProviderTests {
 
     // MARK: - Provenance
 
-    /// Provenance is the provider's to assign. If any of this could be read from
-    /// the file, a hand-edited dataset could claim it was retrieved seconds ago.
+    /// Provenance is the provider's to assign. If any of this could be read from the file, a hand-edited dataset could claim it was retrieved seconds ago.
     @Test("The provider stamps source and retrievedAt itself")
     func provenanceIsAssignedByProvider() throws {
         let provider = try makeProvider()
@@ -158,12 +148,7 @@ struct DistrictVenueProviderTests {
         #expect(provider.venues(in: "Khan Market").allSatisfy { $0.area == "Khan Market" })
     }
 
-    /// The failure the host actually hit: asking for CP and being shown Nizamuddin.
-    ///
-    /// The extractor returns what the host *said*, not a tidy key, so whole-string
-    /// equality missed "Connaught Place, New Delhi" entirely, matched nothing, and
-    /// fell through to the city-wide branch — which returned every other
-    /// neighbourhood, cheapest first.
+    /// The failure the host actually hit: asking for CP and being shown Nizamuddin. The extractor returns what the host *said*, not a tidy key, so whole-string equality missed "Connaught Place, New Delhi" entirely, matched nothing, and fell through to the city-wide branch — which returned every other neighbourhood, cheapest first.
     @Test(
         "A named area survives the extra words the host says around it",
         arguments: [
@@ -186,16 +171,7 @@ struct DistrictVenueProviderTests {
 
     // MARK: - Reading the area out of a sentence
 
-    /// **The invariant: for every area the dataset covers, a sentence containing that
-    /// area's name resolves to that area, whatever words surround it.** Quantified over
-    /// the covered set rather than written once per neighbourhood, so an area added to
-    /// the JSON is covered by this test the moment it lands — and an area whose alias
-    /// key was mistyped fails here instead of becoming quietly unreachable.
-    ///
-    /// This is the guard for the failure that produced a Karol Bagh / Chandni Chowk /
-    /// Dwarka slate for a request that said "a place near saket": the extractor returned
-    /// `area: nil` and swept the neighbourhood into `otherNotes`, so the brief fell back
-    /// to the city-wide default and every area filter was a no-op. Nothing reported it.
+    /// **The invariant: for every area the dataset covers, a sentence containing that area's name resolves to that area, whatever words surround it.** Quantified over the covered set rather than written once per neighbourhood, so an area added to the JSON is covered by this test the moment it lands — and an area whose alias key was mistyped fails here instead of becoming quietly unreachable. This is the guard for the failure that produced a Karol Bagh / Chandni Chowk / Dwarka slate for a request that said "a place near saket": the extractor returned `area: nil` and swept the neighbourhood into `otherNotes`, so the brief fell back to the city-wide default and every area filter was a no-op. Nothing reported it.
     @Test("Every covered area is readable out of a sentence")
     func everyCoveredAreaIsReadableInProse() throws {
         let provider = try makeProvider()
@@ -207,9 +183,7 @@ struct DistrictVenueProviderTests {
                 DistrictVenueProvider.areaNamed(inText: sentence),
                 "'\(area)' was not readable out of a sentence"
             )
-            // The scan's answer has to resolve exactly where the dataset's own name
-            // does — compared against that rather than against a normalized key, so
-            // this asserts agreement instead of reaching for a private spelling rule.
+            // The scan's answer has to resolve exactly where the dataset's own name does — compared against that rather than against a normalized key, so this asserts agreement instead of reaching for a private spelling rule.
             #expect(
                 DistrictVenueProvider.coverage(of: read, in: provider.coveredAreaKeys)
                     == DistrictVenueProvider.coverage(of: area, in: provider.coveredAreaKeys),
@@ -224,9 +198,7 @@ struct DistrictVenueProviderTests {
         }
     }
 
-    /// A sentence naming no area must read as none — otherwise the scan would invent a
-    /// neighbourhood for every request that mentioned nothing, which is worse than the
-    /// city-wide default it is there to replace.
+    /// A sentence naming no area must read as none — otherwise the scan would invent a neighbourhood for every request that mentioned nothing, which is worse than the city-wide default it is there to replace.
     @Test(
         "A sentence with no area in it reads as no area",
         arguments: [
@@ -239,10 +211,7 @@ struct DistrictVenueProviderTests {
         #expect(DistrictVenueProvider.areaNamed(inText: sentence) == nil)
     }
 
-    /// A longer, more specific spelling wins over a shorter one *across* areas, not
-    /// only within one. The table used to be walked area-by-area in key order, so a
-    /// two-letter alias of an alphabetically earlier neighbourhood beat a full name
-    /// later on: "khan market, near cp" resolved to Connaught Place.
+    /// A longer, more specific spelling wins over a shorter one *across* areas, not only within one. The table used to be walked area-by-area in key order, so a two-letter alias of an alphabetically earlier neighbourhood beat a full name later on: "khan market, near cp" resolved to Connaught Place.
     @Test("The longest matching area name wins, across areas")
     func longestAreaNameWins() throws {
         let provider = try makeProvider()
@@ -250,8 +219,7 @@ struct DistrictVenueProviderTests {
         #expect(provider.venues(in: "hauz khas village").allSatisfy { $0.area == "Hauz Khas" })
     }
 
-    /// A two-letter shorthand is only ever the whole answer. "5 km from CP" is a
-    /// distance, not a request for Khan Market.
+    /// A two-letter shorthand is only ever the whole answer. "5 km from CP" is a distance, not a request for Khan Market.
     @Test("A two-letter alias only matches on its own")
     func shortAliasesDoNotMatchMidSentence() throws {
         let provider = try makeProvider()
@@ -267,9 +235,7 @@ struct DistrictVenueProviderTests {
         }
     }
 
-    /// The bug that made "Khan Market" show every neighbourhood except Khan Market:
-    /// an unmatched area used to fall back to the entire dataset, so a host who
-    /// named one place got a slate drawn from all the others with nothing saying so.
+    /// The bug that made "Khan Market" show every neighbourhood except Khan Market: an unmatched area used to fall back to the entire dataset, so a host who named one place got a slate drawn from all the others with nothing saying so.
     @Test("An area the dataset does not hold returns nothing, never everything")
     func uncoveredAreaReturnsNothing() throws {
         let provider = try makeProvider()
@@ -297,20 +263,13 @@ struct DistrictVenueProviderTests {
             #expect(covered.contains("Khan Market"))
             #expect(failure.retryAction == .editRequest)
 
-            // The message names what Wandr *does* cover — never the host's own word.
-            //
-            // Asserted against the area actually asked for, not against a second area
-            // that merely happened to be absent from the dataset. The earlier version
-            // named "Noida" here, which tested the same idea only for as long as Noida
-            // stayed uncovered; it started failing the moment the dataset gained it,
-            // reporting a dataset addition as a message-formatting bug.
+            // The message names what Wandr *does* cover — never the host's own word. Asserted against the area actually asked for, not against a second area that merely happened to be absent from the dataset. The earlier version named "Noida" here, which tested the same idea only for as long as Noida stayed uncovered; it started failing the moment the dataset gained it, reporting a dataset addition as a message-formatting bug.
             #expect(!failure.userMessage.contains("Faridabad"))
             #expect(covered.allSatisfy { !$0.isEmpty })
         }
     }
 
-    /// Khan Market was the area the host asked for by name and the one the dataset
-    /// did not have. It carries a full night now, not a token entry.
+    /// Khan Market was the area the host asked for by name and the one the dataset did not have. It carries a full night now, not a token entry.
     @Test("Khan Market alone fills every category")
     func khanMarketIsComplete() throws {
         let venues = try makeProvider().venues(in: "Khan Market")
@@ -351,18 +310,13 @@ struct DistrictVenueProviderTests {
         #expect(fromA == fromB)
     }
 
-    /// Budget sorts, it never filters — the validator is the only component allowed
-    /// to rule a venue out, and it does so with a named violation.
+    /// Budget sorts, it never filters — the validator is the only component allowed to rule a venue out, and it does so with a named violation.
     @Test("An impossible budget still returns evidence, ranked in-budget first")
     func budgetRanksRatherThanFilters() async throws {
         let provider = try makeProvider()
         let result = try await provider.research(for: Fixtures.impossibleBudgetBrief)
 
-        // Against the venues *in the brief's area*, not the whole dataset: the claim
-        // here is that budget ranks rather than filters, and comparing to every venue
-        // in Delhi conflates that with area coverage. The fixture names an area
-        // precisely because a budget cannot be unmeetable across the full dataset —
-        // some category always has a free option.
+        // Against the venues *in the brief's area*, not the whole dataset: the claim here is that budget ranks rather than filters, and comparing to every venue in Delhi conflates that with area coverage. The fixture names an area precisely because a budget cannot be unmeetable across the full dataset — some category always has a free option.
         let inArea = provider.venues(in: Fixtures.impossibleBudgetBrief.area.value)
         #expect(!inArea.isEmpty)
         #expect(result.venues.count == inArea.count, "Budget must not drop venues")

@@ -1,14 +1,4 @@
-//
-//  PlanCaptureView.swift
-//  Wandr
-//
-//  Step one of an outing: the host says what they want. Everything downstream
-//  — research, decks, schedule — is derived from what lands here, so the
-//  screen holds exactly one object and one sentence of instruction.
-//
-//  Two ways in, one buffer out. Speaking and typing edit the same text, so
-//  switching between them mid-thought never costs you a word.
-//
+// PlanCaptureView.swift Wandr Step one of an outing: the host says what they want. Everything downstream — research, decks, schedule — is derived from what lands here, so the screen holds exactly one object and one sentence of instruction. Two ways in, one buffer out. Speaking and typing edit the same text, so switching between them mid-thought never costs you a word.
 
 import SwiftUI
 
@@ -17,10 +7,7 @@ struct PlanCaptureView: View {
     /// Handed the finished brief. The caller moves on to curation.
     var onCommit: (String) -> Void
 
-    /// Backs out without planning anything. Optional so previews and any caller that
-    /// owns its own dismissal can leave it off — but `RootView` always supplies it,
-    /// because this screen is a full-screen state rather than a sheet and there would
-    /// otherwise be no way off it.
+    /// Backs out without planning anything. Optional so previews and any caller that owns its own dismissal can leave it off — but `RootView` always supplies it, because this screen is a full-screen state rather than a sheet and there would otherwise be no way off it.
     var onCancel: (() -> Void)?
 
     @State private var dictation = PlanDictation()
@@ -31,8 +18,7 @@ struct PlanCaptureView: View {
 
     private var hasPlan: Bool { !dictation.spokenPlan.isEmpty }
 
-    /// Nothing to say when things are working — the orb already says it.
-    /// Failures still need words, though, or a dead mic looks like a dead app.
+    /// Nothing to say when things are working — the orb already says it. Failures still need words, though, or a dead mic looks like a dead app.
     private var failure: String? {
         if case .failed(let reason) = dictation.phase { return reason }
         return nil
@@ -42,9 +28,7 @@ struct PlanCaptureView: View {
         VStack(spacing: 0) {
             masthead
 
-            // Typing anchors the field high on the page instead of centring
-            // it. Nothing then depends on keyboard avoidance moving the
-            // layout — the field is simply never where the keyboard goes.
+            // Typing anchors the field high on the page instead of centring it. Nothing then depends on keyboard avoidance moving the layout — the field is simply never where the keyboard goes.
             if mode == .composer {
                 Spacer().frame(height: 32)
             } else {
@@ -53,15 +37,10 @@ struct PlanCaptureView: View {
 
             orb
                 .padding(.horizontal, mode == .composer ? 0 : Metrics.gutter)
-                // The bloom no longer reserves space, so the orb gets its
-                // breathing room explicitly. Composer mode wants none of it:
-                // the controls belong directly under the field.
+                // The bloom no longer reserves space, so the orb gets its breathing room explicitly. Composer mode wants none of it: the controls belong directly under the field.
                 .padding(.vertical, mode == .composer ? 0 : 40)
 
-            // While typing, the controls ride directly under the field rather
-            // than at the screen's bottom edge. The keyboard does not shrink
-            // the safe area here, so anything anchored to the bottom ends up
-            // underneath it — this puts them somewhere it cannot reach.
+            // While typing, the controls ride directly under the field rather than at the screen's bottom edge. The keyboard does not shrink the safe area here, so anything anchored to the bottom ends up underneath it — this puts them somewhere it cannot reach.
             if mode == .composer {
                 footer
                     .padding(.top, 20)
@@ -73,12 +52,9 @@ struct PlanCaptureView: View {
         }
         .padding(.horizontal, Metrics.gutter)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        // Applied outside the sized frame, matching the pattern that already
-        // works in CurationView. Inside it, the bar was being laid out against
-        // the content's own box rather than the screen's bottom edge.
+        // Applied outside the sized frame, matching the pattern that already works in CurationView. Inside it, the bar was being laid out against the content's own box rather than the screen's bottom edge.
         .safeAreaInset(edge: .bottom) {
-            // Bottom bar only when the orb owns the screen; in composer mode
-            // the same controls are inline above, so this would duplicate them.
+            // Bottom bar only when the orb owns the screen; in composer mode the same controls are inline above, so this would duplicate them.
             if mode == .orb {
                 footer
                     .padding(.horizontal, Metrics.gutter)
@@ -86,13 +62,9 @@ struct PlanCaptureView: View {
             }
         }
         .background(Wandr.pageBackground)
-        // Everything the host says here goes straight into an on-device generation.
-        // Loading the model is the biggest part of that first call, so it starts now,
-        // while they are still deciding what to say, rather than after they tap.
-        // `prewarm()` is a non-blocking hint and returns immediately.
+        // Everything the host says here goes straight into an on-device generation. Loading the model is the biggest part of that first call, so it starts now, while they are still deciding what to say, rather than after they tap. `prewarm()` is a non-blocking hint and returns immediately.
         .onAppear { FreeTextSummaryExtractor().prewarm() }
-        // One spring governs the whole morph, so the shape, the padding, and
-        // the surrounding layout arrive together rather than in three passes.
+        // One spring governs the whole morph, so the shape, the padding, and the surrounding layout arrive together rather than in three passes.
         .animation(.wandrTransition, value: mode)
         .animation(.wandrResponse, value: dictation.phase)
         .sensoryFeedback(.selection, trigger: dictation.isListening)
@@ -101,18 +73,13 @@ struct PlanCaptureView: View {
 
     // MARK: Masthead
 
-    /// Centred on the orb's axis. The screen is one object under one line;
-    /// hanging the title off the left edge broke that symmetry.
+    /// Centred on the orb's axis. The screen is one object under one line; hanging the title off the left edge broke that symmetry.
     private var masthead: some View {
         VStack(spacing: 8) {
-            // Off the 40pt display ramp on purpose: CurationView earns that
-            // size because it heads a scrolling list, but here the orb is the
-            // subject and a full masthead competes with it.
+            // Off the 40pt display ramp on purpose: CurationView earns that size because it heads a scrolling list, but here the orb is the subject and a full masthead competes with it.
             Text("Wandr away!")
                 .font(.wandrDisplay(30))
-                // Heavier than the display ramp's bold. At this size the extra
-                // weight is what carries the line, which is why it can stay
-                // small enough to leave the orb as the subject.
+                // Heavier than the display ramp's bold. At this size the extra weight is what carries the line, which is why it can stay small enough to leave the orb as the subject.
                 .fontWeight(.black)
                 .foregroundStyle(Wandr.primaryText)
                 .multilineTextAlignment(.center)
@@ -125,8 +92,7 @@ struct PlanCaptureView: View {
                     .transition(.opacity)
             }
         }
-        // Enough gap under the status bar that the line reads as placed rather
-        // than pinned to the top edge.
+        // Enough gap under the status bar that the line reads as placed rather than pinned to the top edge.
         .padding(.top, 80)
         .frame(maxWidth: .infinity)
     }
@@ -141,8 +107,7 @@ struct PlanCaptureView: View {
         ) {
             face
         }
-        // A semantic Button, not a tap gesture: this keeps VoiceOver, Switch
-        // Control, and keyboard activation for the screen's primary action.
+        // A semantic Button, not a tap gesture: this keeps VoiceOver, Switch Control, and keyboard activation for the screen's primary action.
         .contentShape(.rect(cornerRadius: 30))
         .accessibilityElement(children: .contain)
         .frame(maxWidth: .infinity, alignment: .center)
@@ -188,9 +153,7 @@ struct PlanCaptureView: View {
         .font(.body)
         .foregroundStyle(Wandr.primaryText)
         .focused($composing)
-        // The return key is the tick — `.done` already renders a checkmark on
-        // the keyboard itself, so an accessory bar above it would be a second
-        // control for the same commit.
+        // The return key is the tick — `.done` already renders a checkmark on the keyboard itself, so an accessory bar above it would be a second control for the same commit.
         .submitLabel(.done)
         .onSubmit(commit)
         .padding(.horizontal, 20)
@@ -198,9 +161,7 @@ struct PlanCaptureView: View {
 
     // MARK: Transcript
 
-    /// One attributed run rather than two concatenated `Text`s, so the
-    /// committed and in-flight halves reflow as a single paragraph instead of
-    /// breaking at the seam between them.
+    /// One attributed run rather than two concatenated `Text`s, so the committed and in-flight halves reflow as a single paragraph instead of breaking at the seam between them.
     private var heardSoFar: AttributedString {
         var committed = AttributedString(dictation.spokenPlan)
         committed.foregroundColor = Wandr.primaryText
@@ -212,9 +173,7 @@ struct PlanCaptureView: View {
         return committed + tail
     }
 
-    /// Sits below the object, never inside it. Finalized text is ink; the tail
-    /// the transcriber is still revising stays slate, so you can see the
-    /// difference between what's committed and what's still being heard.
+    /// Sits below the object, never inside it. Finalized text is ink; the tail the transcriber is still revising stays slate, so you can see the difference between what's committed and what's still being heard.
     @ViewBuilder
     private var transcriptWell: some View {
         if mode == .orb, hasPlan || !dictation.volatile.isEmpty {
@@ -234,8 +193,7 @@ struct PlanCaptureView: View {
 
     // MARK: Footer
 
-    /// A ZStack, not an HStack: the keyboard glyph stays on the screen's
-    /// centre line whether or not there is a plan to send.
+    /// A ZStack, not an HStack: the keyboard glyph stays on the screen's centre line whether or not there is a plan to send.
     private var footer: some View {
         ZStack {
             Button {
@@ -256,8 +214,7 @@ struct PlanCaptureView: View {
             .buttonStyle(WandrPressStyle())
             .accessibilityLabel(mode == .composer ? "Speak instead" : "Type instead")
 
-            // Balances "Plan it" on the right. Without it this screen is a one-way
-            // door: it fills the window, so there is no navigation chrome to escape by.
+            // Balances "Plan it" on the right. Without it this screen is a one-way door: it fills the window, so there is no navigation chrome to escape by.
             if let onCancel {
                 HStack {
                     Button {

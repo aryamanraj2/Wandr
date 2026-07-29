@@ -1,11 +1,4 @@
-//
-//  ScheduleView.swift
-//  Wandr
-//
-//  The second surface: the plan laid out against real time.
-//  The date bar shows only the days the itinerary actually spans — one day
-//  renders as a single pill, three days as three. It is never a full calendar.
-//
+// ScheduleView.swift Wandr The second surface: the plan laid out against real time. The date bar shows only the days the itinerary actually spans — one day renders as a single pill, three days as three. It is never a full calendar.
 
 import SwiftUI
 
@@ -21,32 +14,24 @@ struct ScheduleView: View {
     @State private var selectedDay: PlanDay.ID = DemoPlan.days[0].id
     @State private var liftedID: ScheduleBlock.ID?
 
-    /// The plan reads as finished until you say otherwise. Editing is a mode you
-    /// opt into, and the dashed ruler is the signal that you are in it.
-    @State private var isEditing = false
-
-    /// The finished plan, presented over the timeline. This is where the flow
-    /// ends — the schedule is the working surface, the summary is the document.
+    /// The finished plan, presented over the timeline. This is where the flow ends — the schedule is the working surface, the summary is the document.
     @State private var showSummary = false
 
     @Environment(\.dismiss) private var dismiss
 
-    /// Only the days the itinerary actually has stops on. A day with nothing
-    /// planned is not a date the user needs to see.
+    /// Only the days the itinerary actually has stops on. A day with nothing planned is not a date the user needs to see.
     private var days: [PlanDay] {
         let plannedIDs = Set(blocks.map(\.dayID))
         return DemoPlan.days.filter { plannedIDs.contains($0.id) }
     }
 
-    /// The visible span of the day, in minutes from midnight.
-    private let dayRange = (9 * 60)...(24 * 60)
+    /// The visible span of the selected day, in minutes from midnight — derived from the stops actually on it rather than fixed to an evening. See `DaySpan`.
+    private var dayRange: ClosedRange<Int> {
+        DaySpan.covering(blocks.filter { $0.dayID == selectedDay })
+    }
 
     private var timelineHeight: CGFloat {
         CGFloat(dayRange.upperBound - dayRange.lowerBound) * Metrics.pointsPerMinute
-    }
-
-    private var visibleBlocks: [ScheduleBlock] {
-        blocks.filter { $0.dayID == selectedDay }.sorted { $0.startMinute < $1.startMinute }
     }
 
     var body: some View {
@@ -58,8 +43,7 @@ struct ScheduleView: View {
                     timeline
                 }
             }
-            // A lifted block is being directly manipulated — the scroll view must
-            // not steal the gesture out from under it.
+            // A lifted block is being directly manipulated — the scroll view must not steal the gesture out from under it.
             .scrollDisabled(liftedID != nil)
             .background(Wandr.pageBackground)
             .scrollEdgeEffectStyle(.soft, for: .top)
@@ -77,14 +61,8 @@ struct ScheduleView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(role: .close) { dismiss() }
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    editToggle
-                }
             }
             .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
-            // The one cue that the plan just became malleable.
-            .sensoryFeedback(.impact(flexibility: .soft, intensity: 0.5),
-                             trigger: isEditing)
         }
         .tint(Wandr.ink)
     }
@@ -93,8 +71,7 @@ struct ScheduleView: View {
 
     private var masthead: some View {
         HStack(alignment: .center) {
-            // Italic serif display — the editorial voice, and the one place
-            // the app allows itself a flourish.
+            // Italic serif display — the editorial voice, and the one place the app allows itself a flourish.
             Text("Schedule")
                 .font(.wandrDisplay(46))
                 .italic()
@@ -109,28 +86,7 @@ struct ScheduleView: View {
 
     // MARK: Controls
 
-    /// Mirrors the close button across the header — same disc, opposite corner.
-    /// Filled ink when active, so the mode is legible at a glance.
-    private var editToggle: some View {
-        Button {
-            withAnimation(.wandrTransition) { isEditing.toggle() }
-        } label: {
-            Image(systemName: "scribble")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Wandr.cream)
-                .frame(width: 34, height: 34)
-                .background {
-                    Circle().fill(isEditing ? Wandr.slate : Wandr.ink)
-                }
-        }
-        .buttonStyle(WandrPressStyle())
-        .accessibilityLabel("Edit plan")
-        .accessibilityValue(isEditing ? "On" : "Off")
-        .accessibilityHint("Adjust stop times")
-    }
-
-    /// Floats over the timeline rather than living in the toolbar — finishing the
-    /// plan is the one thing you can do from anywhere in the scroll.
+    /// Floats over the timeline rather than living in the toolbar — finishing the plan is the one thing you can do from anywhere in the scroll.
     private var sendButton: some View {
         Button {
             showSummary = true
@@ -202,6 +158,15 @@ struct ScheduleView: View {
 
     // MARK: Timeline
 
+    // The timeline's one grid. The clock column and the track have to agree on where the hour starts, or the ruler a block is dragged against is not the ruler it is drawn against.
+
+    /// The clock column, wide enough for the longest label the ruler can produce ("12 am").
+    private static let clockColumn: CGFloat = 44
+    private static let clockSpacing: CGFloat = 10
+
+    /// Where the hour begins: everything right of this is plan, everything left of it is the ruler measuring it.
+    private static var trackInset: CGFloat { clockColumn + clockSpacing }
+
     private var timeline: some View {
         ZStack(alignment: .topLeading) {
             hourRules
@@ -211,10 +176,9 @@ struct ScheduleView: View {
                     TimelineBlockView(
                         block: $block,
                         liftedID: $liftedID,
-                        dayRange: dayRange,
-                        isEditing: isEditing
+                        dayRange: dayRange
                     )
-                    .padding(.leading, 62)
+                    .padding(.leading, Self.trackInset)
                     .padding(.trailing, Metrics.gutter)
                     .offset(y: yPosition(for: block.startMinute))
                 }
@@ -223,25 +187,23 @@ struct ScheduleView: View {
         .frame(height: timelineHeight, alignment: .top)
         .padding(.bottom, 60)
         .animation(.wandrTransition, value: selectedDay)
+        // The span follows the stops, so committing a stop outside it grows the day. Animated, that reads as the ruler making room; unanimated it is a jump.
+        .animation(.wandrTransition, value: dayRange)
     }
 
-    /// Hour gridlines and the left-hand clock gutter. Deliberately quiet —
-    /// this is the ruler the content is measured against, not content itself.
-    ///
-    /// The dashes only exist in edit mode: at rest the plan should read as a
-    /// finished itinerary, not as something sitting on graph paper. The clock
-    /// gutter stays either way, since the times are what anchor the plan.
+    /// Hour gridlines and the left-hand clock gutter. Deliberately quiet — this is the ruler the content is measured against, not content itself. The dashes only exist while a block is in the air: at rest the plan should read as a finished itinerary, not as something sitting on graph paper, and a ruler is only worth drawing at the moment something is being measured against it. The clock gutter stays either way, since the times are what anchor the plan.
     private var hourRules: some View {
         let firstHour = dayRange.lowerBound / 60
         let lastHour = dayRange.upperBound / 60
+        let measuring = liftedID != nil
 
-        return ForEach(firstHour..<lastHour, id: \.self) { hour in
-            HStack(spacing: 10) {
+        return ForEach(firstHour...lastHour, id: \.self) { hour in
+            HStack(spacing: Self.clockSpacing) {
                 Text(hourLabel(hour))
                     .font(.system(size: 11, weight: .medium))
                     .monospacedDigit()
                     .foregroundStyle(Wandr.secondaryText.opacity(0.75))
-                    .frame(width: 44, alignment: .trailing)
+                    .frame(width: Self.clockColumn, alignment: .trailing)
 
                 // Dashed, so the ruler reads as a guide rather than a divider.
                 Line()
@@ -249,16 +211,17 @@ struct ScheduleView: View {
                             style: StrokeStyle(lineWidth: 1.5, lineCap: .round,
                                                dash: [5, 6]))
                     .frame(height: 1.5)
-                    .opacity(isEditing ? 1 : 0)
-                    // Drawing in from the clock gutter outward makes the grid
-                    // feel like it is being laid down, not switched on.
-                    .scaleEffect(x: isEditing ? 1 : 0.9, anchor: .leading)
+                    .opacity(measuring ? 1 : 0)
+                    // Drawing in from the clock gutter outward makes the grid feel like it is being laid down, not switched on.
+                    .scaleEffect(x: measuring ? 1 : 0.9, anchor: .leading)
                     .animation(
                         .wandrTransition.delay(Double(hour - firstHour) * 0.012),
-                        value: isEditing
+                        value: measuring
                     )
             }
             .padding(.trailing, Metrics.gutter)
+            // Collapsed to nothing so the row's *centre* is the hour, not its top edge. Offsetting the row as-is hangs it below the line by half a line of type, which puts the ruler and the blocks — whose tops sit exactly on the minute — a few points out of register with each other: a stop at 8:00 draws just above the 8 am rule it is supposed to start on.
+            .frame(height: 0)
             .offset(y: yPosition(for: hour * 60))
             .accessibilityHidden(true)
         }
