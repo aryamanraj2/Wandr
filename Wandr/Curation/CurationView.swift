@@ -107,7 +107,7 @@ struct CurationView: View {
                 ScheduleView(stops: stopsFromPoll)
             }
         }
-        .tint(Wandr.ink)
+        .tint(Wandr.brand)
     }
 
     // MARK: Intro
@@ -153,7 +153,7 @@ struct CurationView: View {
                 }
                 // The one tinted surface on screen — the primary action earns it.
                 .buttonStyle(.glassProminent)
-                .tint(Wandr.ink)
+                .tint(Wandr.brand)
                 .disabled(slateCount == 0)
             }
             .padding(.horizontal, Metrics.gutter)

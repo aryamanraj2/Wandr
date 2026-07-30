@@ -128,7 +128,7 @@ struct PlanCaptureView: View {
         } label: {
             Image(systemName: "mic.fill")
                 .font(.system(size: 46, weight: .regular))
-                .foregroundStyle(Wandr.primaryText)
+                .foregroundStyle(Wandr.onBrand)
                 // Reduce Motion keeps the state legible without the pulse.
                 .symbolEffect(
                     .breathe,
@@ -143,20 +143,33 @@ struct PlanCaptureView: View {
         .accessibilityAddTraits(dictation.isListening ? [.startsMediaSession] : [])
     }
 
+    /// The orb does not hand off to a text field, it *becomes* one, so the field is typed on the
+    /// same indigo face the mic sat on rather than reverting to a light box mid-morph.
     private var composerField: some View {
-        TextField(
-            "What are we planning?",
-            text: $dictation.transcript,
-            axis: .vertical
-        )
-        .lineLimit(1...3)
-        .font(.body)
-        .foregroundStyle(Wandr.primaryText)
-        .focused($composing)
-        // The return key is the tick — `.done` already renders a checkmark on the keyboard itself, so an accessory bar above it would be a second control for the same commit.
-        .submitLabel(.done)
-        .onSubmit(commit)
-        .padding(.horizontal, 20)
+        TextField("", text: $dictation.transcript, axis: .vertical)
+            .lineLimit(1...3)
+            .font(.body)
+            .foregroundStyle(Wandr.onBrand)
+            // Without this the caret and selection take the app's accent, which is the exact colour
+            // of the face they are drawn on.
+            .tint(Wandr.cream)
+            .focused($composing)
+            // The return key is the tick — `.done` already renders a checkmark on the keyboard itself, so an accessory bar above it would be a second control for the same commit.
+            .submitLabel(.done)
+            .onSubmit(commit)
+            // Drawn rather than passed as the field's title: the system renders its placeholder in
+            // a fixed grey that cannot be restyled reliably, and that grey on indigo is barely
+            // legible. The label is reattached below so VoiceOver is unaffected.
+            .overlay(alignment: .leading) {
+                if dictation.transcript.isEmpty {
+                    Text("What are we planning?")
+                        .font(.body)
+                        .foregroundStyle(Wandr.cream.opacity(0.55))
+                        .allowsHitTesting(false)
+                }
+            }
+            .accessibilityLabel("What are we planning?")
+            .padding(.horizontal, 20)
     }
 
     // MARK: Transcript
@@ -246,7 +259,7 @@ struct PlanCaptureView: View {
                             .padding(.horizontal, 4)
                     }
                     .buttonStyle(.glassProminent)
-                    .tint(Wandr.ink)
+                    .tint(Wandr.brand)
                     .transition(.opacity.combined(with: .scale(scale: 0.96)))
                 }
             }

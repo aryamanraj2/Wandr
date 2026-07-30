@@ -57,7 +57,7 @@ struct SquadPollView: View {
             .scrollEdgeEffectStyle(.soft, for: .top)
             .safeAreaBar(edge: .bottom) { lockBar }
         }
-        .tint(Wandr.ink)
+        .tint(Wandr.brand)
     }
 
     // MARK: Intro
@@ -136,7 +136,7 @@ struct SquadPollView: View {
                     .padding(.horizontal, 4)
             }
             .buttonStyle(.glassProminent)
-            .tint(Wandr.ink)
+            .tint(Wandr.brand)
             .disabled(!session.allDecided)
         }
         .padding(.horizontal, Metrics.gutter)
@@ -162,7 +162,7 @@ private struct SlotPollCard: View {
     let onTap: (PollOptionID) -> Void
 
     private var category: StopCategory? { StopCategory(rawValue: poll.slotID) }
-    private var accent: Color { category.map(Wandr.accent(for:)) ?? Wandr.ink }
+    private var accent: Color { category.map(Wandr.accent(for:)) ?? Wandr.brand }
 
     private var winnerID: PollOptionID? {
         if case .decided(let id) = resolution { return id }

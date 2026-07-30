@@ -36,7 +36,7 @@ struct AwaitSiriSummaryView: View {
                         .padding(.vertical, 4)
                 }
                 .buttonStyle(.glassProminent)
-                .tint(Wandr.ink)
+                .tint(Wandr.brand)
 
                 Button {
                     inbox.openShortcutSetup()
@@ -47,12 +47,12 @@ struct AwaitSiriSummaryView: View {
                         .padding(.vertical, 4)
                 }
                 .buttonStyle(.glass)
-                .tint(Wandr.ink)
+                .tint(Wandr.brand)
             }
             .padding(.horizontal, Metrics.gutter)
             .padding(.bottom, 8)
         }
-        .tint(Wandr.ink)
+        .tint(Wandr.brand)
     }
 
     private var header: some View {

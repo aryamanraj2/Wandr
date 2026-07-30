@@ -15,7 +15,7 @@ struct RouteBackdrop: View {
                 Route(points: route.points)
                     .trim(from: 0, to: drawn ? 1 : 0)
                     .stroke(
-                        Wandr.sand.opacity(route.weight),
+                        Wandr.mist.opacity(route.weight),
                         style: StrokeStyle(
                             lineWidth: route.width,
                             lineCap: .round,

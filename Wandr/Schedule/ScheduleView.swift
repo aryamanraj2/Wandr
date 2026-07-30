@@ -64,7 +64,7 @@ struct ScheduleView: View {
             }
             .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
         }
-        .tint(Wandr.ink)
+        .tint(Wandr.brand)
     }
 
     // MARK: Masthead
@@ -98,9 +98,9 @@ struct ScheduleView: View {
                 .offset(x: -1, y: 1)
                 .frame(width: 58, height: 58)
                 .background {
-                    Circle().fill(Wandr.ink)
+                    Circle().fill(Wandr.brand)
                 }
-                .shadow(color: Wandr.ink.opacity(0.28), radius: 16, x: 0, y: 8)
+                .shadow(color: Wandr.brand.opacity(0.30), radius: 16, x: 0, y: 8)
         }
         .buttonStyle(WandrPressStyle())
         .padding(.trailing, Metrics.gutter)
@@ -140,14 +140,14 @@ struct ScheduleView: View {
                     .foregroundStyle(selected ? Wandr.cream : Wandr.primaryText)
 
                 Circle()
-                    .fill(selected ? Wandr.cream.opacity(0.8) : Wandr.sand)
+                    .fill(selected ? Wandr.cream.opacity(0.8) : Wandr.mist)
                     .frame(width: 4, height: 4)
                     .opacity(stopCount > 0 ? 1 : 0)
             }
             .frame(width: 82, height: 92)
             .background {
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(selected ? Wandr.ink : Wandr.sand.opacity(0.35))
+                    .fill(selected ? Wandr.brand : Wandr.mist.opacity(0.35))
             }
         }
         .buttonStyle(WandrPressStyle())
@@ -207,7 +207,7 @@ struct ScheduleView: View {
 
                 // Dashed, so the ruler reads as a guide rather than a divider.
                 Line()
-                    .stroke(Wandr.sand.opacity(0.85),
+                    .stroke(Wandr.mist.opacity(0.85),
                             style: StrokeStyle(lineWidth: 1.5, lineCap: .round,
                                                dash: [5, 6]))
                     .frame(height: 1.5)

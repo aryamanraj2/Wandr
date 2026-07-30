@@ -76,7 +76,7 @@ struct ItinerarySummaryView: View {
                 withAnimation(reduceMotion ? nil : .wandrTransition) { revealed = true }
             }
         }
-        .tint(Wandr.ink)
+        .tint(Wandr.brand)
     }
 
     // MARK: Masthead
@@ -286,7 +286,7 @@ struct ItinerarySummaryView: View {
 
             if drawsConnector {
                 VerticalRule()
-                    .stroke(Wandr.sand,
+                    .stroke(Wandr.mist,
                             style: StrokeStyle(lineWidth: 1.5, lineCap: .round, dash: [3, 5]))
                     .frame(width: 1.5)
                     .frame(maxHeight: .infinity)
@@ -334,7 +334,7 @@ struct ItinerarySummaryView: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background { WandrCardBackground(corner: Metrics.blockCorner) }
-        .shadow(color: Wandr.ink.opacity(0.05), radius: 5, x: 0, y: 2)
+        .shadow(color: Wandr.charcoal.opacity(0.05), radius: 5, x: 0, y: 2)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Stop \(number), \(stop.title), \(stop.category.title)")
         .accessibilityValue("\(stop.startLabel) to \(stop.endLabel)")
@@ -364,7 +364,7 @@ struct ItinerarySummaryView: View {
                 .font(.system(size: 8, weight: .bold))
                 .foregroundStyle(Wandr.cream)
                 .frame(width: 16, height: 16)
-                .background { Circle().fill(Wandr.ink) }
+                .background { Circle().fill(Wandr.brand) }
                 .frame(width: Self.spineWidth)
 
             Text(stops.map(\.endMinute).max().map { "Night ends \(ScheduleBlock.clock($0))" } ?? "")
@@ -394,7 +394,7 @@ struct ItinerarySummaryView: View {
                         .padding(.vertical, 3)
                 }
                 .buttonStyle(.glassProminent)
-                .tint(Wandr.ink)
+                .tint(Wandr.brand)
 
                 Button {
                     dismiss()

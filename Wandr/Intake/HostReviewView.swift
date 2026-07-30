@@ -31,7 +31,7 @@ struct HostReviewView: View {
         }
         .background(Wandr.pageBackground)
         .safeAreaBar(edge: .bottom) { actionBar }
-        .tint(Wandr.ink)
+        .tint(Wandr.brand)
     }
 
     // MARK: Header
@@ -118,7 +118,7 @@ struct HostReviewView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Wandr.primaryText)
             }
-            .tint(Wandr.ink)
+            .tint(Wandr.brand)
             .padding(.horizontal, 4)
         }
     }
@@ -147,7 +147,7 @@ struct HostReviewView: View {
             }
             .buttonStyle(.glassProminent)
         }
-        .tint(Wandr.ink)
+        .tint(Wandr.brand)
         .padding(.horizontal, Metrics.gutter)
         .padding(.bottom, 8)
     }

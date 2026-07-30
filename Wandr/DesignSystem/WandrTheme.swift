@@ -4,34 +4,57 @@ import SwiftUI
 
 // MARK: - Palette
 
+/// Four brand tones carry the app: charcoal reads, indigo acts, cyan structures, creamy warms.
+/// The field is cool and near-neutral so the one warm tone lands as an event — creamy only ever
+/// appears on something dark or something being spoken to, never as a page.
 enum Wandr {
 
-    /// #253032 — deepest ink. Text, lifted timeline blocks, pass surfaces.
-    static let ink = Color(hex: 0x253032)
-    /// #7D898A — muted slate. Secondary text, category labels, grid lines.
-    static let slate = Color(hex: 0x7D898A)
-    /// #B8B6AD — warm sand. Selected chips, dividers, resting accents.
-    static let sand = Color(hex: 0xB8B6AD)
-    /// #E5E1D6 — linen. Page background.
-    static let linen = Color(hex: 0xE5E1D6)
-    /// #FFF3DD — cream. Raised cards sitting on linen.
-    static let cream = Color(hex: 0xFFF3DD)
+    // MARK: Brand tones
 
-    // Derived, semantic roles — always reference these from views, never a raw hex.
-    static let pageBackground = linen
-    static let cardSurface = cream
-    static let liftedSurface = ink
-    static let primaryText = ink
+    /// #23282B — charcoal. The deepest tone: body copy, image gradients, shadows.
+    static let charcoal = Color(hex: 0x23282B)
+    /// #37426F — indigo. The only tone that means "act": controls, selection, a block in the air.
+    static let indigo = Color(hex: 0x37426F)
+    /// #A9D0D5 — cyan. The structural tone the whole light field is drawn from.
+    static let cyan = Color(hex: 0xA9D0D5)
+    /// #F5E1BC — creamy. The single warm tone, reserved for what sits on charcoal or indigo.
+    static let cream = Color(hex: 0xF5E1BC)
+
+    // MARK: Derived neutrals
+
+    /// #E7F1F3 — cyan carried most of the way to white. The page.
+    static let haze = Color(hex: 0xE7F1F3)
+    /// #FBFDFD — a cool near-white that lifts off `haze` without going stark.
+    static let paper = Color(hex: 0xFBFDFD)
+    /// #9BC2C9 — cyan pulled a step deeper so a full-strength hairline or dash still registers.
+    static let mist = Color(hex: 0x9BC2C9)
+    /// #5A6485 — indigo desaturated toward slate. Passes AA on both `paper` and `haze`.
+    static let slate = Color(hex: 0x5A6485)
+
+    // Semantic roles — always reference these from views, never a raw tone.
+    static let pageBackground = haze
+    static let cardSurface = paper
+    /// A block that has been picked up leaves the page's palette entirely — indigo, not a darker grey.
+    static let liftedSurface = indigo
+    static let primaryText = charcoal
     static let secondaryText = slate
-    static let hairline = sand.opacity(0.55)
+    static let hairline = mist.opacity(0.55)
+    /// Controls, selection, and anything the finger is meant to find.
+    static let brand = indigo
+    /// Copy and glyphs riding on `brand` or `charcoal`.
+    static let onBrand = cream
 
-    /// Category accents stay inside the family — desaturated so no stop shouts.
+    /// Category accents stay inside the family — three cool, one warm, all desaturated so no stop
+    /// shouts. Dark enough to double as text on the creamy card caption, which is the tightest
+    /// contrast pairing in the app.
     static func accent(for category: StopCategory) -> Color {
         switch category {
-        case .food:      return Color(hex: 0x8A6F4E)
-        case .sights:    return Color(hex: 0x4E6E7D)
-        case .nightlife: return Color(hex: 0x6B5470)
-        case .discover:  return Color(hex: 0x5C7A63)
+        // Terracotta rather than a browner clay: brown against the creamy tone reads as the beige
+        // this palette exists to get away from, and food is the deck seen first.
+        case .food:      return Color(hex: 0x9C4F3C)
+        case .sights:    return Color(hex: 0x2F5C77)
+        case .nightlife: return Color(hex: 0x574577)
+        case .discover:  return Color(hex: 0x2F6A62)
         }
     }
 }
@@ -112,6 +135,12 @@ struct WandrCardBackground: View {
     var body: some View {
         ConcentricRectangle(corners: .concentric(minimum: .fixed(corner)))
             .fill(fill)
+            // A cool near-white card on a cool near-white page is separated by very little tone, so
+            // the edge gets drawn rather than left to the fill difference alone.
+            .overlay {
+                ConcentricRectangle(corners: .concentric(minimum: .fixed(corner)))
+                    .stroke(Wandr.mist.opacity(0.4), lineWidth: 1)
+            }
     }
 }
 
@@ -119,7 +148,7 @@ struct WandrCardBackground: View {
 struct WandrDashedRule: View {
     var body: some View {
         Rule()
-            .stroke(Wandr.sand,
+            .stroke(Wandr.mist,
                     style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [5, 9]))
             .frame(height: 3)
             .accessibilityHidden(true)

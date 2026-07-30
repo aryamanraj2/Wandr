@@ -1,4 +1,4 @@
-// PlanOrb.swift Wandr The one object on the capture screen. It is a single rounded rectangle all the way through: a circle is just that shape at corner = size / 2, so the collapse into a text field is one continuous morph rather than a crossfade between two different views. Layers, back to front: 1. bloom — diffuse light the voice pushes outward 2. rings — three strokes, each on its own spring, so amplitude arrives at the outer edge slightly late (a body, not a rigid disc) 3. surface — the cream face, top-lit, with a contact shadow 4. rim — a hairline that gains contrast while listening 5. glyph — mic, or the composer field once expanded
+// PlanOrb.swift Wandr The one object on the capture screen. It is a single rounded rectangle all the way through: a circle is just that shape at corner = size / 2, so the collapse into a text field is one continuous morph rather than a crossfade between two different views. Layers, back to front: 1. bloom — diffuse light the voice pushes outward 2. rings — three strokes, each on its own spring, so amplitude arrives at the outer edge slightly late (a body, not a rigid disc) 3. surface — the indigo face, top-lit, with a contact shadow 4. rim — a creamy hairline that gains contrast while listening 5. glyph — mic, or the composer field once expanded
 
 import SwiftUI
 
@@ -56,7 +56,7 @@ struct PlanOrb<Face: View>: View {
         Circle()
             .fill(
                 RadialGradient(
-                    colors: [Wandr.sand.opacity(0.55), Wandr.sand.opacity(0)],
+                    colors: [Wandr.brand.opacity(0.4), Wandr.brand.opacity(0)],
                     center: .center,
                     startRadius: diameter * 0.2,
                     endRadius: diameter * 0.78
@@ -89,7 +89,7 @@ struct PlanOrb<Face: View>: View {
         travel: Double
     ) -> some View {
         Circle()
-            .stroke(Wandr.sand.opacity(opacity), lineWidth: width)
+            .stroke(Wandr.brand.opacity(opacity * 0.75), lineWidth: width)
             .frame(width: diameter - inset * 2, height: diameter - inset * 2)
             .scaleEffect(1 + reactive * travel)
             .animation(.spring(response: response, dampingFraction: 0.72), value: level)
@@ -118,7 +118,7 @@ struct PlanOrb<Face: View>: View {
             }
             // Contact shadow tightens as the orb "presses down" into the composer, which is what sells the shape change as physical.
             .shadow(
-                color: Wandr.ink.opacity(mode == .composer ? 0.06 : 0.14),
+                color: Wandr.brand.opacity(mode == .composer ? 0.12 : 0.28),
                 radius: mode == .composer ? 8 : 22,
                 y: mode == .composer ? 3 : 12
             )
@@ -126,16 +126,19 @@ struct PlanOrb<Face: View>: View {
             .animation(.wandrInteractive, value: level)
     }
 
-    /// Top-lit so the face has an implied light source above it, matching the bloom. Reduce Transparency gets the flat cream instead.
+    /// Indigo, not a light face. This is the single object on the screen and the screen's primary
+    /// action, and a near-white orb on a near-white page has no presence to carry either job — it
+    /// has to be the one thing here holding real weight. Top-lit toward cyan so the face has an
+    /// implied light source above it, matching the bloom. Reduce Transparency gets the flat tone.
     private var surfaceShading: AnyShapeStyle {
         if reduceTransparency {
-            return AnyShapeStyle(Wandr.cardSurface)
+            return AnyShapeStyle(Wandr.brand)
         }
         return AnyShapeStyle(
             LinearGradient(
                 colors: [
-                    Wandr.cream,
-                    Wandr.cream.mix(with: Wandr.sand, by: 0.22)
+                    Wandr.brand.mix(with: Wandr.cyan, by: 0.22),
+                    Wandr.brand
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -143,7 +146,9 @@ struct PlanOrb<Face: View>: View {
         )
     }
 
+    /// A warm hairline that brightens when the mic opens. On an indigo face the rim has to be the
+    /// light tone — an indigo rim on an indigo body is no rim at all.
     private var rimColor: Color {
-        isListening ? Wandr.ink.opacity(0.28) : Wandr.sand.opacity(0.7)
+        isListening ? Wandr.cream.opacity(0.7) : Wandr.cream.opacity(0.22)
     }
 }

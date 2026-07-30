@@ -53,11 +53,11 @@ struct RecoveryView: View {
                 }
                 .buttonStyle(.glass)
             }
-            .tint(Wandr.ink)
+            .tint(Wandr.brand)
             .padding(.horizontal, Metrics.gutter)
             .padding(.bottom, 8)
         }
-        .tint(Wandr.ink)
+        .tint(Wandr.brand)
     }
 }
 

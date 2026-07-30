@@ -194,12 +194,12 @@ private struct PlanningFailureView: View {
                             .padding(.vertical, 4)
                     }
                     .buttonStyle(.glassProminent)
-                    .tint(Wandr.ink)
+                    .tint(Wandr.brand)
                 }
 
                 Button("Start over", action: onStartOver)
                     .font(.subheadline.weight(.medium))
-                    .tint(Wandr.ink)
+                    .tint(Wandr.brand)
             }
             .padding(.horizontal, 40)
         }

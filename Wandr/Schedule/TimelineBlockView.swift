@@ -163,7 +163,7 @@ struct TimelineBlockView: View {
         .overlay { chargeRing }
         // Shrinking on lift is what makes the block read as detached from the timeline rather than merely recolored.
         .scaleEffect(squeeze, anchor: .center)
-        .shadow(color: Wandr.ink.opacity(isLifted ? 0.34 : 0.06),
+        .shadow(color: Wandr.charcoal.opacity(isLifted ? 0.34 : 0.06),
                 radius: isLifted ? 26 : 4,
                 x: 0, y: isLifted ? 16 : 2)
         .offset(y: dragOffset)

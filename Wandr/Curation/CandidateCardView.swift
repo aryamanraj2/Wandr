@@ -27,7 +27,7 @@ struct CandidateCardView: View {
         let strength = min(abs(dragProgress), 1)
 
         return ZStack {
-            (keeping ? Wandr.accent(for: candidate.category) : Wandr.ink)
+            (keeping ? Wandr.accent(for: candidate.category) : Wandr.charcoal)
                 .opacity(strength * 0.32)
 
             Image(systemName: keeping ? "checkmark" : "arrow.uturn.forward")
@@ -83,14 +83,14 @@ struct CandidateCardFace: View {
         VStack(alignment: .leading, spacing: 7) {
             Text(candidate.name)
                 .font(.wandrTitle(isHero ? 32 : 27))
-                .foregroundStyle(Wandr.ink)
+                .foregroundStyle(Wandr.charcoal)
                 .lineLimit(isHero ? 2 : 1)
                 .minimumScaleFactor(0.7)
 
             Text(candidate.tagline)
                 .font(.subheadline)
                 .lineHeight(.tight)
-                .foregroundStyle(Wandr.ink.opacity(0.66))
+                .foregroundStyle(Wandr.charcoal.opacity(0.66))
                 .lineLimit(isHero ? nil : 2)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -109,7 +109,7 @@ struct CandidateCardFace: View {
                 if let warning = candidate.warnings.first {
                     Label(warning, systemImage: "exclamationmark.circle")
                         .font(.caption2)
-                        .foregroundStyle(Wandr.ink.opacity(0.5))
+                        .foregroundStyle(Wandr.charcoal.opacity(0.5))
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 1)
@@ -132,10 +132,12 @@ struct CandidateCardFace: View {
     }
 
     /// Translucent, not opaque: the backdrop keeps travelling under the copy and dissolves into it, which is what stops the panel reading as a pasted-on box.
+    ///
+    /// Cool, not creamy. The warm tone was tried here and it fails on the food accent specifically: a clay backdrop dissolving into a cream panel muddies into beige across the whole lower half of the card, and food is the deck the user sees first. A near-white panel stays neutral under all four accents, and it matches the schedule's cards, so a stop looks like the same object before and after it is picked.
     private var frost: some View {
         Rectangle()
             .fill(.ultraThinMaterial)
-            .overlay(Wandr.cream.opacity(0.62))
+            .overlay(Wandr.paper.opacity(0.82))
             .mask {
                 LinearGradient(
                     stops: [
@@ -153,7 +155,7 @@ struct CandidateCardFace: View {
         Label {
             Text(offer)
                 + Text(candidate.offerWindow.map { " · \($0)" } ?? "")
-                .foregroundStyle(Wandr.ink.opacity(0.45))
+                .foregroundStyle(Wandr.charcoal.opacity(0.45))
         } icon: {
             Image(systemName: "tag.fill")
         }
@@ -187,17 +189,19 @@ struct CandidateCardFace: View {
         HStack(spacing: 5) {
             Text(priceHeadline)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Wandr.ink)
+                .foregroundStyle(Wandr.charcoal)
 
             if !candidate.costUnknown && candidate.perHead > 0 {
                 Text("/head")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Wandr.ink.opacity(0.45))
+                    .foregroundStyle(Wandr.charcoal.opacity(0.45))
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
-        .background(Capsule().fill(Wandr.cream.opacity(0.95)))
+        // The price is the figure the swipe turns on, so it gets the one tonal break on the caption
+        // panel — a soft cyan chip, which reads without competing with the accent savings badge.
+        .background(Capsule().fill(Wandr.haze))
         .overlay(alignment: .topTrailing) {
             if let savings = candidate.savings {
                 Text("−₹\(savings)")
@@ -215,7 +219,7 @@ struct CandidateCardFace: View {
     private func detail(_ symbol: String, _ text: String) -> some View {
         Label(text, systemImage: symbol)
             .font(.system(size: 11.5))
-            .foregroundStyle(Wandr.ink.opacity(0.52))
+            .foregroundStyle(Wandr.charcoal.opacity(0.52))
             .lineLimit(1)
     }
 
@@ -229,7 +233,7 @@ struct CandidateCardFace: View {
             .padding(.horizontal, 11)
             .padding(.vertical, 6)
             .background(Capsule().fill(.ultraThinMaterial.opacity(0.55)))
-            .background(Capsule().fill(Wandr.ink.opacity(0.22)))
+            .background(Capsule().fill(Wandr.charcoal.opacity(0.22)))
     }
 }
 
@@ -245,9 +249,10 @@ struct CandidateBackdrop: View {
 
         LinearGradient(
             colors: [
-                base.opacity(0.95),
-                base.mix(with: Wandr.ink, by: 0.55, in: .perceptual),
-                Wandr.ink
+                // Opaque at the top: at 0.95 the page tint bled through and washed the hue out, which read as a faded swatch rather than a photograph.
+                base,
+                base.mix(with: Wandr.charcoal, by: 0.55, in: .perceptual),
+                Wandr.charcoal
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing

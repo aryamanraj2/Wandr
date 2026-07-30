@@ -128,7 +128,7 @@ struct CandidateDetailView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(WandrCardBackground(fill: Wandr.sand.opacity(0.3), corner: 18))
+        .background(WandrCardBackground(fill: Wandr.mist.opacity(0.3), corner: 18))
     }
 
     private var factSheet: some View {
@@ -228,7 +228,7 @@ struct CandidateDetailView: View {
                         .padding(.vertical, 4)
                 }
                 .buttonStyle(.glass)
-                .tint(Wandr.ink)
+                .tint(Wandr.brand)
 
                 Button {
                     onKeep()

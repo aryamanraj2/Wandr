@@ -51,7 +51,7 @@ struct ShortcutSetupView: View {
                         .padding(.vertical, 4)
                 }
                 .buttonStyle(.glassProminent)
-                .tint(Wandr.ink)
+                .tint(Wandr.brand)
 
                 // Installing a Shortcut is a real barrier on first launch, and it is not the only way in. A host who just wants to plan something can skip all of this and say it out loud.
                 Button {
@@ -63,12 +63,12 @@ struct ShortcutSetupView: View {
                         .padding(.vertical, 2)
                 }
                 .buttonStyle(.glass)
-                .tint(Wandr.ink)
+                .tint(Wandr.brand)
             }
             .padding(.horizontal, Metrics.gutter)
             .padding(.bottom, 8)
         }
-        .tint(Wandr.ink)
+        .tint(Wandr.brand)
     }
 
     // MARK: Header
@@ -101,7 +101,7 @@ struct ShortcutSetupView: View {
                     .font(.headline.monospacedDigit())
                     .foregroundStyle(Wandr.cardSurface)
                     .frame(width: 30, height: 30)
-                    .background(Circle().fill(Wandr.ink))
+                    .background(Circle().fill(Wandr.brand))
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
@@ -132,7 +132,7 @@ struct ShortcutSetupView: View {
                         .padding(.vertical, 6)
                 }
                 .buttonStyle(.glassProminent)
-                .tint(Wandr.ink)
+                .tint(Wandr.brand)
             }
 
             ShortcutsLink()
@@ -160,7 +160,7 @@ struct ShortcutSetupView: View {
                     .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.glass)
-            .tint(Wandr.ink)
+            .tint(Wandr.brand)
         }
         .padding(16)
         .background(WandrCardBackground())

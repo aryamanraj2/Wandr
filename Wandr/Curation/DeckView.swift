@@ -306,7 +306,7 @@ struct DeckView: View {
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(Wandr.secondaryText)
                     .frame(width: 26, height: 26)
-                    .background(Circle().fill(Wandr.sand.opacity(0.4)))
+                    .background(Circle().fill(Wandr.mist.opacity(0.4)))
             }
             .accessibilityLabel("Remove \(candidate.name) from the slate")
         }
@@ -338,7 +338,7 @@ struct DeckView: View {
         }
         .padding(.vertical, 34)
         .frame(maxWidth: .infinity, minHeight: 300)
-        .background(WandrCardBackground(fill: Wandr.sand.opacity(0.22)))
+        .background(WandrCardBackground(fill: Wandr.mist.opacity(0.22)))
         .transition(.opacity)
     }
 }
