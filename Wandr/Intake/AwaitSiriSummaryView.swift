@@ -6,120 +6,138 @@ import AppIntents
 struct AwaitSiriSummaryView: View {
     let inbox: IntakeInbox
 
+    /// Three blocks, in the order a host needs them: what this screen is, the one thing to say, and
+    /// — only if they ask — what Wandr is and is not allowed to see. The screen used to run seven
+    /// blocks deep, with the Siri phrase written out three separate times (two quoted lines plus the
+    /// tip that renders it again), which is what made a short page read as a dense one.
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
-                header
+            VStack(alignment: .leading, spacing: 24) {
+                hero
 
-                boundaryCard
+                command
 
-                howItWorks
-
-                SiriTipView(intent: PlanOutingFromSiriSummaryIntent())
-                    .siriTipViewStyle(.automatic)
-
-                Color.clear.frame(height: 12)
+                boundary
             }
             .padding(.horizontal, Metrics.gutter)
-            .padding(.top, 12)
+            .padding(.top, 8)
+            .padding(.bottom, 8)
         }
         .background(Wandr.pageBackground)
         .safeAreaBar(edge: .bottom) {
-            VStack(spacing: 10) {
-                // The prominent one: a host with no group chat to summarise still has an outing to plan, and this is the only route that does not require a Shortcut, Siri, or a chat to exist at all.
-                Button {
-                    inbox.beginCapture()
-                } label: {
-                    Label("Tell Wandr yourself", systemImage: "mic.fill")
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 4)
-                }
-                .buttonStyle(.glassProminent)
-                .tint(Wandr.brand)
-
-                Button {
-                    inbox.openShortcutSetup()
-                } label: {
-                    Label("Set up chat import", systemImage: "square.and.arrow.down.on.square")
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 4)
-                }
-                .buttonStyle(.glass)
-                .tint(Wandr.brand)
-            }
-            .padding(.horizontal, Metrics.gutter)
-            .padding(.bottom, 8)
+            actions
         }
         .tint(Wandr.brand)
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 10) {
+    // MARK: Hero
+
+    private var hero: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // The mark sits in its own chip rather than floating as a loose glyph above the title.
+            // A bare symbol at the top-left of a page reads as an unfinished icon slot; contained,
+            // it reads as a mark.
             Image(systemName: "sparkles")
-                .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(Wandr.accent(for: .nightlife))
+                .font(.system(size: 19, weight: .semibold))
+                .foregroundStyle(Wandr.brand)
+                .frame(width: 42, height: 42)
+                .background {
+                    Circle().fill(Wandr.brand.opacity(0.10))
+                }
 
             Text("Ready when the\ngroup chat is")
-                .font(.wandrDisplay(38))
+                .font(.wandrDisplay(36))
+                // Display sizes need their leading pulled in or the two lines read as two headings.
+                .lineSpacing(-2)
                 .foregroundStyle(Wandr.primaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text("Ask Siri, or run the Wandr shortcut, to send a summary of your group chat here. Wandr plans the night from the summary — and only the summary.")
+            Text("Ask Siri to send a summary of your group chat here. Wandr plans the night from that summary — and only that summary.")
                 .font(.body)
                 .foregroundStyle(Wandr.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        // A little air under the hero so the headline owns the top of the page rather than being
+        // one item in an evenly spaced stack.
+        .padding(.bottom, 4)
     }
 
-    /// The privacy promise, kept accurate now that there is a second doorway. This card used to read "Wandr never reads your chats, contacts, or mic." That was true when Siri was the only way in. It stopped being true the moment this screen grew a microphone button, and a privacy claim that is quietly false is worse than one that is merely narrow — so it now says exactly what holds: chats and contacts are still never read, and the mic is only ever on when the host presses it themselves.
-    private var boundaryCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("The boundary")
-                .wandrLabelStyle(Wandr.accent(for: .sights))
+    // MARK: The one command
 
-            Label("Wandr never reads your chats or contacts.", systemImage: "hand.raised.fill")
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(Wandr.primaryText)
-
-            Label("The mic only listens when you tap it, and stops when you're done.", systemImage: "mic.slash.fill")
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(Wandr.primaryText)
-
-            Label("Siri does the listening; you approve what comes through.", systemImage: "checkmark.seal.fill")
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(Wandr.primaryText)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(18)
-        .background(WandrCardBackground())
-    }
-
-    private var howItWorks: some View {
-        VStack(alignment: .leading, spacing: 14) {
+    /// `SiriTipView` is the canonical rendering of the phrase — it is the artefact a host can
+    /// actually tap. So it is the only place the phrase appears at full weight; the alternate
+    /// wording rides underneath as a caption instead of getting a section of its own.
+    private var command: some View {
+        VStack(alignment: .leading, spacing: 10) {
             Text("Say to Siri")
                 .wandrLabelStyle()
 
-            ForEach(Self.phrases, id: \.self) { phrase in
-                HStack(spacing: 10) {
-                    Image(systemName: "quote.opening")
-                        .font(.caption)
-                        .foregroundStyle(Wandr.secondaryText)
-                    Text(phrase)
-                        .font(.callout.weight(.medium))
-                        .foregroundStyle(Wandr.primaryText)
-                }
-            }
+            SiriTipView(intent: PlanOutingFromSiriSummaryIntent())
+                .siriTipViewStyle(.automatic)
+
+            Text("“Use Wandr to plan this outing” works too.")
+                .font(.footnote)
+                .foregroundStyle(Wandr.secondaryText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private static let phrases = [
-        "“Plan this group outing in Wandr”",
-        "“Use Wandr to plan this outing”"
-    ]
+    // MARK: Boundary
+
+    /// The privacy promise, kept accurate now that there is a second doorway. This card used to read
+    /// "Wandr never reads your chats, contacts, or mic." That was true when Siri was the only way
+    /// in. It stopped being true the moment this screen grew a microphone button, and a privacy
+    /// claim that is quietly false is worse than one that is merely narrow — so it now says exactly
+    /// what holds: chats and contacts are still never read, and the mic is only ever on when the
+    /// host presses it themselves. Folded rather than deleted: the headline claim stays visible on
+    /// the page, the three clauses behind it are one tap away.
+    private var boundary: some View {
+        WandrFoldout(title: "Wandr never reads your chats", systemImage: "hand.raised.fill") {
+            VStack(alignment: .leading, spacing: 12) {
+                WandrPoint(systemImage: "person.2.slash",
+                           text: "Your chats and contacts are never read by Wandr.")
+                WandrPoint(systemImage: "mic.slash.fill",
+                           text: "The mic only listens when you tap it, and stops when you're done.")
+                WandrPoint(systemImage: "checkmark.seal.fill",
+                           text: "Siri does the listening; you approve what comes through.")
+            }
+        }
+    }
+
+    // MARK: Actions
+
+    /// One primary route and one plain link, not two full-width slabs. Two equally weighted buttons
+    /// stacked at the bottom of a page make the host choose before they know what either does; this
+    /// says "start here" and leaves setup as the quieter option it actually is.
+    private var actions: some View {
+        VStack(spacing: 6) {
+            // A host with no group chat to summarise still has an outing to plan, and this is the
+            // only route that does not require a Shortcut, Siri, or a chat to exist at all.
+            Button {
+                inbox.beginCapture()
+            } label: {
+                Label("Tell Wandr yourself", systemImage: "mic.fill")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+            }
+            .buttonStyle(.glassProminent)
+            .tint(Wandr.brand)
+
+            Button("Set up chat import") {
+                inbox.openShortcutSetup()
+            }
+            .font(.subheadline.weight(.medium))
+            .buttonStyle(.plain)
+            .foregroundStyle(Wandr.brand)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity)
+            .contentShape(.rect)
+        }
+        .padding(.horizontal, Metrics.gutter)
+        .padding(.bottom, 4)
+    }
 }
 
 #Preview {

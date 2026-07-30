@@ -101,6 +101,19 @@ extension Animation {
     /// Occasional structural transitions: deck advance, sheet content swap.
     static let wandrTransition = Animation.spring(response: 0.45, dampingFraction: 0.9)
 
+    /// One object changing posture — the capture orb collapsing into a text field and back. Slower
+    /// than `wandrTransition` because the eye is tracking a single silhouette the whole way and a
+    /// brisk spring reads as a cut; damped just under 1 so it arrives with weight rather than
+    /// bouncing, which on a 236pt body would look like jelly.
+    static let wandrMorph = Animation.spring(response: 0.52, dampingFraction: 0.86)
+
+    /// Entrance for an occasional, information-dense screen: the blocks arrive in reading order
+    /// with a small stagger applied by the caller. Deliberately gentle and never used on anything
+    /// a person taps repeatedly.
+    static func wandrEnter(_ index: Int) -> Animation {
+        .spring(response: 0.5, dampingFraction: 0.92).delay(0.06 * Double(index))
+    }
+
     /// Whole-screen handoff, outgoing half. Leaves briskly and on its own — a screen that lingers while the next arrives reads as two screens.
     static let wandrStageOut = Animation.easeOut(duration: 0.24)
 
@@ -162,6 +175,63 @@ struct WandrDashedRule: View {
             path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
             return path
         }
+    }
+}
+
+/// A card whose detail is folded away until asked for. The intake screens have to state a privacy
+/// boundary and hand over a wall of prompt text, and both are things a host reads once and then
+/// needs to stop seeing — left open they turn every screen into a document. Built on
+/// `DisclosureGroup` rather than a hand-rolled chevron so expansion state, keyboard activation, and
+/// the VoiceOver "expanded/collapsed" announcement come from the system.
+struct WandrFoldout<Content: View>: View {
+    let title: String
+    let systemImage: String
+    @ViewBuilder var content: Content
+
+    @State private var isExpanded = false
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $isExpanded) {
+            content
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 14)
+        } label: {
+            Label {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Wandr.primaryText)
+                    .multilineTextAlignment(.leading)
+            } icon: {
+                Image(systemName: systemImage)
+                    .foregroundStyle(Wandr.brand)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .tint(Wandr.secondaryText)
+        .padding(16)
+        .background(WandrCardBackground())
+        .animation(.wandrTransition, value: isExpanded)
+    }
+}
+
+/// One line of a folded-out list: a symbol in the accent column, a sentence beside it. Kept here
+/// rather than in each screen so the boundary card and the setup steps share a single rhythm.
+struct WandrPoint: View {
+    let systemImage: String
+    let text: String
+
+    var body: some View {
+        Label {
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(Wandr.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+                .font(.footnote)
+                .foregroundStyle(Wandr.brand.opacity(0.75))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

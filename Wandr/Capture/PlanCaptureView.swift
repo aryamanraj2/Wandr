@@ -1,4 +1,4 @@
-// PlanCaptureView.swift Wandr Step one of an outing: the host says what they want. Everything downstream — research, decks, schedule — is derived from what lands here, so the screen holds exactly one object and one sentence of instruction. Two ways in, one buffer out. Speaking and typing edit the same text, so switching between them mid-thought never costs you a word.
+// PlanCaptureView.swift Wandr Step one of an outing: the host says what they want. Everything downstream — research, decks, schedule — is derived from what lands here, so the screen holds exactly one object and one line of guidance. Two ways in, one buffer out. Speaking and typing edit the same text, so switching between them mid-thought never costs you a word.
 
 import SwiftUI
 
@@ -18,10 +18,21 @@ struct PlanCaptureView: View {
 
     private var hasPlan: Bool { !dictation.spokenPlan.isEmpty }
 
-    /// Nothing to say when things are working — the orb already says it. Failures still need words, though, or a dead mic looks like a dead app.
+    /// Failures need words, or a dead mic looks like a dead app. Everything else the orb says itself, and the status line below only names it.
     private var failure: String? {
         if case .failed(let reason) = dictation.phase { return reason }
         return nil
+    }
+
+    /// The orb's vocabulary, derived from the dictation phase. `heard` is the one state the phase
+    /// cannot express on its own: the mic is idle either because nothing has been said yet or
+    /// because something has, and those two should not look the same.
+    private var activity: OrbActivity {
+        switch dictation.phase {
+        case .preparing:     return .waking
+        case .listening:     return .listening
+        case .idle, .failed: return hasPlan ? .heard : .resting
+        }
     }
 
     var body: some View {
@@ -30,15 +41,15 @@ struct PlanCaptureView: View {
 
             // Typing anchors the field high on the page instead of centring it. Nothing then depends on keyboard avoidance moving the layout — the field is simply never where the keyboard goes.
             if mode == .composer {
-                Spacer().frame(height: 32)
+                Spacer().frame(height: 28)
             } else {
-                Spacer(minLength: 24)
+                Spacer(minLength: 20)
             }
 
             orb
                 .padding(.horizontal, mode == .composer ? 0 : Metrics.gutter)
-                // The bloom no longer reserves space, so the orb gets its breathing room explicitly. Composer mode wants none of it: the controls belong directly under the field.
-                .padding(.vertical, mode == .composer ? 0 : 40)
+                // The aura no longer reserves space, so the orb gets its breathing room explicitly. Composer mode wants none of it: the controls belong directly under the field.
+                .padding(.vertical, mode == .composer ? 0 : 36)
 
             // While typing, the controls ride directly under the field rather than at the screen's bottom edge. The keyboard does not shrink the safe area here, so anything anchored to the bottom ends up underneath it — this puts them somewhere it cannot reach.
             if mode == .composer {
@@ -48,7 +59,7 @@ struct PlanCaptureView: View {
 
             transcriptWell
 
-            Spacer(minLength: 24)
+            Spacer(minLength: 20)
         }
         .padding(.horizontal, Metrics.gutter)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -61,21 +72,37 @@ struct PlanCaptureView: View {
                     .padding(.bottom, 12)
             }
         }
-        .background(Wandr.pageBackground)
+        .background(pageWash)
         // Everything the host says here goes straight into an on-device generation. Loading the model is the biggest part of that first call, so it starts now, while they are still deciding what to say, rather than after they tap. `prewarm()` is a non-blocking hint and returns immediately.
         .onAppear { FreeTextSummaryExtractor().prewarm() }
-        // One spring governs the whole morph, so the shape, the padding, and the surrounding layout arrive together rather than in three passes.
-        .animation(.wandrTransition, value: mode)
+        // One spring governs the whole morph, so the silhouette, the frame, and the surrounding layout arrive together rather than in three passes.
+        .animation(.wandrMorph, value: mode)
         .animation(.wandrResponse, value: dictation.phase)
+        .animation(.wandrResponse, value: hasPlan)
         .sensoryFeedback(.selection, trigger: dictation.isListening)
         .sensoryFeedback(.success, trigger: hasPlan && !dictation.isListening)
+    }
+
+    /// A flat field behind a lit object reads as a sticker on paper. One soft pool of light behind
+    /// the orb, on the same axis as the orb's own highlight, is enough to place it in a room.
+    private var pageWash: some View {
+        ZStack {
+            Wandr.pageBackground
+            RadialGradient(
+                colors: [Wandr.paper.opacity(0.95), Wandr.paper.opacity(0)],
+                center: UnitPoint(x: 0.5, y: 0.42),
+                startRadius: 30,
+                endRadius: 440
+            )
+        }
+        .ignoresSafeArea()
     }
 
     // MARK: Masthead
 
     /// Centred on the orb's axis. The screen is one object under one line; hanging the title off the left edge broke that symmetry.
     private var masthead: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             // Off the 40pt display ramp on purpose: CurationView earns that size because it heads a scrolling list, but here the orb is the subject and a full masthead competes with it.
             Text("Wandr away!")
                 .font(.wandrDisplay(30))
@@ -84,17 +111,37 @@ struct PlanCaptureView: View {
                 .foregroundStyle(Wandr.primaryText)
                 .multilineTextAlignment(.center)
 
-            if let failure {
-                Text(failure)
-                    .font(.callout)
-                    .foregroundStyle(Wandr.secondaryText)
-                    .multilineTextAlignment(.center)
-                    .transition(.opacity)
-            }
+            // The one line of guidance, and the app's honest microphone indicator. It changes with
+            // the state rather than appearing only on failure, so the orb is never a mute object
+            // the host has to guess at — and "Listening" is stated in words, not only in motion.
+            Text(statusLine)
+                .font(.callout)
+                .foregroundStyle(failure == nil ? Wandr.secondaryText : Wandr.accent(for: .food))
+                .multilineTextAlignment(.center)
+                .contentTransition(.opacity)
+                .frame(maxWidth: 320)
+                .fixedSize(horizontal: false, vertical: true)
+                .animation(.wandrResponse, value: statusLine)
         }
         // Enough gap under the status bar that the line reads as placed rather than pinned to the top edge.
-        .padding(.top, 80)
+        .padding(.top, 72)
         .frame(maxWidth: .infinity)
+    }
+
+    private var statusLine: String {
+        if let failure { return failure }
+        if mode == .composer { return "Type what you’re planning" }
+
+        switch dictation.phase {
+        case .preparing:
+            return "Getting the mic ready…"
+        case .listening:
+            return "Listening — tap again when you’re done"
+        case .idle, .failed:
+            return hasPlan
+                ? "Tap Plan it, or keep talking to add more"
+                : "Tap to say what you’re planning"
+        }
     }
 
     // MARK: The object
@@ -102,49 +149,73 @@ struct PlanCaptureView: View {
     private var orb: some View {
         PlanOrb(
             mode: mode,
-            isListening: dictation.isListening,
+            activity: activity,
             level: dictation.level
         ) {
             face
         }
-        // A semantic Button, not a tap gesture: this keeps VoiceOver, Switch Control, and keyboard activation for the screen's primary action.
-        .contentShape(.rect(cornerRadius: 30))
         .accessibilityElement(children: .contain)
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
-    @ViewBuilder
+    /// The mic does not hand off to a text field, it *shrinks into* one: the same glyph that filled
+    /// the orb becomes the field's leading icon, so there is one continuous object across the morph
+    /// rather than two views trading places. Tapping it in the composer is the way back to voice.
     private var face: some View {
-        if mode == .composer {
-            composerField
-        } else {
-            micButton
+        HStack(spacing: mode == .composer ? 10 : 0) {
+            micControl
+
+            if mode == .composer {
+                composerField
+                    // Staged behind the shape: the silhouette starts flattening first and the field's
+                    // content arrives once there is a field-shaped space for it. On the way out the
+                    // text leaves immediately, so the shape is never seen swelling around live text.
+                    .transition(.asymmetric(
+                        insertion: .opacity.animation(.easeOut(duration: 0.20).delay(0.14)),
+                        removal: .opacity.animation(.easeOut(duration: 0.10))
+                    ))
+            }
         }
+        .padding(.horizontal, mode == .composer ? 18 : 0)
     }
 
-    private var micButton: some View {
+    private var micControl: some View {
         Button {
-            Task { await dictation.toggle() }
+            if mode == .composer {
+                leaveComposer()
+            } else {
+                Task { await dictation.toggle() }
+            }
         } label: {
             Image(systemName: "mic.fill")
                 .font(.system(size: 46, weight: .regular))
-                .foregroundStyle(Wandr.onBrand)
+                .foregroundStyle(Wandr.onBrand.opacity(mode == .composer ? 0.7 : 1))
                 // Reduce Motion keeps the state legible without the pulse.
                 .symbolEffect(
                     .breathe,
                     options: .repeating,
-                    isActive: dictation.isListening && !reduceMotion
+                    isActive: dictation.isListening && !reduceMotion && mode == .orb
                 )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(.circle)
+                // Scaled rather than resized: a font-size change is not animatable, and this glyph has
+                // to travel continuously for the morph to read as one object changing posture.
+                .scaleEffect(mode == .composer ? 0.42 : 1, anchor: .center)
+                .frame(width: mode == .composer ? 24 : nil, height: mode == .composer ? 44 : nil)
+                .frame(maxWidth: mode == .composer ? nil : .infinity,
+                       maxHeight: mode == .composer ? nil : .infinity)
+                .contentShape(.rect)
         }
+        // A semantic Button, not a tap gesture: this keeps VoiceOver, Switch Control, and keyboard activation for the screen's primary action.
         .buttonStyle(WandrPressStyle())
-        .accessibilityLabel(dictation.isListening ? "Stop listening" : "Describe your plan out loud")
+        .accessibilityLabel(micLabel)
         .accessibilityAddTraits(dictation.isListening ? [.startsMediaSession] : [])
     }
 
-    /// The orb does not hand off to a text field, it *becomes* one, so the field is typed on the
-    /// same indigo face the mic sat on rather than reverting to a light box mid-morph.
+    private var micLabel: String {
+        if mode == .composer { return "Speak instead" }
+        return dictation.isListening ? "Stop listening" : "Describe your plan out loud"
+    }
+
+    /// Typed on the same face the mic sat on rather than reverting to a light box mid-morph.
     private var composerField: some View {
         TextField("", text: $dictation.transcript, axis: .vertical)
             .lineLimit(1...3)
@@ -169,7 +240,6 @@ struct PlanCaptureView: View {
                 }
             }
             .accessibilityLabel("What are we planning?")
-            .padding(.horizontal, 20)
     }
 
     // MARK: Transcript
@@ -197,7 +267,7 @@ struct PlanCaptureView: View {
             .multilineTextAlignment(.center)
             .frame(maxHeight: 140)
             .scrollIndicators(.hidden)
-            .padding(.top, 32)
+            .padding(.top, 28)
             .padding(.horizontal, 8)
             .transition(.opacity)
             .animation(.wandrResponse, value: dictation.volatile)
@@ -206,46 +276,30 @@ struct PlanCaptureView: View {
 
     // MARK: Footer
 
-    /// A ZStack, not an HStack: the keyboard glyph stays on the screen's centre line whether or not there is a plan to send.
+    /// A ZStack, not an HStack: the input-mode toggle stays on the screen's centre line whether or not there is a plan to send.
     private var footer: some View {
         ZStack {
-            Button {
-                mode = mode == .composer ? .orb : .composer
+            circleControl(
+                systemName: mode == .composer ? "mic" : "keyboard",
+                label: mode == .composer ? "Speak instead" : "Type instead"
+            ) {
                 if mode == .composer {
-                    Task { await dictation.stop() }
-                    composing = true
+                    leaveComposer()
                 } else {
-                    composing = false
+                    enterComposer()
                 }
-            } label: {
-                Image(systemName: mode == .composer ? "mic" : "keyboard")
-                    .font(.title3)
-                    .foregroundStyle(Wandr.secondaryText)
-                    .frame(width: 44, height: 44)
-                    .contentShape(.rect)
             }
-            .buttonStyle(WandrPressStyle())
-            .accessibilityLabel(mode == .composer ? "Speak instead" : "Type instead")
 
             // Balances "Plan it" on the right. Without it this screen is a one-way door: it fills the window, so there is no navigation chrome to escape by.
             if let onCancel {
                 HStack {
-                    Button {
+                    circleControl(systemName: "xmark", label: "Cancel") {
                         composing = false
                         Task {
                             await dictation.stop()
                             onCancel()
                         }
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Wandr.secondaryText)
-                            .frame(width: 44, height: 44)
-                            .contentShape(.rect)
                     }
-                    .buttonStyle(WandrPressStyle())
-                    .accessibilityLabel("Cancel")
-
                     Spacer()
                 }
             }
@@ -260,12 +314,46 @@ struct PlanCaptureView: View {
                     }
                     .buttonStyle(.glassProminent)
                     .tint(Wandr.brand)
-                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                    .transition(.opacity.combined(with: .scale(scale: 0.94)))
                 }
             }
         }
-        .animation(.wandrResponse, value: hasPlan)
         .padding(.top, 8)
+    }
+
+    /// The secondary controls on this screen were bare glyphs floating on the page, which is what
+    /// made a finished screen look half-built. Given the same glass shape the rest of the app uses
+    /// for its controls, they read as buttons at a glance and pick up the system's own press and
+    /// focus behaviour for free.
+    private func circleControl(
+        systemName: String,
+        label: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 17, weight: .medium))
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: 22, height: 22)
+        }
+        .buttonStyle(.glass)
+        .buttonBorderShape(.circle)
+        .controlSize(.large)
+        .tint(Wandr.brand)
+        .accessibilityLabel(label)
+    }
+
+    // MARK: Mode
+
+    private func enterComposer() {
+        mode = .composer
+        Task { await dictation.stop() }
+        composing = true
+    }
+
+    private func leaveComposer() {
+        composing = false
+        mode = .orb
     }
 
     // MARK: Commit
