@@ -129,7 +129,7 @@ Wandr
 
 <div align="center">
 
-Designed and built by **Aryaman Jaiswal**
+Designed and built by **Aryaman Jaiswal** and **Parth Vats**
 
 *Planning a night out shouldn't be a second job.*
 
