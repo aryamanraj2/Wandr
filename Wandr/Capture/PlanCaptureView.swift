@@ -190,6 +190,10 @@ struct PlanCaptureView: View {
             Image(systemName: "mic.fill")
                 .font(.system(size: 46, weight: .regular))
                 .foregroundStyle(Wandr.onBrand.opacity(mode == .composer ? 0.7 : 1))
+                // Cast down and to the right, away from the orb's own light. A flat glyph on a lit
+                // curved surface reads as pasted over the orb; a contact shadow puts it on the face.
+                // Dropped in the composer, where the glyph is a small icon on a flat field.
+                .shadow(color: Wandr.charcoal.opacity(mode == .composer ? 0 : 0.32), radius: 9, x: 2, y: 5)
                 // Reduce Motion keeps the state legible without the pulse.
                 .symbolEffect(
                     .breathe,

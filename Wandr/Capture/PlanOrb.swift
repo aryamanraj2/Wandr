@@ -100,8 +100,21 @@ struct PlanOrb<Face: View>: View {
             echo(phase: phase, seed: 1.1, scale: 1.10, travel: 0.13, width: 1.4, opacity: 0.40, response: 0.26)
             echo(phase: phase, seed: 3.7, scale: 1.22, travel: 0.20, width: 1.0, opacity: 0.22, response: 0.40)
         }
-        .opacity(mode == .composer ? 0 : 1)
+        .opacity(mode == .composer ? 0 : echoPresence)
+        .animation(.wandrResponse, value: activity)
         .allowsHitTesting(false)
+    }
+
+    /// The echoes are the orb answering a voice, so they carry the weight of there being one. Held
+    /// at full strength through every state they stop reading as radiated sound and start reading as
+    /// two permanent hairlines drawn around the shape — a diagram of an orb rather than an orb.
+    private var echoPresence: Double {
+        switch activity {
+        case .resting:   return 0.28
+        case .waking:    return 0.50
+        case .listening: return 0.80 + level * 0.20
+        case .heard:     return 0.44
+        }
     }
 
     private func echo(
@@ -130,7 +143,13 @@ struct PlanOrb<Face: View>: View {
 
         return outline
             .fill(surfaceShading(phase: phase))
-            .overlay { specular(clippedTo: outline) }
+            .overlay { specular }
+            // Body and highlight are clipped together, here, where the view's frame is the orb's.
+            // Clipping the highlight inside its own layer instead cuts it to that layer's much
+            // smaller frame, which is a hard-edged rounded rect sitting centred on the face.
+            .clipShape(outline)
+            // Rim last and outside the clip: `stroke` straddles the path, so clipping it would keep
+            // only its inner half.
             .overlay { outline.stroke(rimColor, lineWidth: 1) }
             .frame(
                 maxWidth: mode == .composer ? .infinity : diameter,
@@ -148,15 +167,16 @@ struct PlanOrb<Face: View>: View {
             .animation(.wandrInteractive, value: reactive)
     }
 
-    /// One soft light source, up and to the left, matching the aura. Clipped to the same silhouette
-    /// so it curves with the wobble instead of sliding across a static disc.
-    private func specular(clippedTo outline: OrbShape) -> some View {
+    /// One soft light source, up and to the left, matching the aura. It deliberately does no
+    /// clipping of its own — `core` clips it along with the body, so the falloff is bounded by the
+    /// silhouette and curves with the wobble. Anything that trims this layer at its own size gives
+    /// the highlight an edge of its own, and an edge is what turns a light into a panel.
+    private var specular: some View {
         Ellipse()
             .fill(Wandr.cream.opacity(mode == .composer ? 0.05 : 0.18))
             .frame(width: diameter * 0.62, height: diameter * 0.44)
             .offset(x: -diameter * 0.13, y: -diameter * 0.20)
             .blur(radius: 26)
-            .clipShape(outline)
             .allowsHitTesting(false)
     }
 
@@ -203,9 +223,11 @@ struct PlanOrb<Face: View>: View {
 
     private func surfaceShading(phase: Double) -> AnyShapeStyle {
         if reduceTransparency {
+            // Same light axis, same warmth, no mesh: the flat path is the diagonal ramp sampled at
+            // its two ends rather than a separate look.
             return AnyShapeStyle(
-                LinearGradient(colors: [Wandr.brand, Wandr.brand.mix(with: Wandr.charcoal, by: 0.3)],
-                               startPoint: .top, endPoint: .bottom)
+                LinearGradient(colors: [surfaceTone(depth: 0.1), surfaceTone(depth: 0.9)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
             )
         }
         return AnyShapeStyle(
@@ -244,33 +266,41 @@ struct PlanOrb<Face: View>: View {
 
     /// Lit toward cyan at the top-left, indigo through the middle, charcoal-indigo at the
     /// bottom-right — one implied light source, so the body reads as volume rather than a tinted
-    /// disc. The centre is the only stop that answers to the voice: it warms toward cream as the
-    /// level comes up, which is the app's one warm tone doing exactly the job the palette reserves
-    /// it for. `heard` holds that warmth after the mic closes, so a finished capture *looks*
-    /// finished without needing a label to say so.
+    /// disc. Every stop is *derived* from how far it sits down that one axis rather than written
+    /// out by hand, which is what keeps the surface monotonic: no stop can come out brighter than
+    /// its neighbours and pool into a patch behind whatever the face is showing. The centre is not
+    /// a light — it is simply the middle of the ramp, the same tone as the rest of its diagonal.
     private var meshColors: [Color] {
+        // Column + row, normalised: 0 at the lit corner, 1 at the deep one.
+        (0..<9).map { surfaceTone(depth: Double($0 % 3 + $0 / 3) / 4) }
+    }
+
+    /// The body's tone at `depth` along the light axis, 0 lit to 1 deep. Voice warmth is weighted
+    /// toward the lit end, so a rising level reads as the light source itself warming — the app's
+    /// one warm tone doing the job the palette reserves it for — rather than as a panel switching
+    /// on under the glyph. `heard` holds that warmth after the mic closes, so a finished capture
+    /// *looks* finished without needing a label to say so.
+    private func surfaceTone(depth: Double) -> Color {
         let warmth: Double = switch activity {
         case .resting:   0.02
-        case .waking:    0.06
-        case .listening: 0.10 + level * 0.30
-        case .heard:     0.26
+        case .waking:    0.05
+        case .listening: 0.08 + level * 0.22
+        case .heard:     0.20
         }
 
         let lift: Double = activity == .resting ? 0.0 : 0.06
 
-        return [
-            Wandr.brand.mix(with: Wandr.cyan, by: 0.42 + lift),
-            Wandr.brand.mix(with: Wandr.cyan, by: 0.26 + lift),
-            Wandr.brand.mix(with: Wandr.cyan, by: 0.10),
+        let base: Color
+        if depth <= 0.5 {
+            let toward: Double = (1 - depth * 2) * (0.44 + lift)
+            base = Wandr.brand.mix(with: Wandr.cyan, by: toward)
+        } else {
+            let toward: Double = (depth - 0.5) * 2 * 0.46
+            base = Wandr.brand.mix(with: Wandr.charcoal, by: toward)
+        }
 
-            Wandr.brand.mix(with: Wandr.cyan, by: 0.20),
-            Wandr.brand.mix(with: Wandr.cream, by: warmth),
-            Wandr.brand,
-
-            Wandr.brand.mix(with: Wandr.cyan, by: 0.06),
-            Wandr.brand.mix(with: Wandr.charcoal, by: 0.28),
-            Wandr.charcoal.mix(with: Wandr.brand, by: 0.42)
-        ]
+        let warmed: Double = warmth * (1 - depth)
+        return base.mix(with: Wandr.cream, by: warmed)
     }
 
     private var auraTone: Color {
