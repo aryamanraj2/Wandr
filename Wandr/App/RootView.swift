@@ -5,6 +5,10 @@ import SwiftUI
 struct RootView: View {
     @State private var inbox = IntakeInbox.shared
 
+    /// The other way into the app. Someone who was handed a code never ran intake — no Shortcut, no summary, no curation — so for them the room *is* the app, and it takes the whole screen.
+    @State private var room = SquadRoom.shared
+    @State private var showJoin = false
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var curating: Bool {
@@ -12,7 +16,35 @@ struct RootView: View {
         return false
     }
 
+    /// Only once the room has actually answered. Between the tap and the first snapshot the join screen owns the moment, and yanking it away mid-connect would leave nothing to report a bad code against.
+    private var joined: Bool {
+        room.role == .joiner && room.snapshot != nil
+    }
+
+    /// The door is only worth showing where a code is the *only* thing that could happen next: the two resting states before intake begins. Anywhere further in, the host is mid-plan and a join would throw it away.
+    private var canJoin: Bool {
+        switch inbox.state {
+        case .onboarding, .awaitingSummary: return true
+        default: return false
+        }
+    }
+
     var body: some View {
+        Group {
+            if joined {
+                SquadFlowView(room: room)
+                    .transition(.opacity)
+            } else {
+                shell
+            }
+        }
+        .animation(.wandrTransition, value: joined)
+        .sheet(isPresented: $showJoin) {
+            JoinCodeView(room: room)
+        }
+    }
+
+    private var shell: some View {
         Group {
             switch inbox.state {
             case .onboarding:
@@ -44,6 +76,26 @@ struct RootView: View {
             }
         }
         .animation(stateAnimation, value: stateID)
+        .overlay(alignment: .top) {
+            if canJoin { joinDoor }
+        }
+        .animation(.wandrResponse, value: canJoin)
+    }
+
+    /// Small, glass, and out of the way — the host's own path is the one this screen is really for. But without it a joiner has no way in at all, because the state machine below never starts for them.
+    private var joinDoor: some View {
+        Button {
+            showJoin = true
+        } label: {
+            Label("Have a code?", systemImage: "person.2.wave.2")
+                .font(.footnote.weight(.semibold))
+                .lineLimit(1)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+        }
+        .buttonStyle(.glass)
+        .tint(Wandr.brand)
+        .padding(.top, 6)
     }
 
     /// Arriving screen waits for the other to clear, leaving screen goes immediately — a one-directional handoff, not a symmetric crossfade.

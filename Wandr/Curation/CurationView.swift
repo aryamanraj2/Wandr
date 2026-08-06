@@ -4,15 +4,29 @@ import SwiftUI
 
 struct CurationView: View {
     @State private var decks: [Deck]
-    @State private var showSchedule = false
+
+    /// The finished night, presented *by its data* rather than by a boolean.
+    ///
+    /// `ScheduleView` seeds its `@State blocks` from `stops` in `init`, so whichever value that initializer first sees is the one it keeps. A `.sheet(isPresented:)` content closure is re-evaluated whenever this view's body is — which, with live snapshots arriving, is often — and an evaluation that happens while the stops are still empty freezes the demo fallback into the schedule's state for good. Keying the sheet on an identified payload gives the schedule a fresh identity per night, so it can only ever be seeded with the squad's actual winners.
+    @State private var settled: SettledNight?
+
+    /// One decided night on its way to the schedule. The `id` is what makes the sheet's identity change.
+    private struct SettledNight: Identifiable {
+        let id = UUID()
+        let stops: [ScheduleBlock]
+    }
 
     /// True once the display header has scrolled up under the navigation bar, at which point the short title takes over up there.
     @State private var headerCollapsed = false
 
-    // Send-to-Squad. The slate goes to a per-slot vote; the winners seed the schedule.
-    @State private var showPoll = false
-    @State private var pollSession: PollSession?
+    // Send-to-Squad. The slate becomes a real room: the host reads out a code, the squad joins on their own phones, and the winners seed the schedule.
+    @State private var room = SquadRoom.shared
+    @State private var showSquad = false
     @State private var stopsFromPoll: [ScheduleBlock] = []
+
+    /// The fallback when no relay is running: the original one-device simulation, reachable from the lobby rather than automatic, so it is a choice the host makes rather than a silent downgrade.
+    @State private var showOfflinePoll = false
+    @State private var offlineSession: PollSession?
 
     /// Group size from the confirmed brief, pre-filling the poll's quorum. `nil` when the summary left it open — the poll falls back to the slate's implied size.
     private let groupSize: Int?
@@ -92,19 +106,43 @@ struct CurationView: View {
             .scrollEdgeEffectStyle(.soft, for: .top)
             .scrollEdgeEffectStyle(.soft, for: .bottom)
             .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
-            // The poll is the doorway to the schedule: once it locks, its winners become the stops, and dismissing it opens the laid-out night.
-            .sheet(isPresented: $showPoll, onDismiss: {
-                if !stopsFromPoll.isEmpty { showSchedule = true }
+            // The room is the doorway to the schedule: once every slot has a winner it settles by itself, and leaving it opens the laid-out night. Full-screen rather than a sheet — the host is reading a code out to a table of people, not glancing at a card.
+            .fullScreenCover(isPresented: $showSquad, onDismiss: {
+                // Handed over on dismiss rather than while the cover is still up: two presentations cannot overlap, and the schedule must not be built until the room has left the screen.
+                if !stopsFromPoll.isEmpty { settled = SettledNight(stops: stopsFromPoll) }
             }) {
-                if let pollSession {
-                    SquadPollView(session: pollSession) { winners in
+                SquadFlowView(
+                    room: room,
+                    onCancel: {
+                        room.leave()
+                        showSquad = false
+                    },
+                    onSettled: { winners in
                         stopsFromPoll = scheduleBlocks(from: winners)
-                        showPoll = false
+                        SquadLog.room("settled: \(winners.count) winners → \(stopsFromPoll.count) stops "
+                            + "(\(stopsFromPoll.map(\.title).joined(separator: ", ")))")
+                        showSquad = false
+                    },
+                    onFallBackOffline: {
+                        room.leave()
+                        offlineSession = PollSession(decks: decks, groupSize: groupSize)
+                        showSquad = false
+                        showOfflinePoll = true
+                    }
+                )
+            }
+            .sheet(isPresented: $showOfflinePoll, onDismiss: {
+                if !stopsFromPoll.isEmpty { settled = SettledNight(stops: stopsFromPoll) }
+            }) {
+                if let offlineSession {
+                    SquadPollView(session: offlineSession) { winners in
+                        stopsFromPoll = scheduleBlocks(from: winners)
+                        showOfflinePoll = false
                     }
                 }
             }
-            .sheet(isPresented: $showSchedule) {
-                ScheduleView(stops: stopsFromPoll)
+            .sheet(item: $settled) { night in
+                ScheduleView(stops: night.stops)
             }
         }
         .tint(Wandr.brand)
@@ -142,8 +180,8 @@ struct CurationView: View {
                 Spacer(minLength: 0)
 
                 Button {
-                    pollSession = PollSession(decks: decks, groupSize: groupSize)
-                    showPoll = true
+                    room.host(decks: decks)
+                    showSquad = true
                 } label: {
                     Label("Send to Squad", systemImage: "paperplane.fill")
                         .font(.subheadline.weight(.semibold))
