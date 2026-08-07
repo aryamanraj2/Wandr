@@ -59,6 +59,44 @@ nonisolated enum PlanningState: String, Sendable, Equatable, Hashable, CaseItera
         default: return false
         }
     }
+
+    /// What to call this phase on a screen someone is waiting in front of, or `nil` where the phase
+    /// is not a wait and naming it would be noise.
+    ///
+    /// The copy lives on the state rather than in the progress view because it is a fact about the
+    /// phase, not about one screen — a second surface that ever waits on a run should say the same
+    /// words. Every line names what Wandr is *doing to places*, never what a model is thinking:
+    /// there is no chain of thought here to leak, and a status line that implied one would be
+    /// claiming an interior this pipeline does not have.
+    ///
+    /// None of these say "night". The same pipeline plans a lunch, an afternoon walk, and a
+    /// birthday, and the brief is what decides which — so a status line cannot know.
+    var hostDescription: String? {
+        switch self {
+        case .extracting:   return "Reading the summary"
+        case .needsDetails: return "Needs one more detail"
+        case .researching:  return "Finding places nearby"
+        case .validating:   return "Checking what actually fits"
+        case .curating:     return "Choosing the stops"
+        case .ready:        return "Ready"
+        case .idle, .failed, .cancelled: return nil
+        }
+    }
+
+    /// How far along a waiting screen may honestly claim to be, 0…1, or `nil` where there is no
+    /// meaningful answer. These are the four active phases' positions in the sequence — not a timer,
+    /// and deliberately not evenly spaced: research is by far the longest leg, so the bar would
+    /// visibly stall at a quarter if the four were spaced evenly.
+    var hostProgress: Double? {
+        switch self {
+        case .extracting:  return 0.12
+        case .researching: return 0.38
+        case .validating:  return 0.72
+        case .curating:    return 0.88
+        case .ready:       return 1.0
+        case .idle, .needsDetails, .failed, .cancelled: return nil
+        }
+    }
 }
 
 /// Thrown when something tries to move a run along an edge the table forbids.

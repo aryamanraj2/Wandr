@@ -15,6 +15,25 @@ enum DebugScreen: String {
     case summary
     /// One stop only — the layout with the least content to hold it together.
     case summarySingle = "summary-single"
+    /// The planning wait, walking its four real phases on a clock. The pipeline behind it does not
+    /// run in the Simulator at all, so this screen is otherwise unreachable there — which made it
+    /// the least-checked surface in the app and, not coincidentally, the one that shipped as a bare
+    /// spinner. The clock here is a *stand-in for the pipeline*, not a second implementation of it:
+    /// nothing outside this `#if DEBUG` file ever advances a stage on a timer.
+    case planning
+    /// The other wait — on-device extraction, which genuinely has no phases to report.
+    case extracting
+    /// The capture screen. Reachable through onboarding, but only after a tap that a fresh install
+    /// resets — and the Simulator has no microphone, so the wave that is now the whole subject of
+    /// the screen can never be driven there anyway.
+    case capture
+    /// The wave in each of its four states at once. The Simulator cannot open a microphone, so the
+    /// only state reachable there is the resting one — which is the state that matters least.
+    case wave
+    /// The generated Phosphor symbols beside their SF Symbols equivalents. Custom symbols are only
+    /// worth having if they sit on the same baseline and read at the same optical weight as the
+    /// native ones next to them, and that can only be judged by looking.
+    case symbols
 
     static var requested: DebugScreen? {
         ProcessInfo.processInfo.environment["WANDR_SCREEN"].flatMap(DebugScreen.init(rawValue:))
@@ -27,6 +46,12 @@ enum DebugScreen: String {
         case .schedule:          ScheduleView()
         case .scheduleMorning:   ScheduleView(stops: Self.morningStops)
         case .scheduleLateClose: ScheduleView(stops: Self.lateCloseStops)
+        case .capture:           PlanCaptureView(onCommit: { _ in }, onCancel: { })
+        case .wave:              DebugWaveStates()
+        case .symbols:           DebugSymbols()
+        case .planning:          DebugPlanningWait()
+        case .extracting:        WandrThinkingView(title: "Reading\nthat back",
+                                                   caption: "Pulling out the details you gave")
         case .summary:           ItinerarySummaryView(blocks: DemoPlan.blocks(for: DemoPlan.days[0]))
         case .summarySingle:     ItinerarySummaryView(blocks: Self.singleStop)
         }
@@ -59,4 +84,101 @@ enum DebugScreen: String {
         ]
     }
 }
+
+/// Walks `WandrThinkingView` through the four phases a real run reports, so the dots, the fill, and
+/// the caption transition can be watched without a device.
+private struct DebugPlanningWait: View {
+    private static let legs: [PlanningState] = [.extracting, .researching, .validating, .curating]
+
+    @State private var index = 0
+
+    var body: some View {
+        WandrThinkingView(title: "Planning", stage: Self.legs[index])
+            .task {
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(2.2))
+                    index = (index + 1) % Self.legs.count
+                }
+            }
+    }
+}
+
+/// The four wave states side by side, fed synthetic amplitude. The levels here are noise, not a
+/// voice — this exists only so the resting, waking, listening and settled looks can be compared on a
+/// machine with no microphone.
+private struct DebugWaveStates: View {
+    @State private var level: Double = 0.4
+    @State private var settled = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 46) {
+            row("resting", .resting) { 0 }
+            row("waking", .waking) { 0 }
+            row("listening", .listening) { level }
+            // `heard` is a *held* buffer, so it only means anything arrived at from `listening`.
+            // Shown cold it is an empty row, which is the one thing it is not.
+            row(settled ? "heard (held)" : "listening → heard",
+                settled ? .heard : .listening) { level }
+        }
+        .padding(.horizontal, Metrics.gutter)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Wandr.pageBackground)
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(60))
+                level = Double.random(in: 0.04...0.95)
+            }
+        }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(3))
+                settled.toggle()
+            }
+        }
+    }
+
+    private func row(
+        _ name: String,
+        _ activity: CaptureActivity,
+        level: @escaping () -> Double
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(name).wandrLabelStyle()
+            PlanWave(activity: activity, level: level)
+        }
+    }
+}
+
+/// Each generated symbol against the SF Symbol it replaces, at three text sizes and two weights.
+private struct DebugSymbols: View {
+    private static let pairs: [(ImageResource, String, String)] = [
+        (.wandrShieldCheck, "hand.raised.fill", "shield-check"),
+        (.wandrChats, "text.bubble.fill", "chats-circle"),
+        (.wandrClipboardText, "doc.on.doc", "clipboard-text")
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 30) {
+            ForEach(Array(Self.pairs.enumerated()), id: \.offset) { _, pair in
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(pair.2).wandrLabelStyle()
+
+                    ForEach([Font.subheadline, .title3, .largeTitle], id: \.self) { font in
+                        HStack(spacing: 18) {
+                            Image(pair.0)
+                            Image(systemName: pair.1)
+                            Text("Hxp")
+                        }
+                        .font(font)
+                        .foregroundStyle(Wandr.brand)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, Metrics.gutter)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .background(Wandr.pageBackground)
+    }
+}
+
 #endif

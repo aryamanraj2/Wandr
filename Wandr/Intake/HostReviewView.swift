@@ -11,18 +11,30 @@ struct HostReviewView: View {
 
     @State private var showingRaw = false
 
+    /// The summary is the payoff of the whole Siri handoff — it arrives rather than being already
+    /// there. Same staggered entrance the setup screen uses, so the two read as one flow.
+    @State private var arrived = false
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 header
+                    .padding(.bottom, 10)
+                    .entrance(arrived, index: 0, reduceMotion: reduceMotion)
 
-                if let payload, !payload.displayFields.isEmpty {
-                    structuredCard(payload)
-                } else {
-                    unstructuredCard
+                Group {
+                    if let payload, !payload.displayFields.isEmpty {
+                        structuredCard(payload)
+                    } else {
+                        unstructuredCard
+                    }
                 }
+                .entrance(arrived, index: 1, reduceMotion: reduceMotion)
 
                 rawDisclosure
+                    .entrance(arrived, index: 2, reduceMotion: reduceMotion)
 
                 Color.clear.frame(height: 12)
             }
@@ -32,49 +44,55 @@ struct HostReviewView: View {
         .background(Wandr.pageBackground)
         .safeAreaBar(edge: .bottom) { actionBar }
         .tint(Wandr.brand)
+        .onAppear { arrived = true }
     }
 
     // MARK: Header
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Here’s what came through")
-                .font(.wandrDisplay(32))
-                .foregroundStyle(Wandr.primaryText)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Text("Only this summary crossed into Wandr — no chat, no contacts. Check it over before planning starts.")
-                .font(.subheadline)
-                .foregroundStyle(Wandr.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        WandrMasthead(
+            title: "Here’s what came through",
+            deck: "Only this summary crossed into Wandr — no chat, no contacts. Check it over before planning starts.",
+            size: 42
+        )
     }
 
     // MARK: Structured
 
+    /// The group's own decisions, set as a plain two-column table.
+    ///
+    /// Two earlier attempts, both wrong in opposite directions. First a white card of label/value
+    /// rows with a fixed label column and a divider between each — the layout iOS uses for
+    /// *preferences*, which is not what these are. Then the same grid with a hairline drawn over
+    /// every cell, which turned nine short facts into nine ruled boxes: more lines on the page than
+    /// words on some rows, and an orphan rule hanging beside the empty half of the last one.
+    ///
+    /// So: no rules at all. Space does the separating. A small label over a large value is already
+    /// an unambiguous pair, and nine of them in a column grid already reads as a table — drawing the
+    /// table as well was saying the same thing twice.
     private func structuredCard(_ payload: ChatSummaryPayload) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(Array(payload.displayFields.enumerated()), id: \.offset) { index, field in
-                if index != 0 {
-                    Divider().overlay(Wandr.hairline)
-                }
-                HStack(alignment: .top, spacing: 12) {
+        LazyVGrid(
+            columns: [
+                GridItem(.flexible(), spacing: 20, alignment: .topLeading),
+                GridItem(.flexible(), spacing: 20, alignment: .topLeading)
+            ],
+            alignment: .leading,
+            spacing: 28
+        ) {
+            ForEach(Array(payload.displayFields.enumerated()), id: \.offset) { _, field in
+                VStack(alignment: .leading, spacing: 6) {
                     Text(field.label)
                         .wandrLabelStyle()
-                        .frame(width: 108, alignment: .leading)
+
                     Text(field.value)
-                        .font(.callout.weight(.medium))
+                        .font(.wandrTitle(19))
                         .foregroundStyle(Wandr.primaryText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityElement(children: .combine)
             }
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 4)
-        .background(WandrCardBackground())
     }
 
     // MARK: Unstructured
@@ -97,7 +115,7 @@ struct HostReviewView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(18)
-        .background(WandrCardBackground())
+        .background(WandrCardBackground(corner: Metrics.blockCorner))
     }
 
     // MARK: Raw JSON disclosure
@@ -106,6 +124,13 @@ struct HostReviewView: View {
     private var rawDisclosure: some View {
         // Only meaningful when we actually parsed structured JSON — otherwise the card above already shows the raw text.
         if let payload, !payload.displayFields.isEmpty {
+            // The page's one rule, and it earns it: it is the line between what the host reads and
+            // what they almost certainly will not. Without it the disclosure read as a tenth field.
+            Rectangle()
+                .fill(Wandr.hairline)
+                .frame(height: 1)
+                .padding(.top, 10)
+
             DisclosureGroup(isExpanded: $showingRaw) {
                 Text(rawText)
                     .font(.system(.caption2, design: .monospaced))
@@ -130,24 +155,17 @@ struct HostReviewView: View {
             Button(role: .cancel) {
                 inbox.cancel()
             } label: {
-                Text("Discard")
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
+                Text("Discard").wandrActionLabel(.subheadline.weight(.semibold))
             }
-            .buttonStyle(.glass)
+            .wandrQuietAction()
 
             Button {
                 inbox.confirm()
             } label: {
-                Label("Plan this", systemImage: "arrow.forward")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
+                Label("Plan this", systemImage: "arrow.forward").wandrActionLabel()
             }
-            .buttonStyle(.glassProminent)
+            .wandrPrimaryAction()
         }
-        .tint(Wandr.brand)
         .padding(.horizontal, Metrics.gutter)
         .padding(.bottom, 8)
     }

@@ -37,6 +37,12 @@ actor TravelPlanningService {
     private var cancellationRequests: Set<PlanningRunID> = []
     /// Schedules produced by finished runs. `PlanningRun` has no schedule field — it is Step 1's and closed — so the draft is held here and fetched by ID.
     private var schedules: [PlanningRunID: ScheduleDraft] = [:]
+    /// Callers who want to be told which phase a live run is in, keyed by run so two runs cannot
+    /// cross-report. Held here rather than threaded through `drive` as a parameter for the same
+    /// reason `cancellationRequests` is: the run's *identity* is the key to everything the outside
+    /// world can ask about it while it is still going. Observation only — nothing in this file reads
+    /// it back, so an observer can neither redirect a run nor keep one alive.
+    private var stageObservers: [PlanningRunID: @Sendable (PlanningState) -> Void] = [:]
 
     init(
         extractor: any BriefExtracting,
@@ -64,13 +70,18 @@ actor TravelPlanningService {
     @discardableResult
     func plan(
         _ input: PlanningInput,
-        runID: PlanningRunID = PlanningRunID()
+        runID: PlanningRunID = PlanningRunID(),
+        onStage: (@Sendable (PlanningState) -> Void)? = nil
     ) async throws -> PlanningRun {
 
         // First move: validate. Not "transition, then validate".
         let validated = try input.validated()
 
         var run = PlanningRun(id: runID, input: validated, startedAt: now())
+
+        // Registered after validation, so a request that never becomes a run never reports a phase.
+        if let onStage { stageObservers[runID] = onStage }
+        defer { stageObservers[runID] = nil }
 
         do {
             return try await drive(&run, input: validated)
@@ -258,6 +269,10 @@ actor TravelPlanningService {
         } catch {
             preconditionFailure("Illegal transition \(run.state) → \(state): \(error)")
         }
+        // After the transition, never before: an observer must not be told about a phase the run
+        // failed to enter. Deliberately the last thing this function does, so the run's own state is
+        // already settled by the time anyone hears about it.
+        stageObservers[run.id]?(state)
     }
 
     private func complete(_ run: inout PlanningRun, with plan: WandrPlan) {
