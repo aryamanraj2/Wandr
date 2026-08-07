@@ -326,10 +326,13 @@ struct ItinerarySummaryView: View {
 
             Spacer(minLength: 0)
 
-            Image(systemName: stop.category.symbol)
-                .font(.system(size: 15))
-                .foregroundStyle(accent.opacity(0.85))
-                .padding(.top, 1)
+            VenueThumbnail(
+                seed: stop.imageSeed,
+                accent: accent,
+                symbol: stop.category.symbol,
+                size: 46,
+                corner: 12
+            )
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)

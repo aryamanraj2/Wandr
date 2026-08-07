@@ -177,7 +177,8 @@ struct SquadWireTests {
     func scheduleBlockResolvesLocally() throws {
         let day = DemoPlan.days[0]
         let block = ScheduleBlock(title: "Piano Man", category: .nightlife,
-                                  startMinute: 21 * 60, durationMinutes: 120, dayID: day.id)
+                                  startMinute: 21 * 60, durationMinutes: 120, dayID: day.id,
+                                  imageSeed: 189)
 
         let wire = try roundTrip(block.wire())
         #expect(Calendar.current.isDate(wire.dayDate, inSameDayAs: day.date))
@@ -189,6 +190,9 @@ struct SquadWireTests {
         #expect(rebuilt.category == block.category)
         #expect(rebuilt.startMinute == block.startMinute)
         #expect(rebuilt.durationMinutes == block.durationMinutes)
+        // The photograph has to survive the crossing too, or a joiner's itinerary shows
+        // grey cards next to the host's.
+        #expect(rebuilt.imageSeed == block.imageSeed)
     }
 
     @Test("A date outside the plan's span still lands on a real day rather than nothing")
@@ -197,6 +201,9 @@ struct SquadWireTests {
                                       startMinute: 1_200, durationMinutes: 60,
                                       dayDate: Date(timeIntervalSince1970: 0))
         #expect(ScheduleBlock(wire: stray).dayID == DemoPlan.days[0].id)
+        // A payload from a build that predates photography omits the key entirely; it must
+        // decode to "no photograph" rather than refusing to decode at all.
+        #expect(ScheduleBlock(wire: stray).imageSeed == 0)
     }
 
     // MARK: - Ballot → the untouched poll brain

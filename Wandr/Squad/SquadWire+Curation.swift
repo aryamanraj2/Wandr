@@ -92,7 +92,8 @@ extension SlotBallotWire {
                 PollOption(
                     id: $0.optionID,
                     label: $0.name,
-                    subtitle: "\($0.area) · ₹\($0.perHead)"
+                    subtitle: "\($0.area) · ₹\($0.perHead)",
+                    imageSeed: $0.imageSeed
                 )
             },
             size: size,
@@ -117,7 +118,8 @@ extension ScheduleBlock {
             category: category.rawValue,
             startMinute: startMinute,
             durationMinutes: durationMinutes,
-            dayDate: days.first { $0.id == dayID }?.date ?? Date()
+            dayDate: days.first { $0.id == dayID }?.date ?? Date(),
+            imageSeed: imageSeed
         )
     }
 
@@ -130,7 +132,8 @@ extension ScheduleBlock {
             category: StopCategory(rawValue: wire.category) ?? .discover,
             startMinute: wire.startMinute,
             durationMinutes: wire.durationMinutes,
-            dayID: day.id
+            dayID: day.id,
+            imageSeed: wire.imageSeed ?? 0
         )
     }
 }

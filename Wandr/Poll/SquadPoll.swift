@@ -49,11 +49,18 @@ nonisolated struct PollOption: Sendable, Equatable, Identifiable {
     let id: PollOptionID
     let label: String
     let subtitle: String
+    /// The venue's photography key, carried so a vote row can show the same image the deck
+    /// card showed. Defaults to 0 — "no venue" — because a poll can be built from options
+    /// that were never a `Candidate` (the tests do exactly that), and 0 must never resolve
+    /// to somebody else's photograph. Not spelled `VenuePhoto.noPhoto` here only because
+    /// this type is `nonisolated` and that constant is main-actor bound.
+    let imageSeed: Int
 
-    init(id: PollOptionID, label: String, subtitle: String) {
+    init(id: PollOptionID, label: String, subtitle: String, imageSeed: Int = 0) {
         self.id = id
         self.label = label
         self.subtitle = subtitle
+        self.imageSeed = imageSeed
     }
 }
 

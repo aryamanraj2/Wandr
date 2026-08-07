@@ -370,6 +370,24 @@ extension View {
             .offset(y: arrived || reduceMotion ? 0 : 10)
             .animation(reduceMotion ? .easeOut(duration: 0.2) : .wandrEnter(index), value: arrived)
     }
+
+    /// A card being *put down*, for a page whose content is a pile of them.
+    ///
+    /// Same licence and the same spring as `entrance`, but the anchor and the travel are a card's
+    /// rather than a paragraph's. A block of copy settles where it already was, so 10pt and a
+    /// leading anchor are enough to say "arrived"; a card is a large object with a visible bottom
+    /// edge, and at 10pt it reads as a wobble rather than as landing. Rising further and scaling
+    /// from `.bottom` puts the growth where the eye is already looking — the edge nearest the
+    /// bottom of the screen — so the card reads as coming up onto the stack.
+    ///
+    /// Scale still starts at 0.94, not 0: an entrance from nothing has no physical form to read on
+    /// the way in. Reduce Motion keeps the arrival and drops the travel entirely.
+    func dealIn(_ arrived: Bool, order: Int, reduceMotion: Bool) -> some View {
+        opacity(arrived ? 1 : 0)
+            .scaleEffect(arrived || reduceMotion ? 1 : 0.94, anchor: .bottom)
+            .offset(y: arrived || reduceMotion ? 0 : 52)
+            .animation(reduceMotion ? .easeOut(duration: 0.2) : .wandrEnter(order), value: arrived)
+    }
 }
 
 // MARK: - Helpers

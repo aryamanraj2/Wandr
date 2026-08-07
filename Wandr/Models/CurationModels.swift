@@ -168,6 +168,11 @@ struct ScheduleBlock: Identifiable, Hashable {
     var durationMinutes: Int
     let dayID: PlanDay.ID
 
+    /// The venue's photography key, so a scheduled stop can show the picture the card that
+    /// won it was showing. Defaults to `VenuePhoto.noPhoto` — a block is only a title and a
+    /// time, and the demo fixtures build them from neither a `Candidate` nor a dataset row.
+    var imageSeed: Int = 0
+
     var endMinute: Int { startMinute + durationMinutes }
 
     var startLabel: String { Self.clock(startMinute) }

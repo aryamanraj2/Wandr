@@ -248,6 +248,14 @@ private struct SlotPollCard: View {
             onTap(option.id)
         } label: {
             HStack(spacing: 12) {
+                VenueThumbnail(
+                    seed: option.imageSeed,
+                    accent: accent,
+                    symbol: category?.symbol ?? "mappin",
+                    size: 34,
+                    corner: 8
+                )
+
                 VStack(alignment: .leading, spacing: 2) {
                     Text(option.label)
                         .font(.subheadline.weight(isWinner ? .bold : .semibold))

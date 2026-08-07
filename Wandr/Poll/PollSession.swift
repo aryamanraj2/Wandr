@@ -46,7 +46,8 @@ final class PollSession {
                 return PollOption(
                     id: id,
                     label: candidate.name,
-                    subtitle: "\(candidate.area) · ₹\(candidate.perHead)"
+                    subtitle: "\(candidate.area) · ₹\(candidate.perHead)",
+                    imageSeed: candidate.imageSeed
                 )
             }
             return SquadSlotPoll(

@@ -19,6 +19,16 @@ struct CurationView: View {
     /// True once the display header has scrolled up under the navigation bar, at which point the short title takes over up there.
     @State private var headerCollapsed = false
 
+    /// Flipped once on appear to deal the slate in from the bottom of the page.
+    ///
+    /// One gate for the whole page rather than one per deck, and it is read by `DeckView` too: the
+    /// decks live in a `LazyVStack`, so a deck built later already sees `true` and is simply there.
+    /// That is what keeps this an entrance rather than something that fires again every time a deck
+    /// scrolls back into view.
+    @State private var dealt = false
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     // Send-to-Squad. The slate becomes a real room: the host reads out a code, the squad joins on their own phones, and the winners seed the schedule.
     @State private var room = SquadRoom.shared
     @State private var showSquad = false
@@ -68,15 +78,27 @@ struct CurationView: View {
             ScrollView {
                 LazyVStack(spacing: 40) {
                     intro
+                        .dealIn(dealt, order: 0, reduceMotion: reduceMotion)
 
                     ForEach($decks) { $deck in
-                        // Leading rule rather than trailing, so the list does not end on a divider pointing at nothing.
-                        if deck.id != decks.first?.id {
-                            WandrDashedRule()
-                        }
+                        // Position in the slate, not in the `ForEach`'s own output. Both the leading
+                        // rule and the cascade count decks, and a row index would drift the moment
+                        // the rule stops being emitted for the first one.
+                        let order = decks.firstIndex { $0.id == deck.id } ?? 0
 
-                        DeckView(deck: $deck)
-                            .id(deck.id)
+                        // Rule and deck travel as one object. Emitted as siblings they arrive on
+                        // different beats, and a divider landing before the thing it divides reads
+                        // as a stray line. The inner spacing matches the stack's so nothing moves.
+                        VStack(spacing: 40) {
+                            // Leading rule rather than trailing, so the list does not end on a divider pointing at nothing.
+                            if order > 0 {
+                                WandrDashedRule()
+                            }
+
+                            DeckView(deck: $deck, revealed: dealt, dealOrder: order + 1)
+                        }
+                        .id(deck.id)
+                        .dealIn(dealt, order: order + 1, reduceMotion: reduceMotion)
                     }
                 }
                 .padding(.horizontal, Metrics.gutter)
@@ -89,6 +111,13 @@ struct CurationView: View {
                 headerCollapsed = collapsed
             }
             .background(Wandr.pageBackground)
+            // Assigned bare, like `headerCollapsed` above and for the same reason: each section
+            // carries its own `.animation(_:value:)` through `dealIn`, so a `withAnimation` here
+            // would only widen the transaction to every deck, material and gradient on the page.
+            .onAppear {
+                guard !dealt else { return }
+                dealt = true
+            }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
@@ -223,7 +252,8 @@ struct CurationView: View {
                 category: candidate.category,
                 startMinute: start,
                 durationMinutes: duration,
-                dayID: day.id
+                dayID: day.id,
+                imageSeed: candidate.imageSeed
             )
         }
         .sorted { $0.startMinute < $1.startMinute }

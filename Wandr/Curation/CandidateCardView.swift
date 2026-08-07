@@ -64,6 +64,14 @@ struct CandidateCardView: View {
 struct CandidateCardFace: View {
     let candidate: Candidate
 
+    /// How far the caption panel takes to arrive out of the photograph, in points rather than as a
+    /// fraction of the panel. The panel's height swings by ~80pt with how much copy a candidate
+    /// carries — a rationale and a warning, or neither — and a proportional ramp put the title on
+    /// solid paper for a wordy card and halfway inside the ramp for a terse one. A fixed distance
+    /// makes the dissolve identical on every card and lets the copy's top padding be derived from
+    /// it rather than guessed against it.
+    private static let captionFeather: CGFloat = 40
+
     /// The expanded hero drops the deck-only marginalia — the model's rationale and the validator warning both get their own proper section down the page, and repeating them in the hero would read as a stutter.
     var isHero: Bool = false
 
@@ -125,29 +133,52 @@ struct CandidateCardFace: View {
                 .padding(.top, 9)
         }
         .padding(.horizontal, 20)
-        .padding(.top, 34)
+        // Clears the ramp with a little air to spare, so the first line of type always begins on
+        // solid panel. Type that starts inside the feather is the whole legibility problem: charcoal
+        // at 27pt over a half-transparent panel over a lit photograph has no reliable contrast.
+        .padding(.top, Self.captionFeather + 8)
         .padding(.bottom, isHero ? 22 : 18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(frost)
     }
 
-    /// Translucent, not opaque: the backdrop keeps travelling under the copy and dissolves into it, which is what stops the panel reading as a pasted-on box.
+    /// The panel the copy sits on. The dissolve lives entirely in the top `captionFeather` points;
+    /// below that the panel is paper and the type is simply legible.
+    ///
+    /// It used to be translucent all the way down — 0.82 paper over a material — on the argument
+    /// that a backdrop travelling under the copy is what stops the panel reading as a pasted-on box.
+    /// The argument holds; the placement was wrong. Over a warm photograph (a wood-lit bar, a
+    /// lamplit counter) the panel took the picture's cast and the whole caption sat on a muddy
+    /// red-brown wash, which is both illegible and the one hue this palette exists to avoid. The
+    /// edge is what has to dissolve, not the text's background — so the transparency was moved into
+    /// the ramp, where it does the same job against a scrimmed part of the photograph.
     ///
     /// Cool, not creamy. The warm tone was tried here and it fails on the food accent specifically: a clay backdrop dissolving into a cream panel muddies into beige across the whole lower half of the card, and food is the deck the user sees first. A near-white panel stays neutral under all four accents, and it matches the schedule's cards, so a stop looks like the same object before and after it is picked.
     private var frost: some View {
         Rectangle()
             .fill(.ultraThinMaterial)
-            .overlay(Wandr.paper.opacity(0.82))
-            .mask {
-                LinearGradient(
-                    stops: [
-                        .init(color: .clear, location: 0),
-                        .init(color: .white.opacity(0.55), location: 0.28),
-                        .init(color: .white, location: 0.6)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+            .overlay(Wandr.paper.opacity(0.96))
+            .mask(alignment: .top) {
+                VStack(spacing: 0) {
+                    // Eased rather than a straight two-stop ramp. A linear fade of a near-white over
+                    // a photograph bands visibly across 40 points; the extra stops bend the curve so
+                    // the panel appears to condense out of the image instead of wiping over it.
+                    LinearGradient(
+                        stops: [
+                            .init(color: .white.opacity(0), location: 0),
+                            .init(color: .white.opacity(0.10), location: 0.26),
+                            .init(color: .white.opacity(0.38), location: 0.50),
+                            .init(color: .white.opacity(0.76), location: 0.74),
+                            .init(color: .white.opacity(0.95), location: 0.90),
+                            .init(color: .white, location: 1)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: Self.captionFeather)
+
+                    Rectangle().fill(.white)
+                }
             }
     }
 
@@ -239,17 +270,97 @@ struct CandidateCardFace: View {
 
 // MARK: - Backdrop
 
-/// Stands in for venue photography. Deterministic per-venue hue so a card keeps the same identity across launches — and so the expanded hero paints the exact same gradient the deck card was showing a frame earlier.
+/// The card's image surface: the venue's photograph where one has been shot, and a
+/// deterministic per-venue gradient everywhere else. The fallback is not a placeholder for
+/// a failure — most of the dataset has never been photographed, and a coloured card that
+/// keeps its identity across launches is a better answer there than an empty frame.
+///
+/// Both branches paint the identical surface for the deck card and for the expanded hero,
+/// which is what lets `.navigationTransition(.zoom)` read as one object growing. See
+/// `VenuePhoto` for why the lookup is synchronous.
 struct CandidateBackdrop: View {
     let candidate: Candidate
 
     var body: some View {
+        if let photo = VenuePhoto.image(seed: candidate.imageSeed) {
+            photograph(photo)
+        } else {
+            gradient
+        }
+    }
+
+    // MARK: Photograph
+
+    /// Masters are square, because the two surfaces that draw this disagree about shape:
+    /// the deck card is portrait (~0.90) and the hero is landscape (~1.12). A square fill
+    /// crops symmetrically off the top and bottom on one and off the sides on the other,
+    /// so a single asset sits correctly in both. A portrait or landscape master would be
+    /// right in one place and wrong in the other.
+    private func photograph(_ photo: Image) -> some View {
+        // `scaledToFill` needs something to fill against. `Color.clear` hands it the card's
+        // own bounds without the photo's intrinsic size getting a vote on the layout.
+        Color.clear
+            .overlay {
+                photo
+                    .resizable()
+                    .scaledToFill()
+                    // One grade over every photograph. The set is assembled from mixed
+                    // sources and reads as a ransom note without it; a shared treatment is
+                    // what makes twenty photographers look like one deck.
+                    .saturation(0.94)
+            }
+            .clipped()
+            .overlay { Wandr.charcoal.opacity(0.08) }
+            .overlay(alignment: .top) { topScrim }
+            .overlay { bottomScrim }
+    }
+
+    /// What the caption's feather emerges from. The panel's ramp is transparent by design, so for
+    /// those 40 points the photograph is still the background — and an unscrimmed one arrives at
+    /// full colour and full contrast right where the panel is at its weakest. Charcoal is the cool
+    /// end of the palette, so it knocks a warm frame's saturation down as it darkens it, and the
+    /// panel condenses out of a neutral rather than out of a red.
+    ///
+    /// Tall and shallow rather than short and strong: a hard scrim under a light panel shows up as
+    /// a grey band across the card, which is a second seam in place of the one being removed.
+    private var bottomScrim: some View {
+        LinearGradient(
+            stops: [
+                .init(color: .clear, location: 0.24),
+                .init(color: Wandr.charcoal.opacity(0.22), location: 0.52),
+                .init(color: Wandr.charcoal.opacity(0.50), location: 1)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .allowsHitTesting(false)
+    }
+
+    /// The area tag is cream on a thin material — legible over the gradient, and gone over
+    /// a bright sky. This buys it back at the top without darkening the whole frame, which
+    /// would cost the photograph the thing it was added for.
+    private var topScrim: some View {
+        LinearGradient(
+            colors: [Wandr.charcoal.opacity(0.38), .clear],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(height: 96)
+    }
+
+    // MARK: Gradient
+
+    /// Deterministic per-venue hue so an unphotographed card keeps the same identity across
+    /// launches — and so the expanded hero paints the exact same gradient the deck card was
+    /// showing a frame earlier.
+    private var gradient: some View {
         let base = Wandr.accent(for: candidate.category)
         let angle = Double(candidate.imageSeed % 7) * 24
 
-        LinearGradient(
+        return LinearGradient(
             colors: [
-                // Opaque at the top: at 0.95 the page tint bled through and washed the hue out, which read as a faded swatch rather than a photograph.
+                // Opaque at the top: at 0.95 the page tint bled through and washed the hue
+                // out, which read as a faded swatch rather than a photograph.
                 base,
                 base.mix(with: Wandr.charcoal, by: 0.55, in: .perceptual),
                 Wandr.charcoal

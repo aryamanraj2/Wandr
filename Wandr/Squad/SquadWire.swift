@@ -156,6 +156,30 @@ nonisolated struct ScheduleBlockWire: Codable, Sendable, Hashable {
     let startMinute: Int
     let durationMinutes: Int
     let dayDate: Date
+    /// Optional on purpose. A non-optional addition would make every snapshot published by
+    /// a newer host fail to decode on a peer still running the previous build — the join
+    /// would break, not the picture. Missing decodes to `nil` and reads as "no photograph".
+    let imageSeed: Int?
+
+    /// Spelled out rather than left to the memberwise default so `imageSeed` can carry one.
+    /// It cannot be given an inline initialiser instead: a stored property that arrives
+    /// already initialised is dropped from the synthesised decoder, which would silently
+    /// stop the seed crossing the wire at all.
+    init(
+        title: String,
+        category: String,
+        startMinute: Int,
+        durationMinutes: Int,
+        dayDate: Date,
+        imageSeed: Int? = nil
+    ) {
+        self.title = title
+        self.category = category
+        self.startMinute = startMinute
+        self.durationMinutes = durationMinutes
+        self.dayDate = dayDate
+        self.imageSeed = imageSeed
+    }
 }
 
 // MARK: - Snapshot
