@@ -85,6 +85,19 @@ extension Font {
     /// Small all-caps metadata: category, day-of-week, offer window.
     static let wandrLabel = Font.system(size: 11, weight: .semibold, design: .default)
 
+    /// The one place a second typeface is allowed, and only for a specific kind of content:
+    /// machine state read at a glance rather than prose — a phase counter, a percentage, the
+    /// pipeline's own step names. Monospacing is doing a job there that SF Pro cannot: a readout
+    /// that changes while you are looking at it must not reflow, and a list of step names is easier
+    /// to scan when the glyphs sit on a grid.
+    ///
+    /// It is not a display face and never carries a sentence. Two screens already reached for
+    /// `design: .monospaced` inline for raw text payloads; this names the decision so the next one
+    /// does not have to guess a size.
+    static func wandrMono(_ size: CGFloat = 12, weight: Font.Weight = .medium) -> Font {
+        .system(size: size, weight: weight, design: .monospaced)
+    }
+
     /// Clock readouts in the timeline.
     static func wandrClock(_ size: CGFloat = 20) -> Font {
         .system(size: size, weight: .medium)
@@ -166,6 +179,11 @@ enum Metrics {
     static let cardCorner: CGFloat = 26
     static let blockCorner: CGFloat = 18
     static let gutter: CGFloat = 20
+
+    /// A hard rule — a line meant to be seen as structure rather than as a seam. Distinct from the
+    /// 1pt hairline that separates two near-white surfaces and from `WandrDashedRule`'s 3pt dashes,
+    /// both of which exist to be quiet.
+    static let rule: CGFloat = 2
 
     /// Timeline scale: one minute of plan time = this many points. 1.15 keeps a 12-hour day readable without runaway scroll length.
     static let pointsPerMinute: CGFloat = 1.15
