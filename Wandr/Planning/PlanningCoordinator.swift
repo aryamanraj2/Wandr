@@ -20,9 +20,19 @@ final class PlanningCoordinator {
 
     private(set) var phase: Phase = .idle
 
+    /// Which leg of the pipeline is running right now, for the screen the host is waiting in front
+    /// of. Separate from `phase` on purpose: `phase` is what the UI must *render*, and it has three
+    /// answers; this is a detail *within* the working one. Folding the six planning states into
+    /// `Phase` would make every switch in `RootView` carry cases that all draw the same screen.
+    ///
+    /// It is observation, not control. Nothing reads it back, nothing branches on it, and a run
+    /// behaves identically whether or not anyone is watching.
+    private(set) var stage: PlanningState = .idle
+
     /// Runs one plan for a confirmed summary and publishes the outcome. Never throws: every failure becomes a `.failed` phase carrying a `PlanningFailure`, so the UI always has a message and a next step.
     func run(payload: ChatSummaryPayload) async {
         phase = .planning
+        stage = .idle
 
         do {
             // The dataset is the one piece of local I/O the core permits.
@@ -36,7 +46,12 @@ final class PlanningCoordinator {
 
             // The confirmed summary travels as its own JSON — a structured summary, never the raw chat — which the extractor decodes straight back.
             let input = PlanningInput(text: Self.json(from: payload))
-            let run = try await service.plan(input)
+            // The observer is called from the service's actor, so it hops back here before touching
+            // observed state. Capturing `self` weakly keeps a run that outlives its screen from
+            // holding the coordinator up.
+            let run = try await service.plan(input) { [weak self] state in
+                Task { @MainActor in self?.stage = state }
+            }
 
             switch run.state {
             case .ready:

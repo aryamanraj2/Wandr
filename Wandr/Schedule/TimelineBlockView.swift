@@ -140,9 +140,23 @@ struct TimelineBlockView: View {
 
                 Spacer(minLength: 8)
 
-                Image(systemName: block.category.symbol)
-                    .font(.system(size: 15))
-                    .foregroundStyle(isLifted ? Wandr.cream.opacity(0.75) : accent)
+                // A short block has no room for a picture — below roughly an hour the
+                // thumbnail would crowd the title it is meant to accompany, so the glyph
+                // that was always here stays.
+                if height >= 76 {
+                    VenueThumbnail(
+                        seed: block.imageSeed,
+                        accent: accent,
+                        symbol: block.category.symbol,
+                        size: 38,
+                        corner: 10
+                    )
+                    .opacity(isLifted ? 0.85 : 1)
+                } else {
+                    Image(systemName: block.category.symbol)
+                        .font(.system(size: 15))
+                        .foregroundStyle(isLifted ? Wandr.cream.opacity(0.75) : accent)
+                }
             }
 
             Spacer(minLength: 0)

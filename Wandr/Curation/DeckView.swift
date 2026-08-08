@@ -5,6 +5,20 @@ import SwiftUI
 struct DeckView: View {
     @Binding var deck: Deck
 
+    /// The page's entrance gate, owned by `CurationView` and flipped once when the slate appears.
+    ///
+    /// Passed down rather than kept here on purpose. The decks live in a `LazyVStack`, so a deck
+    /// built later — because it was scrolled to — is handed a gate that is already `true` and simply
+    /// exists in its resting state. A local `@State` plus `onAppear` would re-deal that deck every
+    /// time it was scrolled off and back, which is motion on a repeated action and the one thing an
+    /// entrance must never become. Defaults to `true` so previews and any non-cascading caller get
+    /// the settled stack.
+    var revealed: Bool = true
+
+    /// Where this deck sits in the page's arrival cascade, so its cards fan out just after its own
+    /// section has landed rather than while it is still travelling.
+    var dealOrder: Int = 0
+
     /// Live drag translation of the top card. Plain `@State` rather than `@GestureState` because the fly-off animates this same value after the gesture has already ended.
     @State private var drag: CGSize = .zero
     /// True while the exit animation runs, so a second swipe can't race it.
@@ -164,15 +178,33 @@ struct DeckView: View {
     }
 
     /// The card behind eases up to full size as the top card clears — the stack should look like it is resolving, not like a card vanished off one.
+    ///
+    /// It also has a second job, once: before the deck is dealt every backdrop card sits at exactly
+    /// the top card's position, size and angle. The whole pile therefore arrives as a single card,
+    /// and the depth only opens up after the section has landed — so the deck reads as one card
+    /// being put down and the rest stacking in behind it, rather than as a finished pile fading up.
+    /// Every property that expresses depth is multiplied by the same `fan` so they can only ever
+    /// open together; a stack whose offset arrives before its scale looks like it is falling over.
     private func backdropCard(_ candidate: Candidate, depth: CGFloat) -> some View {
         let advance = min(abs(progress), 1)
         let lift = depth == 1 ? advance : 0
+        let fan: CGFloat = revealed ? 1 : 0
 
         return CandidateCardView(candidate: candidate)
-            .scaleEffect(1 - depth * 0.05 + lift * 0.05, anchor: .top)
-            .offset(y: depth * 26 - lift * 26)
-            .rotationEffect(.degrees(depth == 1 ? 1.2 * (1 - lift) : -0.9), anchor: .top)
-            .opacity(1 - Double(depth - 1) * 0.3)
+            .scaleEffect(1 - depth * 0.05 * fan + lift * 0.05, anchor: .top)
+            .offset(y: (depth * 26 - lift * 26) * fan)
+            .rotationEffect(
+                .degrees(Double(fan) * (depth == 1 ? 1.2 * (1 - lift) : -0.9)),
+                anchor: .top
+            )
+            .opacity((1 - Double(depth - 1) * 0.3) * Double(fan))
+            // Deepest card first, so the pile builds downwards away from the one being read. Keyed
+            // to `revealed` alone: the drag-driven values above it must stay unanimated and track
+            // the finger, and the stack's own `deck.cursor` animation still governs the advance.
+            .animation(
+                reduceMotion ? nil : .wandrEnter(dealOrder + Int(3 - depth)),
+                value: revealed
+            )
             .allowsHitTesting(false)
     }
 
@@ -273,14 +305,11 @@ struct DeckView: View {
 
     private func shortlistRow(_ candidate: Candidate) -> some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 9)
-                .fill(Wandr.accent(for: candidate.category))
-                .frame(width: 38, height: 38)
-                .overlay {
-                    Image(systemName: candidate.category.symbol)
-                        .font(.system(size: 15))
-                        .foregroundStyle(Wandr.cream)
-                }
+            VenueThumbnail(
+                seed: candidate.imageSeed,
+                accent: Wandr.accent(for: candidate.category),
+                symbol: candidate.category.symbol
+            )
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(candidate.name)

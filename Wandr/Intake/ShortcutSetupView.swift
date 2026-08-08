@@ -4,6 +4,12 @@ import SwiftUI
 import AppIntents
 import UIKit
 
+/// The page carries exactly one filled button — "Done".
+///
+/// It used to carry four, stacked down its length: get the shortcut, copy the prompt, done, plus the
+/// system Shortcuts chip in black. Four full-width slabs in the same tone say four equally urgent
+/// things, which is the same as saying nothing, and it is most of why a three-step page read as a
+/// form. The steps' own actions are glass now; the only solid control is the one that leaves.
 struct ShortcutSetupView: View {
     let inbox: IntakeInbox
 
@@ -60,18 +66,13 @@ struct ShortcutSetupView: View {
     // MARK: Header
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Set up chat import")
-                .font(.wandrDisplay(34))
-                .foregroundStyle(Wandr.primaryText)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Text("One-time setup. After this, a summary of any group chat is one Siri phrase away — and Wandr still never reads the chat itself.")
-                .font(.body)
-                .foregroundStyle(Wandr.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        WandrMasthead(
+            title: "Set up chat import",
+            deck: "One-time setup. After this, a summary of any group chat is one Siri phrase away — and Wandr still never reads the chat itself.",
+            // A hair off the default poster size. At 46 this particular string breaks after "chat"
+            // and leaves "import" alone on a line, which reads as a title that ran out of room.
+            size: 40
+        )
     }
 
     // MARK: Step scaffold
@@ -88,16 +89,22 @@ struct ShortcutSetupView: View {
     ) -> some View {
         HStack(alignment: .top, spacing: 14) {
             VStack(spacing: 6) {
+                // A ring rather than a filled disc. Three solid indigo circles running down the left
+                // edge of a page that also had three solid indigo buttons on it made the whole
+                // screen one colour with holes in it; drawn, the numbers stay legible as structure
+                // and stop competing with the things that are actually pressable.
                 Text("\(number)")
                     .font(.footnote.weight(.bold).monospacedDigit())
-                    .foregroundStyle(Wandr.onBrand)
+                    .foregroundStyle(Wandr.brand)
                     .frame(width: 26, height: 26)
-                    .background(Circle().fill(Wandr.brand))
+                    .background {
+                        Circle().stroke(Wandr.brand.opacity(0.45), lineWidth: 1.5)
+                    }
 
                 if !isLast {
                     Rectangle()
                         .fill(Wandr.hairline)
-                        .frame(width: 1.5)
+                        .frame(width: 1)
                         .frame(maxHeight: .infinity)
                 }
             }
@@ -134,16 +141,20 @@ struct ShortcutSetupView: View {
             if let url = Self.shortcutURL {
                 Link(destination: url) {
                     Label("Get the Wandr shortcut", systemImage: "square.and.arrow.down")
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
+                        .wandrActionLabel(.subheadline.weight(.semibold))
                 }
-                .buttonStyle(.glassProminent)
-                .tint(Wandr.brand)
+                .wandrQuietAction()
             }
 
+            // `.automatic` resolves to a filled black slab, which on a pale cyan page was the
+            // single heaviest object on the screen — a strange amount of emphasis for "open the
+            // Shortcuts app", sitting directly under the step's actual action. The outline variant
+            // is the same control at the weight it deserves, and left-aligned at small size it reads
+            // as the secondary route it is rather than a second call to action.
             ShortcutsLink()
-                .shortcutsLinkStyle(.automatic)
+                .shortcutsLinkStyle(.lightOutline)
+                .controlSize(.small)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -162,16 +173,14 @@ struct ShortcutSetupView: View {
             } label: {
                 Label(didCopyPrompt ? "Copied to clipboard" : "Copy Wandr’s prompt",
                       systemImage: didCopyPrompt ? "checkmark" : "doc.on.doc")
-                    .font(.subheadline.weight(.semibold))
                     .contentTransition(.symbolEffect(.replace))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
+                    .wandrActionLabel(.subheadline.weight(.semibold))
             }
-            .buttonStyle(.glassProminent)
+            .wandrQuietAction()
             .tint(didCopyPrompt ? Wandr.accent(for: .discover) : Wandr.brand)
             .sensoryFeedback(.success, trigger: didCopyPrompt)
 
-            WandrFoldout(title: "See what it says", systemImage: "text.alignleft") {
+            WandrFoldout(title: "See what it says", image: .wandrClipboardText) {
                 Text(ChatExtractionPrompt.text)
                     .font(.system(.footnote, design: .monospaced))
                     .foregroundStyle(Wandr.secondaryText)
@@ -188,13 +197,9 @@ struct ShortcutSetupView: View {
             Button {
                 inbox.completeShortcutSetup()
             } label: {
-                Text("Done")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
+                Text("Done").wandrActionLabel()
             }
-            .buttonStyle(.glassProminent)
-            .tint(Wandr.brand)
+            .wandrPrimaryAction()
 
             // Installing a Shortcut is a real barrier on first launch, and it is not the only way
             // in. A host who just wants to plan something can skip all of this and say it out loud.
@@ -210,19 +215,6 @@ struct ShortcutSetupView: View {
         }
         .padding(.horizontal, Metrics.gutter)
         .padding(.bottom, 4)
-    }
-}
-
-// MARK: - Entrance
-
-private extension View {
-    /// Modest scale plus opacity, never from zero: a block that grows out of nothing has no
-    /// physical form to read on the way in. Reduce Motion gets the arrival with no travel.
-    func entrance(_ arrived: Bool, index: Int, reduceMotion: Bool) -> some View {
-        opacity(arrived ? 1 : 0)
-            .scaleEffect(arrived || reduceMotion ? 1 : 0.97, anchor: .leading)
-            .offset(y: arrived || reduceMotion ? 0 : 10)
-            .animation(reduceMotion ? .easeOut(duration: 0.2) : .wandrEnter(index), value: arrived)
     }
 }
 

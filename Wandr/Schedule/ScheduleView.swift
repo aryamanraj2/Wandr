@@ -17,6 +17,9 @@ struct ScheduleView: View {
     /// The finished plan, presented over the timeline. This is where the flow ends — the schedule is the working surface, the summary is the document.
     @State private var showSummary = false
 
+    /// Live only. When this device is leading a room, finishing the plan is not a private act: publishing is what reveals the night to everyone else at the same moment.
+    @State private var room = SquadRoom.shared
+
     @Environment(\.dismiss) private var dismiss
 
     /// Only the days the itinerary actually has stops on. A day with nothing planned is not a date the user needs to see.
@@ -86,26 +89,47 @@ struct ScheduleView: View {
 
     // MARK: Controls
 
-    /// Floats over the timeline rather than living in the toolbar — finishing the plan is the one thing you can do from anywhere in the scroll.
+    /// Whether finishing the plan publishes it to a room or simply opens the document.
+    private var isPublishing: Bool { room.role == .leader }
+
+    /// Floats over the timeline rather than living in the toolbar — finishing the plan is the one thing you can do from anywhere in the scroll. Leading a room, the tap stops being private, so it says who it is about to reach before it reaches them.
     private var sendButton: some View {
-        Button {
-            showSummary = true
-        } label: {
-            Image(systemName: "paperplane.fill")
-                .font(.system(size: 20, weight: .medium))
-                .foregroundStyle(Wandr.cream)
-                // Nudged to sit optically centred — the glyph leans up-right.
-                .offset(x: -1, y: 1)
-                .frame(width: 58, height: 58)
-                .background {
-                    Circle().fill(Wandr.brand)
-                }
-                .shadow(color: Wandr.brand.opacity(0.30), radius: 16, x: 0, y: 8)
+        HStack(spacing: 10) {
+            if isPublishing {
+                Text(room.participants.count == 1
+                     ? "Publish to the squad"
+                     : "Publish to \(room.participants.count)")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Wandr.primaryText)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 9)
+                    .background { Capsule().fill(Wandr.cardSurface) }
+                    .overlay { Capsule().stroke(Wandr.mist.opacity(0.5), lineWidth: 1) }
+                    .accessibilityHidden(true)
+            }
+
+            Button {
+                // One tap, two audiences: the squad gets the night, and this device gets the document. Publishing first so the reveal lands everywhere at once rather than trailing the leader's own sheet.
+                if isPublishing { room.publish(blocks) }
+                showSummary = true
+            } label: {
+                Image(systemName: "paperplane.fill")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(Wandr.cream)
+                    // Nudged to sit optically centred — the glyph leans up-right.
+                    .offset(x: -1, y: 1)
+                    .frame(width: 58, height: 58)
+                    .background {
+                        Circle().fill(Wandr.brand)
+                    }
+                    .shadow(color: Wandr.brand.opacity(0.30), radius: 16, x: 0, y: 8)
+            }
+            .buttonStyle(WandrPressStyle())
+            .accessibilityLabel(isPublishing ? "Publish to the squad" : "Send to squad")
         }
-        .buttonStyle(WandrPressStyle())
         .padding(.trailing, Metrics.gutter)
         .padding(.bottom, 28)
-        .accessibilityLabel("Send to squad")
+        .animation(.wandrResponse, value: isPublishing)
     }
 
     // MARK: Date bar

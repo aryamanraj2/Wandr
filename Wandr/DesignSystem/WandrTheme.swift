@@ -68,6 +68,15 @@ extension Font {
         .system(size: size, weight: .bold)
     }
 
+    /// Poster masthead. One per screen, and it owns the top of the page — everything under it
+    /// drops to supporting weight rather than competing. Black rather than the display ramp's bold
+    /// because at this size weight is what lets the line stay this large without reading as
+    /// shouting: the letters close ranks instead of spreading. Pair with `Metrics.posterTracking`
+    /// and `Metrics.posterLeading`, which are what actually make it a masthead rather than big text.
+    static func wandrPoster(_ size: CGFloat = 46) -> Font {
+        .system(size: size, weight: .black)
+    }
+
     /// Venue and stop names.
     static func wandrTitle(_ size: CGFloat = 24) -> Font {
         .system(size: size, weight: .semibold)
@@ -75,6 +84,19 @@ extension Font {
 
     /// Small all-caps metadata: category, day-of-week, offer window.
     static let wandrLabel = Font.system(size: 11, weight: .semibold, design: .default)
+
+    /// The one place a second typeface is allowed, and only for a specific kind of content:
+    /// machine state read at a glance rather than prose — a phase counter, a percentage, the
+    /// pipeline's own step names. Monospacing is doing a job there that SF Pro cannot: a readout
+    /// that changes while you are looking at it must not reflow, and a list of step names is easier
+    /// to scan when the glyphs sit on a grid.
+    ///
+    /// It is not a display face and never carries a sentence. Two screens already reached for
+    /// `design: .monospaced` inline for raw text payloads; this names the decision so the next one
+    /// does not have to guess a size.
+    static func wandrMono(_ size: CGFloat = 12, weight: Font.Weight = .medium) -> Font {
+        .system(size: size, weight: weight, design: .monospaced)
+    }
 
     /// Clock readouts in the timeline.
     static func wandrClock(_ size: CGFloat = 20) -> Font {
@@ -121,12 +143,47 @@ extension Animation {
     static let wandrStageIn = Animation.easeInOut(duration: 0.32).delay(0.14)
 }
 
+// MARK: - Transitions
+
+extension AnyTransition {
+
+    /// One whole screen handing over to the next.
+    ///
+    /// Plain `.opacity` was doing this, and a crossfade has no direction: two screens dissolve
+    /// through each other and nothing about the change says which way the flow went. The arriving
+    /// screen rises a little and settles at full size; the leaving one recedes very slightly as it
+    /// goes. The distances are small on purpose — this fires on every step of intake, and anything
+    /// larger would turn a five-step flow into five animations to sit through.
+    static var wandrStage: AnyTransition {
+        .asymmetric(
+            insertion: .opacity
+                .combined(with: .scale(scale: 0.985))
+                .combined(with: .offset(y: 14)),
+            removal: .opacity.combined(with: .scale(scale: 1.012))
+        )
+    }
+}
+
 // MARK: - Metrics
 
 enum Metrics {
+    /// Display type closes up as it grows. Applied at poster sizes only — the same value on body
+    /// copy would tighten it past legibility, which is why this is a named constant rather than the
+    /// app's tracking.
+    static let posterTracking: CGFloat = -1.6
+
+    /// Poster lines sit closer than SwiftUI's default leading, or a two-line masthead reads as two
+    /// separate headings rather than one statement.
+    static let posterLeading: CGFloat = -4
+
     static let cardCorner: CGFloat = 26
     static let blockCorner: CGFloat = 18
     static let gutter: CGFloat = 20
+
+    /// A hard rule — a line meant to be seen as structure rather than as a seam. Distinct from the
+    /// 1pt hairline that separates two near-white surfaces and from `WandrDashedRule`'s 3pt dashes,
+    /// both of which exist to be quiet.
+    static let rule: CGFloat = 2
 
     /// Timeline scale: one minute of plan time = this many points. 1.15 keeps a 12-hour day readable without runaway scroll length.
     static let pointsPerMinute: CGFloat = 1.15
@@ -185,10 +242,25 @@ struct WandrDashedRule: View {
 /// the VoiceOver "expanded/collapsed" announcement come from the system.
 struct WandrFoldout<Content: View>: View {
     let title: String
-    let systemImage: String
+    /// An `Image` rather than a symbol name, so the app's own generated symbols and SF Symbols are
+    /// equally welcome here. `Tools/PhosphorSymbols` produces the former as real symbol assets, and
+    /// the whole point of doing it that way is that a caller should not have to care which is which.
+    let icon: Image
     @ViewBuilder var content: Content
 
     @State private var isExpanded = false
+
+    init(title: String, systemImage: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.icon = Image(systemName: systemImage)
+        self.content = content()
+    }
+
+    init(title: String, image: ImageResource, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.icon = Image(image)
+        self.content = content()
+    }
 
     var body: some View {
         DisclosureGroup(isExpanded: $isExpanded) {
@@ -202,8 +274,7 @@ struct WandrFoldout<Content: View>: View {
                     .foregroundStyle(Wandr.primaryText)
                     .multilineTextAlignment(.leading)
             } icon: {
-                Image(systemName: systemImage)
-                    .foregroundStyle(Wandr.brand)
+                icon.foregroundStyle(Wandr.brand)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -235,12 +306,87 @@ struct WandrPoint: View {
     }
 }
 
+// MARK: - Actions
+
+/// One filled action per screen, and everything else quiet. Five screens each re-rolled
+/// `.glassProminent` + `.buttonBorderShape` + `.controlSize` + `.tint` by hand, which is how
+/// `ShortcutSetupView` ended up with four full-width indigo slabs stacked down a page — no single
+/// place said which of them was the one to press. Naming the two roles makes that a decision rather
+/// than an accident: `wandrPrimaryAction` is the screen's answer, `wandrQuietAction` is everything
+/// that merely helps you get there.
+extension View {
+
+    /// The screen's single filled action. If a second one appears, one of them is wrong.
+    func wandrPrimaryAction() -> some View {
+        buttonStyle(.glassProminent)
+            .buttonBorderShape(.capsule)
+            .controlSize(.large)
+            .tint(Wandr.brand)
+    }
+
+    /// Every other button on the screen. Same geometry, no fill — so the page reads as one
+    /// destination with steps rather than a column of equally urgent slabs.
+    func wandrQuietAction() -> some View {
+        buttonStyle(.glass)
+            .buttonBorderShape(.capsule)
+            .controlSize(.large)
+            .tint(Wandr.brand)
+    }
+
+    /// Geometry for a full-bleed action's label. Lives on the label rather than the button because
+    /// the glass styles size their capsule to what they are given.
+    func wandrActionLabel(_ font: Font = .headline) -> some View {
+        self.font(font)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+    }
+}
+
 /// Immediate touch-down feedback for custom pressable content.
 struct WandrPressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(.wandrResponse, value: configuration.isPressed)
+    }
+}
+
+// MARK: - Entrance
+
+extension View {
+
+    /// A block arriving in reading order, for a screen seen occasionally.
+    ///
+    /// Modest scale plus opacity, never from zero: a block that grows out of nothing has no physical
+    /// form to read on the way in. Reduce Motion gets the arrival with no travel. Lives here rather
+    /// than privately on the setup screen — where it started — because the three intake screens are
+    /// one flow and had no business arriving in three different ways.
+    ///
+    /// Never use this on something a person taps repeatedly. It costs time on every appearance, and
+    /// the only reason it is affordable here is that each of these screens is seen once per outing.
+    func entrance(_ arrived: Bool, index: Int, reduceMotion: Bool) -> some View {
+        opacity(arrived ? 1 : 0)
+            .scaleEffect(arrived || reduceMotion ? 1 : 0.97, anchor: .leading)
+            .offset(y: arrived || reduceMotion ? 0 : 10)
+            .animation(reduceMotion ? .easeOut(duration: 0.2) : .wandrEnter(index), value: arrived)
+    }
+
+    /// A card being *put down*, for a page whose content is a pile of them.
+    ///
+    /// Same licence and the same spring as `entrance`, but the anchor and the travel are a card's
+    /// rather than a paragraph's. A block of copy settles where it already was, so 10pt and a
+    /// leading anchor are enough to say "arrived"; a card is a large object with a visible bottom
+    /// edge, and at 10pt it reads as a wobble rather than as landing. Rising further and scaling
+    /// from `.bottom` puts the growth where the eye is already looking — the edge nearest the
+    /// bottom of the screen — so the card reads as coming up onto the stack.
+    ///
+    /// Scale still starts at 0.94, not 0: an entrance from nothing has no physical form to read on
+    /// the way in. Reduce Motion keeps the arrival and drops the travel entirely.
+    func dealIn(_ arrived: Bool, order: Int, reduceMotion: Bool) -> some View {
+        opacity(arrived ? 1 : 0)
+            .scaleEffect(arrived || reduceMotion ? 1 : 0.94, anchor: .bottom)
+            .offset(y: arrived || reduceMotion ? 0 : 52)
+            .animation(reduceMotion ? .easeOut(duration: 0.2) : .wandrEnter(order), value: arrived)
     }
 }
 

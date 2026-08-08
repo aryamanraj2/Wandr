@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+
+# Swift Package Manager — the relay in Tools/WandrRelay builds here (~77 MB)
+.build/
+.swiftpm/
+Package.resolved

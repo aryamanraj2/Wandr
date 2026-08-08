@@ -6,61 +6,78 @@ import AppIntents
 struct AwaitSiriSummaryView: View {
     let inbox: IntakeInbox
 
-    /// Three blocks, in the order a host needs them: what this screen is, the one thing to say, and
-    /// — only if they ask — what Wandr is and is not allowed to see. The screen used to run seven
-    /// blocks deep, with the Siri phrase written out three separate times (two quoted lines plus the
-    /// tip that renders it again), which is what made a short page read as a dense one.
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    @State private var arrived = false
+
+    /// Two blocks, in the order a host needs them: the one thing to say, and — only if they ask —
+    /// what Wandr is and is not allowed to see.
+    ///
+    /// The screen used to open with a `sparkles` glyph in a tinted circle. It was the only mark of
+    /// its kind in the app, it stood for nothing in particular, and a decorative badge above a title
+    /// is the exact thing a page does when it has not decided what it is about. The title is the
+    /// mark now.
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                hero
-
-                command
-
-                boundary
+        Group {
+            // Everything here fits on a phone at normal text sizes, and a `ScrollView` that never
+            // scrolls costs the layout its ability to *place* things — every spacer collapses and
+            // the content stacks at the top, which is how this screen ended up with its whole bottom
+            // half empty. It only becomes scrollable at the sizes where it genuinely has to.
+            if typeSize.isAccessibilitySize {
+                // Without dropping the `maxHeight: .infinity` below, the content would be pinned to
+                // the viewport's height inside the scroll view and could never grow past it — which
+                // is the one thing it has to do here.
+                ScrollView { content(fills: false) }
+            } else {
+                content(fills: true)
             }
-            .padding(.horizontal, Metrics.gutter)
-            .padding(.top, 8)
-            .padding(.bottom, 8)
         }
         .background(Wandr.pageBackground)
+        // This screen's entire job is waiting for something to arrive from outside the app. A slow
+        // breath at the border is that state, stated — and it is the same signal the capture screen
+        // uses when it is listening, one step quieter.
+        .wandrEdgeGlow(.resting)
+        .onAppear { arrived = true }
         .safeAreaBar(edge: .bottom) {
             actions
         }
         .tint(Wandr.brand)
     }
 
-    // MARK: Hero
+    private func content(fills: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            WandrMasthead(
+                title: "Ready when the group chat is",
+                // "Wandr plans the night from that summary" was the old line. It does not know that
+                // it is a night — the same summary might be a lunch or an afternoon — and the claim
+                // this sentence exists to make is about the *boundary*, which does not depend on
+                // what time of day it is.
+                deck: "Ask Siri to send a summary of your group chat here. Wandr plans from that summary — and only that summary."
+            )
+            .entrance(arrived, index: 0, reduceMotion: reduceMotion)
 
-    private var hero: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // The mark sits in its own chip rather than floating as a loose glyph above the title.
-            // A bare symbol at the top-left of a page reads as an unfinished icon slot; contained,
-            // it reads as a mark.
-            Image(systemName: "sparkles")
-                .font(.system(size: 19, weight: .semibold))
-                .foregroundStyle(Wandr.brand)
-                .frame(width: 42, height: 42)
-                .background {
-                    Circle().fill(Wandr.brand.opacity(0.10))
-                }
+            // One flexible gap, low down. The command and the boundary belong together just above
+            // the buttons that act on them; the air belongs under the masthead, where it reads as
+            // room rather than as a page that ran out of content.
+            Spacer(minLength: 40)
 
-            Text("Ready when the\ngroup chat is")
-                .font(.wandrDisplay(36))
-                // Display sizes need their leading pulled in or the two lines read as two headings.
-                .lineSpacing(-2)
-                .foregroundStyle(Wandr.primaryText)
-                .fixedSize(horizontal: false, vertical: true)
+            command
+                .entrance(arrived, index: 1, reduceMotion: reduceMotion)
 
-            Text("Ask Siri to send a summary of your group chat here. Wandr plans the night from that summary — and only that summary.")
-                .font(.body)
-                .foregroundStyle(Wandr.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
+            boundary
+                .padding(.top, 22)
+                .entrance(arrived, index: 2, reduceMotion: reduceMotion)
+
+            // A fixed counterweight rather than a second flexible spacer. Two spacers would split
+            // the slack evenly and drop the block back toward the middle; this lifts it a fixed
+            // distance clear of the action bar, so the boundary card and the button under it stop
+            // reading as one stack of three controls.
+            Color.clear.frame(height: 44)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        // A little air under the hero so the headline owns the top of the page rather than being
-        // one item in an evenly spaced stack.
-        .padding(.bottom, 4)
+        .frame(maxWidth: .infinity, maxHeight: fills ? .infinity : nil, alignment: .top)
+        .padding(.horizontal, Metrics.gutter)
+        .padding(.top, 8)
     }
 
     // MARK: The one command
@@ -93,7 +110,7 @@ struct AwaitSiriSummaryView: View {
     /// host presses it themselves. Folded rather than deleted: the headline claim stays visible on
     /// the page, the three clauses behind it are one tap away.
     private var boundary: some View {
-        WandrFoldout(title: "Wandr never reads your chats", systemImage: "hand.raised.fill") {
+        WandrFoldout(title: "Wandr never reads your chats", image: .wandrShieldCheck) {
             VStack(alignment: .leading, spacing: 12) {
                 WandrPoint(systemImage: "person.2.slash",
                            text: "Your chats and contacts are never read by Wandr.")
@@ -118,15 +135,14 @@ struct AwaitSiriSummaryView: View {
                 inbox.beginCapture()
             } label: {
                 Label("Tell Wandr yourself", systemImage: "mic.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
+                    .wandrActionLabel()
             }
-            .buttonStyle(.glassProminent)
-            .tint(Wandr.brand)
+            .wandrPrimaryAction()
 
-            Button("Set up chat import") {
+            Button {
                 inbox.openShortcutSetup()
+            } label: {
+                Label { Text("Set up chat import") } icon: { Image(.wandrChats) }
             }
             .font(.subheadline.weight(.medium))
             .buttonStyle(.plain)
