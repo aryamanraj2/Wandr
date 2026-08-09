@@ -214,6 +214,65 @@ struct WandrCardBackground: View {
     }
 }
 
+/// A row of small items that wraps onto the next line when it runs out of width.
+///
+/// SwiftUI has no flow container, and the two usual substitutes both fail this job: an `HStack`
+/// squeezes its children until the last tag is three letters and an ellipsis, and a horizontal
+/// `ScrollView` hides content behind a gesture nobody performs on a page that already scrolls
+/// vertically. Tag text is provider data — its length is not ours to guarantee — so the container
+/// has to be the thing that gives.
+///
+/// Each subview is measured at its ideal size and never compressed, which is the whole point: a
+/// chip is legible or it is noise.
+struct WandrWrap: Layout {
+    var spacing: CGFloat = 8
+    var lineSpacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) -> CGSize {
+        let limit = proposal.replacingUnspecifiedDimensions().width
+        var cursor: CGFloat = 0
+        var height: CGFloat = 0
+        var lineHeight: CGFloat = 0
+        var widest: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if cursor > 0, cursor + size.width > limit {
+                height += lineHeight + lineSpacing
+                cursor = 0
+                lineHeight = 0
+            }
+            cursor += size.width + spacing
+            widest = max(widest, cursor - spacing)
+            lineHeight = max(lineHeight, size.height)
+        }
+
+        return CGSize(width: min(widest, limit), height: height + lineHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) {
+        var cursor = bounds.minX
+        var top = bounds.minY
+        var lineHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if cursor > bounds.minX, cursor + size.width > bounds.maxX {
+                top += lineHeight + lineSpacing
+                cursor = bounds.minX
+                lineHeight = 0
+            }
+            subview.place(
+                at: CGPoint(x: cursor, y: top),
+                anchor: .topLeading,
+                proposal: ProposedViewSize(size)
+            )
+            cursor += size.width + spacing
+            lineHeight = max(lineHeight, size.height)
+        }
+    }
+}
+
 /// Separates one deck from the next. Weight does the work — a heavy stroke in low-contrast sand stays present without competing with the cards.
 struct WandrDashedRule: View {
     var body: some View {

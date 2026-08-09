@@ -154,32 +154,61 @@ struct CandidateCardFace: View {
     /// the ramp, where it does the same job against a scrimmed part of the photograph.
     ///
     /// Cool, not creamy. The warm tone was tried here and it fails on the food accent specifically: a clay backdrop dissolving into a cream panel muddies into beige across the whole lower half of the card, and food is the deck the user sees first. A near-white panel stays neutral under all four accents, and it matches the schedule's cards, so a stop looks like the same object before and after it is picked.
+    /// Two layers, and the second one is what makes the panel a *surface* rather than a wash.
+    ///
+    /// The dissolving layer is near-white over a material: a hair of transparency and a blur, which
+    /// is what lets the panel look like it condenses out of the photograph. Left as the only layer
+    /// it also carried that hair of transparency all the way down, so the solid part of the panel
+    /// came out about four values darker than `paper` and tinted by whatever was behind it. On the
+    /// card nobody could name the difference; on the expanded card, where the page beneath is real
+    /// paper, it drew a hard line straight across the screen at the panel's bottom edge — the exact
+    /// seam this panel exists to avoid.
+    ///
+    /// So the panel proper is opaque `paper`, and it fades in across the back half of the feather.
+    /// The two layers hand over inside the dissolve, where there is nothing to see, instead of at an
+    /// edge.
     private var frost: some View {
-        Rectangle()
-            .fill(.ultraThinMaterial)
-            .overlay(Wandr.paper.opacity(0.96))
-            .mask(alignment: .top) {
-                VStack(spacing: 0) {
-                    // Eased rather than a straight two-stop ramp. A linear fade of a near-white over
-                    // a photograph bands visibly across 40 points; the extra stops bend the curve so
-                    // the panel appears to condense out of the image instead of wiping over it.
-                    LinearGradient(
-                        stops: [
-                            .init(color: .white.opacity(0), location: 0),
-                            .init(color: .white.opacity(0.10), location: 0.26),
-                            .init(color: .white.opacity(0.38), location: 0.50),
-                            .init(color: .white.opacity(0.76), location: 0.74),
-                            .init(color: .white.opacity(0.95), location: 0.90),
-                            .init(color: .white, location: 1)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(height: Self.captionFeather)
+        ZStack(alignment: .top) {
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .overlay(Wandr.paper.opacity(0.96))
+                .mask(alignment: .top) { Self.panelMask(stops: Self.dissolveStops) }
 
-                    Rectangle().fill(.white)
-                }
-            }
+            Rectangle()
+                .fill(Wandr.paper)
+                .mask(alignment: .top) { Self.panelMask(stops: Self.solidStops) }
+        }
+    }
+
+    /// Eased rather than a straight two-stop ramp. A linear fade of a near-white over a photograph
+    /// bands visibly across 40 points; the extra stops bend the curve so the panel appears to
+    /// condense out of the image instead of wiping over it.
+    private static let dissolveStops: [Gradient.Stop] = [
+        .init(color: .white.opacity(0), location: 0),
+        .init(color: .white.opacity(0.10), location: 0.26),
+        .init(color: .white.opacity(0.38), location: 0.50),
+        .init(color: .white.opacity(0.76), location: 0.74),
+        .init(color: .white.opacity(0.95), location: 0.90),
+        .init(color: .white, location: 1)
+    ]
+
+    /// Held back until the dissolve is already most of the way in, so the opaque layer never arrives
+    /// somewhere the photograph is still bright enough to notice it.
+    private static let solidStops: [Gradient.Stop] = [
+        .init(color: .white.opacity(0), location: 0),
+        .init(color: .white.opacity(0), location: 0.44),
+        .init(color: .white.opacity(0.34), location: 0.68),
+        .init(color: .white.opacity(0.82), location: 0.88),
+        .init(color: .white, location: 1)
+    ]
+
+    private static func panelMask(stops: [Gradient.Stop]) -> some View {
+        VStack(spacing: 0) {
+            LinearGradient(stops: stops, startPoint: .top, endPoint: .bottom)
+                .frame(height: captionFeather)
+
+            Rectangle().fill(.white)
+        }
     }
 
     private func offerLine(_ offer: String) -> some View {
