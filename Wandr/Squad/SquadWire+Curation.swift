@@ -26,7 +26,11 @@ extension Candidate {
             warnings: warnings,
             story: story,
             highlights: highlights,
-            insiderTip: insiderTip
+            insiderTip: insiderTip,
+            vibeTags: vibeTags,
+            setting: setting?.rawValue,
+            dietary: dietary,
+            access: access
         )
     }
 
@@ -49,7 +53,11 @@ extension Candidate {
             warnings: wire.warnings,
             story: wire.story,
             highlights: wire.highlights,
-            insiderTip: wire.insiderTip
+            insiderTip: wire.insiderTip,
+            vibeTags: wire.vibeTags,
+            setting: wire.setting.flatMap(StopSetting.init(rawValue:)),
+            dietary: wire.dietary,
+            access: wire.access
         )
     }
 }

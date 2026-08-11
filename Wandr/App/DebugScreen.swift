@@ -30,6 +30,14 @@ enum DebugScreen: String {
     /// The wave in each of its four states at once. The Simulator cannot open a microphone, so the
     /// only state reachable there is the resting one — which is the state that matters least.
     case wave
+    /// The expanded card, behind a long press on the top of a deck. Reachable in the Simulator only
+    /// by holding a card, and then only ever with the hand-written demo deck's content.
+    case candidate
+    /// The same screen with the content a *curated* pick actually carries: a rationale, the
+    /// validator's caveats and the provider's surveyed tags, and none of the story, highlights or
+    /// insider tip that only the demo deck has. That is what every real pick looks like, and it is
+    /// the layout most at risk of falling apart, so it gets its own door.
+    case candidateCurated = "candidate-curated"
     /// The generated Phosphor symbols beside their SF Symbols equivalents. Custom symbols are only
     /// worth having if they sit on the same baseline and read at the same optical weight as the
     /// native ones next to them, and that can only be judged by looking.
@@ -54,7 +62,28 @@ enum DebugScreen: String {
                                                    caption: "Pulling out the details you gave")
         case .summary:           ItinerarySummaryView(blocks: DemoPlan.blocks(for: DemoPlan.days[0]))
         case .summarySingle:     ItinerarySummaryView(blocks: Self.singleStop)
+        case .candidate:         CandidateDetailView(candidate: DemoPlan.decks[0].candidates[0],
+                                                     onKeep: {}, onPass: {})
+        case .candidateCurated:  CandidateDetailView(candidate: Self.curatedCandidate,
+                                                     onKeep: {}, onPass: {})
         }
+    }
+
+    /// A candidate shaped the way `GroundedPlanMapper` builds one, borrowing a demo venue for its
+    /// name and photograph. Everything the evidence layer does not produce is stripped, and
+    /// everything it does produce — and the demo deck omits — is supplied.
+    static var curatedCandidate: Candidate {
+        var candidate = DemoPlan.decks[0].candidates[1]
+        candidate.story = nil
+        candidate.highlights = []
+        candidate.insiderTip = nil
+        candidate.rationale = "A lively room that comfortably takes a group this size, and it stays open late enough for the walk over afterwards."
+        candidate.warnings = ["Per head runs over the budget this group worked out to."]
+        candidate.vibeTags = ["loud", "lively", "group-friendly"]
+        candidate.setting = .indoor
+        candidate.dietary = ["Vegetarian", "Vegan"]
+        candidate.access = nil
+        return candidate
     }
 
     private static var day: PlanDay.ID { DemoPlan.days[0].id }

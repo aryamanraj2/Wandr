@@ -36,8 +36,45 @@ extension Candidate {
             imageSeed: venue.imageSeed,
             rationale: rationale,
             costUnknown: venue.cost == .unknown,
-            warnings: warnings
+            warnings: warnings,
+            vibeTags: venue.vibeTags,
+            setting: StopSetting(rawValue: venue.setting.rawValue),
+            dietary: venue.dietaryTags.displayNames,
+            access: venue.accessibilityTags.displayNames
         )
+    }
+}
+
+// MARK: - Evidence tags → display
+
+private extension EvidenceTags where Tag: RawRepresentable, Tag.RawValue == String {
+    /// The surveyed tags as the expanded card shows them, or `nil` when the provider never surveyed
+    /// this venue at all. The three-state distinction survives the trip to the UI: `nil` renders as
+    /// "not verified", an empty array renders as "none listed", and the card never turns the first
+    /// into the second.
+    var displayNames: [String]? {
+        switch self {
+        case .unknown:      return nil
+        case .known(let set): return set.sorted().map(\.displayName)
+        }
+    }
+}
+
+private extension RawRepresentable where RawValue == String {
+    /// `stepFreeEntry` → "Step-free entry". Derived from the case name rather than hand-listed, so a
+    /// requirement added to either enum arrives on the card already readable instead of silently
+    /// rendering as camel case.
+    var displayName: String {
+        var words = ""
+        for character in rawValue {
+            if character.isUppercase && !words.isEmpty { words.append(" ") }
+            words.append(character)
+        }
+        // "gluten Free" → "gluten-free": a compound requirement reads as one word with a hyphen, not
+        // as two.
+        let spaced = words.replacingOccurrences(of: " Free", with: "-free")
+            .replacingOccurrences(of: " free", with: "-free")
+        return spaced.prefix(1).uppercased() + spaced.dropFirst().lowercased()
     }
 }
 

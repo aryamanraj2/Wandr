@@ -115,6 +115,17 @@ nonisolated struct CandidateWire: Codable, Sendable, Hashable, Identifiable {
     let highlights: [String]
     let insiderTip: String?
 
+    let vibeTags: [String]
+    /// `StopSetting.rawValue`, or `nil` when the provider never established it. Raw for the same
+    /// reason `category` is: this file is symlinked into the relay and may not import the app's UI
+    /// models.
+    let setting: String?
+    /// Surveyed provisions, or `nil` for "never surveyed". The distinction has to travel — a joiner
+    /// who receives `[]` where the host had `nil` would be told a venue has no vegetarian food when
+    /// nobody ever checked.
+    let dietary: [String]?
+    let access: [String]?
+
     var id: PollOptionID { optionID }
 }
 
