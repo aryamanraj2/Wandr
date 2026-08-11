@@ -6,8 +6,36 @@ DerivedData/
 build/
 *.xcuserstate
 xcuserdata/
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+*.xcscmblueprint
+*.xccheckout
 
 # Swift Package Manager — the relay in Tools/WandrRelay builds here (~77 MB)
 .build/
 .swiftpm/
 Package.resolved
+Packages/
+Package.pins
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Carthage / CocoaPods
+Dependencies/
+Carthage/Build/
+Pods/
+
+# Python (Tools/)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
